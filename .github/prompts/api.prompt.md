@@ -19,6 +19,5 @@ https://api-kmc2.daeho3.shop/openapi.json 에서 API 를 사용합니다.
 - Axios (API 통신)
 - File-based routing (Expo Router)
 
-## API 연동
 
-현재 목업 데이터를 사용 중이며, 실제 API와 연동 시 `services/api.ts`와 `services/index.ts`를 사용하여 연동할 수 있습니다.
+타입스크립트 인터페이스는 따로 types 에서 관리합니다.

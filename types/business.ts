@@ -77,3 +77,28 @@ export interface Customer {
     preferredServices?: string[];
   };
 }
+
+// 상점 관련 타입
+export interface Shop {
+  id: number;
+  name: string;
+  address: string;
+  address_detail: string;
+  phone: string;
+  business_number: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShopsResponse {
+  items: Shop[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface SelectedShop {
+  shop_id: number;
+  shop: Shop;
+}

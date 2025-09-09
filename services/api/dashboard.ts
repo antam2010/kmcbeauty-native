@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://api-kmc2.daeho3.shop';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+
+console.log('📍 API_BASE_URL 설정됨 (dashboard.ts):', API_BASE_URL);
 
 // API 인터셉터를 위한 인스턴스
 export const createApiClient = (token?: string) => {
@@ -13,6 +15,21 @@ export const createApiClient = (token?: string) => {
     },
     withCredentials: true,
   });
+
+  // 응답 인터셉터 추가
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      // SHOP_NOT_SELECTED 에러 처리
+      if (error.response?.data?.detail?.code === 'SHOP_NOT_SELECTED') {
+        console.log('🏪 상점이 선택되지 않음 - 상점 선택 화면으로 이동');
+        import('expo-router').then(({ router }) => {
+          router.push('/shop-selection');
+        });
+      }
+      return Promise.reject(error);
+    }
+  );
 
   return client;
 };

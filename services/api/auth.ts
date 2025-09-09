@@ -1,7 +1,9 @@
 import { LoginCredentials } from '@/types';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+
+console.log('📍 API_BASE_URL 설정됨:', API_BASE_URL);
 
 export interface LoginResponse {
   access_token: string;
@@ -76,6 +78,14 @@ export const authService = {
           data: error.response.data,
           headers: error.response.headers
         });
+        
+        // SHOP_NOT_SELECTED 에러 처리
+        if (error.response?.data?.detail?.code === 'SHOP_NOT_SELECTED') {
+          console.log('🏪 상점이 선택되지 않음 - 상점 선택 화면으로 이동');
+          import('expo-router').then(({ router }) => {
+            router.push('/shop-selection');
+          });
+        }
         
         const message = error.response?.data?.detail?.message || 
                        error.response?.data?.message ||
