@@ -1,10 +1,10 @@
 import LoginScreen from '@/app/login';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuthStore } from '@/stores/authContext';
 import { Stack } from 'expo-router';
 import React from 'react';
 
 const AuthNavigator: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuthStore();
 
   if (!isAuthenticated) {
     return <LoginScreen />;

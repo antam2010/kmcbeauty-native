@@ -1,19 +1,19 @@
-// 사용자 관련 타입
+// 사용자 관련 타입 (API 스펙에 맞춤)
 export interface User {
-  id: string;
+  id: number;
   name: string;
   email: string;
-  phone: string;
-  role: 'admin' | 'staff' | 'customer';
-  joinDate: string;
-  avatar?: string;
+  role: 'ADMIN' | 'MASTER' | 'MANAGER';
+  role_name: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // 인증 관련 타입
 export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
-  token: string | null;
+  loading: boolean;
 }
 
 export interface LoginCredentials {
@@ -22,7 +22,7 @@ export interface LoginCredentials {
 }
 
 export interface LoginResponse {
-  user: User;
-  token: string;
-  refreshToken: string;
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
 }

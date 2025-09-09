@@ -2,10 +2,10 @@ import Calendar from '@/components/calendar/Calendar';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useAuth } from '@/contexts/AuthContext';
-import { Booking, bookingService, dashboardService } from '@/services/mockServices';
+import { dashboardService, DashboardSummaryResponse } from '@/services/api/dashboard';
+import { useAuthStore } from '@/stores/authContext';
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 
 interface DashboardStats {
   todayBookings: number;
@@ -17,37 +17,57 @@ interface DashboardStats {
 }
 
 export default function HomeScreen() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
+  const [dashboardData, setDashboardData] = useState<DashboardSummaryResponse | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, accessToken } = useAuthStore();
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    if (accessToken) {
+      loadDashboardData();
+    }
+  }, [accessToken]);
 
   const loadDashboardData = async () => {
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const [statsData, bookingsData] = await Promise.all([
-        dashboardService.getDashboardStats(),
-        bookingService.getBookingsByDate('2024-09-09')
-      ]);
-      setStats(statsData);
-      setRecentBookings(bookingsData.slice(0, 3)); // 최근 3개만
+      const today = new Date().toISOString().split('T')[0];
+      const data = await dashboardService.getDashboardSummary(accessToken, today);
+      setDashboardData(data);
     } catch (error) {
-      console.error('데이터 로딩 중 오류:', error);
+      console.error('대시보드 데이터 로딩 중 오류:', error);
+      Alert.alert('오류', '대시보드 데이터를 불러올 수 없습니다.');
     } finally {
       setLoading(false);
     }
   };
 
-  const quickStats = stats ? [
-    { label: '오늘 예약', value: stats.todayBookings.toString(), color: '#007AFF' },
-    { label: '활성 직원', value: stats.activeStaff.toString(), color: '#28a745' },
-    { label: '이번 달 매출', value: `₩${(stats.monthlyRevenue / 1000000).toFixed(1)}M`, color: '#ffc107' },
-    { label: '신규 고객', value: stats.newCustomers.toString(), color: '#17a2b8' },
+  const quickStats = dashboardData ? [
+    { 
+      label: '오늘 예약', 
+      value: dashboardData.summary.target_date.total_reservations.toString(), 
+      color: '#007AFF' 
+    },
+    { 
+      label: '완료된 시술', 
+      value: dashboardData.summary.target_date.completed.toString(), 
+      color: '#28a745' 
+    },
+    { 
+      label: '오늘 매출', 
+      value: `₩${(dashboardData.summary.target_date.actual_sales / 10000).toFixed(0)}만`, 
+      color: '#ffc107' 
+    },
+    { 
+      label: '이번 달 예약', 
+      value: dashboardData.summary.month.total_reservations.toString(), 
+      color: '#17a2b8' 
+    },
   ] : [];
 
   const services = [
@@ -69,10 +89,11 @@ export default function HomeScreen() {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'scheduled': return '예정';
-      case 'in-progress': return '진행중';
-      case 'completed': return '완료';
-      case 'cancelled': return '취소';
+      case 'RESERVED': return '예약';
+      case 'VISITED': return '방문';
+      case 'COMPLETED': return '완료';
+      case 'CANCELLED': return '취소';
+      case 'NO_SHOW': return '노쇼';
       default: return status;
     }
   };
@@ -163,25 +184,39 @@ export default function HomeScreen() {
         {/* 최근 예약 */}
         <ThemedView style={styles.section}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>
-            최근 예약
+            최근 고객 인사이트
           </ThemedText>
           <ThemedView style={styles.bookingsList}>
-            {recentBookings.map((booking) => (
-              <ThemedView key={booking.id} style={styles.bookingItem}>
+            {dashboardData?.customer_insights.slice(0, 3).map((insight) => (
+              <ThemedView key={insight.id} style={styles.bookingItem}>
                 <ThemedView style={styles.bookingInfo}>
-                  <ThemedText type="defaultSemiBold">{booking.customerName}</ThemedText>
-                  <ThemedText>{booking.serviceName} • {booking.time}</ThemedText>
+                  <ThemedText type="defaultSemiBold">
+                    {insight.customer_name || '고객'}
+                  </ThemedText>
+                  <ThemedText>
+                    총 {insight.total_reservations}회 예약 • ₩{insight.total_spent.toLocaleString()}
+                  </ThemedText>
+                  <ThemedText style={styles.insightText}>
+                    노쇼율: {insight.no_show_rate.toFixed(1)}%
+                  </ThemedText>
                 </ThemedView>
                 <ThemedView 
                   style={[
                     styles.statusBadge,
-                    { backgroundColor: getStatusColor(booking.status) }
+                    { backgroundColor: getStatusColor(insight.status) }
                   ]}
                 >
-                  <ThemedText style={styles.statusText}>{getStatusText(booking.status)}</ThemedText>
+                  <ThemedText style={styles.statusText}>
+                    {getStatusText(insight.status)}
+                  </ThemedText>
                 </ThemedView>
               </ThemedView>
             ))}
+            {!dashboardData?.customer_insights.length && (
+              <ThemedView style={styles.emptyState}>
+                <ThemedText>표시할 고객 정보가 없습니다.</ThemedText>
+              </ThemedView>
+            )}
           </ThemedView>
         </ThemedView>
 
@@ -269,10 +304,14 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    }),
     elevation: 3,
   },
   statValue: {
@@ -296,10 +335,14 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    }),
     elevation: 3,
   },
   serviceIcon: {
@@ -325,10 +368,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 15,
     borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    }),
     elevation: 3,
   },
   bookingInfo: {
@@ -373,10 +420,14 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: 'white',
     borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+    }),
     elevation: 2,
   },
   selectedDateText: {
@@ -384,5 +435,16 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: '600',
     textAlign: 'center',
+  },
+  insightText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  emptyState: {
+    padding: 20,
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 10,
   },
 });

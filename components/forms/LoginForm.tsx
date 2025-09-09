@@ -23,6 +23,8 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
+    console.log('🔵 LoginForm: 로그인 버튼 클릭됨');
+    
     if (!email.trim() || !password.trim()) {
       Alert.alert('알림', '이메일과 비밀번호를 입력해주세요.');
       return;
@@ -34,9 +36,16 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
     }
 
     try {
+      console.log('🔵 LoginForm: onLogin 호출 시작', { email: email.trim() });
       await onLogin({ email: email.trim(), password });
-    } catch (error) {
-      console.error('로그인 에러:', error);
+      console.log('🔵 LoginForm: onLogin 완료');
+    } catch (error: any) {
+      console.error('🔴 LoginForm: 로그인 에러:', error);
+      Alert.alert(
+        '로그인 실패',
+        error.message || '로그인 중 오류가 발생했습니다.',
+        [{ text: '확인' }]
+      );
     }
   };
 
@@ -46,8 +55,21 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
   };
 
   const handleDemoLogin = () => {
-    setEmail('admin@kmcbeauty.com');
-    setPassword('demo123');
+    Alert.alert(
+      '데모 계정 안내',
+      '테스트를 위한 데모 계정을 사용하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        { 
+          text: '데모 로그인', 
+          onPress: () => {
+            setEmail('test@example.com');
+            setPassword('test123');
+            console.log('🔵 데모 계정 설정됨');
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -62,7 +84,7 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
         <ThemedView style={styles.formContainer}>
           {/* 로고 섹션 */}
           <ThemedView style={styles.logoSection}>
-            <ThemedText style={styles.logo}>💄</ThemedText>
+            <ThemedText style={styles.logo}>로고</ThemedText>
             <ThemedText type="title" style={styles.title}>
               KMC Beauty
             </ThemedText>
@@ -161,10 +183,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 16,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+    }),
     elevation: 5,
   },
   logoSection: {
