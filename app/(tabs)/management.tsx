@@ -1,18 +1,19 @@
 import { Collapsible } from '@/components/Collapsible';
+import PhonebookManagement from '@/components/management/PhonebookManagement';
 import TreatmentMenuManagement from '@/components/management/TreatmentMenuManagement';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
-import { Service, serviceService, Staff, staffService } from '@/services/mockServices';
+import { Staff, staffService } from '@/services/mockServices';
 import { MaterialIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
 
 export default function ManagementScreen() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
-  const [serviceList, setServiceList] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTreatmentManagement, setShowTreatmentManagement] = useState(false);
+  const [showPhonebookManagement, setShowPhonebookManagement] = useState(false);
   const colorScheme = useColorScheme() ?? 'light';
 
   useEffect(() => {
@@ -22,12 +23,8 @@ export default function ManagementScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [staffData, serviceData] = await Promise.all([
-        staffService.getAllStaff(),
-        serviceService.getAllServices(),
-      ]);
+      const staffData = await staffService.getAllStaff();
       setStaffList(staffData);
-      setServiceList(serviceData);
     } catch (error) {
       console.error('데이터 로딩 중 오류:', error);
       Alert.alert('오류', '데이터를 불러오는 중 문제가 발생했습니다.');
@@ -49,21 +46,14 @@ export default function ManagementScreen() {
     );
   };
 
-  // Service handlers
-  const handleAddService = () => Alert.alert('시술 추가', '새 시술을 추가하는 화면으로 이동합니다.');
-  const handleEditService = (serviceId: string) => Alert.alert('시술 수정', `시술 ID: ${serviceId}의 정보를 수정합니다.`);
-  const toggleServiceStatus = (serviceId: string) => {
-    setServiceList(prev =>
-      prev.map(service =>
-        service.id === serviceId ? { ...service, isActive: !service.isActive } : service
-      )
-    );
-  };
-
   const styles = createStyles(colorScheme);
 
   if (showTreatmentManagement) {
     return <TreatmentMenuManagement onGoBack={() => setShowTreatmentManagement(false)} />;
+  }
+
+  if (showPhonebookManagement) {
+    return <PhonebookManagement onGoBack={() => setShowPhonebookManagement(false)} />;
   }
 
   if (loading) {
@@ -101,30 +91,6 @@ export default function ManagementScreen() {
     </ThemedView>
   );
 
-  const renderServiceItem = (service: Service) => (
-    <ThemedView key={service.id} style={styles.card}>
-      <ThemedView style={styles.cardInfo}>
-        <ThemedText type="subtitle" style={styles.cardTitle}>{service.name}</ThemedText>
-        <ThemedText style={styles.cardSubtitle}>{service.category} - {service.duration}분</ThemedText>
-        <ThemedText style={styles.cardDetails}>{service.price.toLocaleString()}원</ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.cardActions}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => handleEditService(service.id)}>
-          <MaterialIcons name="edit" size={22} color={Colors[colorScheme].text} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => toggleServiceStatus(service.id)}
-        >
-          <MaterialIcons 
-            name={service.isActive ? 'toggle-on' : 'toggle-off'} 
-            size={28} 
-            color={service.isActive ? Colors.light.tint : Colors[colorScheme].icon} />
-        </TouchableOpacity>
-      </ThemedView>
-    </ThemedView>
-  );
-
   return (
     <ScrollView style={styles.container}>
       <ThemedText type="title" style={styles.title}>매장 관리</ThemedText>
@@ -144,16 +110,17 @@ export default function ManagementScreen() {
       </ThemedView>
 
       <ThemedView style={styles.collapsibleSection}>
-        <Collapsible title={`시술 관리 (${serviceList.length})`}>
-          <TouchableOpacity style={styles.addButton} onPress={handleAddService}>
-            <MaterialIcons name="add" size={20} color="#fff" />
-            <ThemedText style={styles.addButtonText}>새 시술 추가</ThemedText>
+        <Collapsible title="전화번호 관리">
+          <TouchableOpacity 
+            style={styles.addButton} 
+            onPress={() => setShowPhonebookManagement(true)}
+          >
+            <MaterialIcons name="contacts" size={20} color="#fff" />
+            <ThemedText style={styles.addButtonText}>전화번호 관리</ThemedText>
           </TouchableOpacity>
-          <ThemedView style={styles.listContainer}>
-              {serviceList.length > 0 ? 
-                  serviceList.map(renderServiceItem) : 
-                  <ThemedText style={styles.emptyListText}>등록된 시술이 없습니다.</ThemedText>}
-          </ThemedView>
+          <ThemedText style={styles.emptyListText}>
+            고객 및 연락처 정보를 관리할 수 있습니다.
+          </ThemedText>
         </Collapsible>
       </ThemedView>
 
