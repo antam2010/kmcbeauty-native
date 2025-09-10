@@ -78,6 +78,53 @@ class TreatmentApiService extends BaseApiService {
     
     return response.items;
   }
+
+  // 주간 시술 예약 조회 (이번 주 전체)
+  async getWeeklyTreatments(date?: string): Promise<Treatment[]> {
+    const targetDate = date ? new Date(date) : new Date();
+    
+    // 해당 주의 월요일 구하기
+    const dayOfWeek = targetDate.getDay();
+    const startOfWeek = new Date(targetDate);
+    startOfWeek.setDate(targetDate.getDate() - dayOfWeek + 1); // 월요일
+    
+    // 해당 주의 일요일 구하기
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6); // 일요일
+    
+    const startDate = startOfWeek.toISOString().split('T')[0];
+    const endDate = endOfWeek.toISOString().split('T')[0];
+    
+    let allTreatments: Treatment[] = [];
+    let currentPage = 1;
+    const pageSize = 50;
+    
+    try {
+      while (true) {
+        const response = await this.list({
+          start_date: startDate,
+          end_date: endDate,
+          page: currentPage,
+          size: pageSize,
+          sort_by: 'reserved_at',
+          sort_order: 'asc'
+        });
+        
+        allTreatments = [...allTreatments, ...response.items];
+        
+        if (currentPage >= response.pages || response.items.length < pageSize) {
+          break;
+        }
+        
+        currentPage++;
+      }
+    } catch (error) {
+      console.error('주간 트리트먼트 로딩 중 오류:', error);
+      return [];
+    }
+    
+    return allTreatments;
+  }
 }
 
 export const treatmentApiService = new TreatmentApiService();

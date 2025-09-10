@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -11,19 +12,34 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { dashboardApiService } from '../../src/api/services/dashboard';
+import { treatmentAPI } from '../../src/features/booking/api';
 import { DashboardSummaryResponse } from '../../src/types/dashboard';
+import { Treatment } from '../../src/types/treatment';
 
 export default function HomeScreen() {
   const [dashboardData, setDashboardData] = useState<DashboardSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [weeklyTreatments, setWeeklyTreatments] = useState<Treatment[]>([]);
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
-  const loadDashboardData = async () => {
+  const loadWeeklyTreatments = useCallback(async () => {
+    try {
+      // 새로운 주간 API 사용
+      const weeklyData = await treatmentAPI.getWeeklyTreatments();
+      setWeeklyTreatments(weeklyData);
+    } catch (error) {
+      console.error('주간 시술 데이터 로딩 실패:', error);
+    }
+  }, []);
+
+  const loadDashboardData = useCallback(async () => {
     try {
       const data = await dashboardApiService.getTodayDetailedSummary();
       setDashboardData(data);
+      await loadWeeklyTreatments();
     } catch (error) {
       console.error('대시보드 데이터 로딩 실패:', error);
       Alert.alert('오류', '대시보드 데이터를 불러올 수 없습니다.');
@@ -31,11 +47,11 @@ export default function HomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [loadWeeklyTreatments]);
 
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [loadDashboardData]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -46,7 +62,7 @@ export default function HomeScreen() {
     return `₩${amount.toLocaleString()}`;
   };
 
-  // 간단한 달력 위젯 함수들
+  // 주간 달력 위젯 함수들 (실제 예약 데이터 사용)
   const getCurrentWeek = () => {
     const today = new Date();
     const currentDay = today.getDay(); // 0(일) ~ 6(토)
@@ -63,17 +79,51 @@ export default function HomeScreen() {
   };
 
   const formatDateForDisplay = (date: Date) => {
+    const dateString = date.toISOString().split('T')[0];
+    
+    // 해당 날짜의 예약 수 계산
+    const dayTreatments = weeklyTreatments.filter(treatment => {
+      const treatmentDate = treatment.reserved_at.split('T')[0];
+      return treatmentDate === dateString;
+    });
+
     return {
       day: date.getDate(),
       dayName: ['일', '월', '화', '수', '목', '금', '토'][date.getDay()],
       isToday: date.toDateString() === new Date().toDateString(),
-      dateString: date.toISOString().split('T')[0]
+      dateString: dateString,
+      bookingCount: dayTreatments.length,
+      hasBookings: dayTreatments.length > 0,
+      treatments: dayTreatments
     };
   };
 
   const handleDateSelect = (dateString: string) => {
     setSelectedDate(dateString);
-    // 선택된 날짜의 대시보드 데이터를 불러올 수 있음
+    
+    // 선택된 날짜의 예약 정보 표시
+    const dayTreatments = weeklyTreatments.filter(treatment => {
+      const treatmentDate = treatment.reserved_at.split('T')[0];
+      return treatmentDate === dateString;
+    });
+
+    if (dayTreatments.length > 0) {
+      const treatmentNames = dayTreatments.map(t => {
+        const customerName = t.phonebook?.name || '고객';
+        const serviceName = t.treatment_items?.[0]?.menu_detail?.name || '서비스';
+        const time = new Date(t.reserved_at).toLocaleTimeString('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        return `${time} - ${customerName}: ${serviceName}`;
+      }).join('\n');
+      
+      Alert.alert(
+        `${new Date(dateString).toLocaleDateString('ko-KR')} 예약 현황`,
+        `총 ${dayTreatments.length}건의 예약\n\n${treatmentNames}`,
+        [{ text: '확인' }]
+      );
+    }
   };
 
   if (loading) {
@@ -126,7 +176,7 @@ export default function HomeScreen() {
 
         {/* 간편 달력 위젯 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>이번 주 일정</Text>
+          <Text style={styles.sectionTitle}>이번 주 예약 현황</Text>
           <View style={styles.weekCalendar}>
             {getCurrentWeek().map((date) => {
               const dateInfo = formatDateForDisplay(date);
@@ -136,24 +186,32 @@ export default function HomeScreen() {
                   style={[
                     styles.weekDay,
                     dateInfo.isToday && styles.todayWeekDay,
-                    selectedDate === dateInfo.dateString && styles.selectedWeekDay
+                    selectedDate === dateInfo.dateString && styles.selectedWeekDay,
+                    dateInfo.hasBookings && styles.hasBookingsWeekDay
                   ]}
                   onPress={() => handleDateSelect(dateInfo.dateString)}
                 >
                   <Text style={[
                     styles.weekDayName,
                     dateInfo.isToday && styles.todayText,
-                    selectedDate === dateInfo.dateString && styles.selectedText
+                    selectedDate === dateInfo.dateString && styles.selectedText,
+                    dateInfo.hasBookings && styles.hasBookingsText
                   ]}>
                     {dateInfo.dayName}
                   </Text>
                   <Text style={[
                     styles.weekDayNumber,
                     dateInfo.isToday && styles.todayText,
-                    selectedDate === dateInfo.dateString && styles.selectedText
+                    selectedDate === dateInfo.dateString && styles.selectedText,
+                    dateInfo.hasBookings && styles.hasBookingsText
                   ]}>
                     {dateInfo.day}
                   </Text>
+                  {dateInfo.hasBookings && (
+                    <View style={styles.bookingBadge}>
+                      <Text style={styles.bookingBadgeText}>{dateInfo.bookingCount}</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -161,8 +219,8 @@ export default function HomeScreen() {
           <TouchableOpacity 
             style={styles.calendarButton}
             onPress={() => {
-              // 예약 탭으로 이동하는 로직 (나중에 구현)
-              Alert.alert('알림', '전체 달력은 예약 탭에서 확인하실 수 있습니다.');
+              // 예약 탭으로 이동
+              router.push('/booking');
             }}
           >
             <Text style={styles.calendarButtonText}>전체 달력 보기</Text>
@@ -251,39 +309,6 @@ export default function HomeScreen() {
               </View>
             </View>
           ))}
-        </View>
-
-        {/* 직원 현황 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>직원 현황</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {dashboardData.staff_summary.target_date.length}
-              </Text>
-              <Text style={styles.statLabel}>활동 직원</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {dashboardData.staff_summary.target_date.reduce((sum, staff) => sum + staff.count, 0)}
-              </Text>
-              <Text style={styles.statLabel}>총 서비스</Text>
-            </View>
-          </View>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {dashboardData.staff_summary.month.length}
-              </Text>
-              <Text style={styles.statLabel}>월간 활동 직원</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {dashboardData.staff_summary.month.reduce((sum, staff) => sum + staff.count, 0)}
-              </Text>
-              <Text style={styles.statLabel}>월간 서비스</Text>
-            </View>
-          </View>
         </View>
 
         {/* 고객 인사이트 */}
@@ -511,12 +536,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#f8f9fa',
     minWidth: 40,
+    position: 'relative',
   },
   todayWeekDay: {
     backgroundColor: '#007bff',
   },
   selectedWeekDay: {
     backgroundColor: '#28a745',
+  },
+  hasBookingsWeekDay: {
+    backgroundColor: '#ffc107',
   },
   weekDayName: {
     fontSize: 12,
@@ -534,6 +563,26 @@ const styles = StyleSheet.create({
   },
   selectedText: {
     color: '#ffffff',
+  },
+  hasBookingsText: {
+    color: '#1a1a1a',
+    fontWeight: 'bold',
+  },
+  bookingBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#dc3545',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookingBadgeText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   calendarButton: {
     backgroundColor: '#007bff',

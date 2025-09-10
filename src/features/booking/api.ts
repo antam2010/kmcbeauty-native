@@ -10,6 +10,7 @@ export const treatmentAPI = {
   remove: treatmentApiService.remove.bind(treatmentApiService),
   getMonthlyTreatments: treatmentApiService.getMonthlyTreatments.bind(treatmentApiService),
   getDailyTreatments: treatmentApiService.getDailyTreatments.bind(treatmentApiService),
+  getWeeklyTreatments: treatmentApiService.getWeeklyTreatments.bind(treatmentApiService), // 새로 추가
 };
 
 // 타입들은 중앙에서 import
