@@ -206,7 +206,7 @@ export default function BookingForm({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f0f4f8',
   },
   scrollView: {
     flex: 1,
@@ -216,85 +216,124 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    paddingVertical: 20,
+    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    ...Platform.select({
+      ios: {
+        backgroundColor: '#667eea',
+        shadowColor: '#667eea',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        backgroundColor: '#667eea',
+        elevation: 8,
+      }
+    })
   },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
-    backgroundColor: '#f8f9fa',
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   closeButtonText: {
     fontSize: 18,
-    color: '#666',
+    color: '#ffffff',
     fontWeight: 'bold',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: '#ffffff',
+    textAlign: 'center',
+    ...Platform.select({
+      ios: {
+        textShadowColor: 'rgba(0,0,0,0.3)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
+      }
+    })
   },
   placeholder: {
-    width: 40,
+    width: 44,
   },
   section: {
     margin: 20,
-    marginBottom: 0,
+    marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#1a1a1a',
-    marginBottom: 12,
+    marginBottom: 16,
+    letterSpacing: 0.5,
   },
   serviceCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    borderLeftWidth: 4,
+    borderLeftColor: '#667eea',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      }
+    })
   },
   serviceName: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1a1a1a',
     marginBottom: 8,
   },
   serviceInfo: {
     fontSize: 16,
-    color: '#007bff',
+    color: '#667eea',
     fontWeight: '600',
     marginBottom: 8,
   },
   serviceDescription: {
     fontSize: 14,
     color: '#666',
-    lineHeight: 20,
+    lineHeight: 22,
   },
   dateCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e8f0fe',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#4285f4',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      }
+    })
   },
   dateText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#4285f4',
     textAlign: 'center',
   },
   timeGrid: {
@@ -307,16 +346,36 @@ const styles = StyleSheet.create({
     width: '22%',
     paddingVertical: 16,
     backgroundColor: '#ffffff',
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      }
+    })
   },
   selectedTimeSlot: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#667eea',
+    borderColor: '#667eea',
+    transform: [{ scale: 1.05 }],
+    ...Platform.select({
+      ios: {
+        shadowColor: '#667eea',
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      }
+    })
   },
   timeText: {
     fontSize: 16,
@@ -325,6 +384,7 @@ const styles = StyleSheet.create({
   },
   selectedTimeText: {
     color: '#ffffff',
+    fontWeight: 'bold',
   },
   inputContainer: {
     marginBottom: 20,
@@ -334,41 +394,73 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1a1a1a',
     marginBottom: 8,
+    marginLeft: 4,
   },
   textInput: {
     backgroundColor: '#ffffff',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 16,
     fontSize: 16,
     color: '#1a1a1a',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#e9ecef',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      }
+    })
   },
   memoInput: {
-    height: 80,
+    height: 100,
     textAlignVertical: 'top',
   },
   bottomContainer: {
     backgroundColor: '#ffffff',
     paddingHorizontal: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    paddingTop: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      }
+    })
   },
   bookingButton: {
-    backgroundColor: '#28a745',
+    backgroundColor: 'linear-gradient(135deg, #34a853 0%, #2e7d32 100%)',
     paddingVertical: 18,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    ...Platform.select({
+      ios: {
+        backgroundColor: '#34a853',
+        shadowColor: '#34a853',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        backgroundColor: '#34a853',
+        elevation: 6,
+      }
+    })
   },
   bookingButtonText: {
     color: '#ffffff',
     fontSize: 18,
     fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
 });

@@ -3,7 +3,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { treatmentAPI } from '@/src/features/booking/api';
 import { Treatment } from '@/src/types/treatment';
 import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface CalendarDate {
   date: string;
@@ -33,6 +33,7 @@ export default function Calendar({
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [selectedDateTreatments, setSelectedDateTreatments] = useState<Treatment[]>([]);
   const [showTreatmentsModal, setShowTreatmentsModal] = useState(false);
+  const [isInteracting, setIsInteracting] = useState(false);
 
   // 월별 시술 예약 데이터 로드
   const loadMonthlyTreatments = useCallback(async (year: number, month: number) => {
@@ -136,7 +137,9 @@ export default function Calendar({
   };
 
   const handleDatePress = (date: CalendarDate) => {
-    if (isDateDisabled(date.date)) return;
+    if (isDateDisabled(date.date) || isInteracting) return;
+    
+    setIsInteracting(true);
     
     // 예약이 있는 날짜를 클릭한 경우 모달 표시
     if (date.hasBookings && date.bookingCount > 0) {
@@ -146,9 +149,20 @@ export default function Calendar({
       });
       setSelectedDateTreatments(dateTreatments);
       setShowTreatmentsModal(true);
+      
+      // 모달이 열린 후 인터랙션 상태 해제
+      setTimeout(() => {
+        setIsInteracting(false);
+      }, 300);
+    } else {
+      // 새 예약 생성
+      onDateSelect(date.date);
+      
+      // 선택 후 인터랙션 상태 해제
+      setTimeout(() => {
+        setIsInteracting(false);
+      }, 200);
     }
-    
-    onDateSelect(date.date);
   };
 
   const isDateDisabled = (date: string) => {
@@ -156,40 +170,6 @@ export default function Calendar({
     if (maxDate && date > maxDate) return true;
     return false;
   };
-
-  const getDateItemStyle = (date: CalendarDate) => {
-    const styles = [calendarStyles.dateItem];
-    
-    if (date.isToday) styles.push(calendarStyles.today as any);
-    if (date.isSelected) styles.push(calendarStyles.selected as any);
-    if (date.hasBookings) styles.push(calendarStyles.hasBookings as any);
-    if (isDateDisabled(date.date)) styles.push(calendarStyles.disabled as any);
-    
-    return styles;
-  };
-
-  const renderDateItem = ({ item: date }: { item: CalendarDate }) => (
-    <TouchableOpacity
-      style={getDateItemStyle(date)}
-      onPress={() => handleDatePress(date)}
-      disabled={isDateDisabled(date.date)}
-    >
-      <ThemedText style={[
-        calendarStyles.dateText,
-        date.isSelected && calendarStyles.selectedText,
-        isDateDisabled(date.date) && calendarStyles.disabledText
-      ]}>
-        {new Date(date.date).getDate()}
-      </ThemedText>
-      {date.hasBookings && (
-        <View style={calendarStyles.bookingIndicator}>
-          <Text style={calendarStyles.bookingCount}>
-            {date.bookingCount}
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
 
   const monthNames = [
     '1월', '2월', '3월', '4월', '5월', '6월',
@@ -218,11 +198,14 @@ export default function Calendar({
 
   const closeTreatmentsModal = () => {
     setShowTreatmentsModal(false);
-    setSelectedDateTreatments([]);
+    setTimeout(() => {
+      setSelectedDateTreatments([]);
+      setIsInteracting(false);
+    }, 300);
   };
 
   return (
-    <ThemedView style={calendarStyles.container}>
+    <View style={calendarStyles.container}>
       {/* 예약 목록 모달 */}
       <Modal
         visible={showTreatmentsModal}
@@ -283,79 +266,130 @@ export default function Calendar({
         </ThemedView>
       </Modal>
       {/* 월 네비게이션 */}
-      <ThemedView style={calendarStyles.header}>
+      <View style={calendarStyles.header}>
         <TouchableOpacity onPress={goToPreviousMonth} style={calendarStyles.navButton}>
-          <ThemedText style={calendarStyles.navText}>‹</ThemedText>
+          <Text style={calendarStyles.navText}>‹</Text>
         </TouchableOpacity>
         
-        <ThemedText style={calendarStyles.monthTitle}>
+        <Text style={calendarStyles.monthTitle}>
           {calendarData.year}년 {monthNames[calendarData.month]}
-        </ThemedText>
+        </Text>
         
         <TouchableOpacity onPress={goToNextMonth} style={calendarStyles.navButton}>
-          <ThemedText style={calendarStyles.navText}>›</ThemedText>
+          <Text style={calendarStyles.navText}>›</Text>
         </TouchableOpacity>
-      </ThemedView>
+      </View>
 
       {/* 요일 헤더 */}
-      <ThemedView style={calendarStyles.weekHeader}>
+      <View style={calendarStyles.weekHeader}>
         {weekDays.map((day, index) => (
-          <ThemedView key={index} style={calendarStyles.weekDayItem}>
-            <ThemedText style={calendarStyles.weekDayText}>{day}</ThemedText>
-          </ThemedView>
+          <View key={index} style={calendarStyles.weekDayItem}>
+            <Text style={calendarStyles.weekDayText}>{day}</Text>
+          </View>
         ))}
-      </ThemedView>
+      </View>
 
-      {/* 날짜 그리드 */}
-      <FlatList
-        data={calendarData.dates}
-        renderItem={renderDateItem}
-        numColumns={7}
-        keyExtractor={(item) => item.date}
-        scrollEnabled={false}
-        style={calendarStyles.datesGrid}
-      />
-    </ThemedView>
+      {/* 실제 달력 그리드 - 현대적인 디자인 */}
+      <View style={calendarStyles.calendarGrid}>
+        {calendarData.dates.map((date, index) => {
+          const dateNumber = new Date(date.date).getDate();
+          
+          return (
+            <TouchableOpacity
+              key={date.date}
+              style={[
+                calendarStyles.dateItem,
+                date.isToday && calendarStyles.today,
+                date.isSelected && calendarStyles.selected,
+                date.hasBookings && calendarStyles.hasBookings,
+                !date.isCurrentMonth && calendarStyles.otherMonth,
+                isDateDisabled(date.date) && calendarStyles.disabled,
+              ]}
+              onPress={() => handleDatePress(date)}
+              disabled={isDateDisabled(date.date) || isInteracting}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                calendarStyles.dateText,
+                date.isSelected && calendarStyles.selectedText,
+                date.isToday && calendarStyles.todayText,
+                !date.isCurrentMonth && calendarStyles.otherMonthText,
+                isDateDisabled(date.date) && calendarStyles.disabledText,
+              ]}>
+                {dateNumber}
+              </Text>
+              {date.hasBookings && (
+                <View style={calendarStyles.bookingIndicator}>
+                  <Text style={calendarStyles.bookingCount}>
+                    {date.bookingCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
 const calendarStyles = StyleSheet.create({
   container: {
     backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
+    margin: 4,
     ...(Platform.OS === 'web' ? {
-      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
     } : {
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
-      shadowRadius: 4,
+      shadowRadius: 8,
     }),
-    elevation: 3,
+    elevation: 6,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    paddingHorizontal: 4,
   },
   navButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#f8f9ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#667eea',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      }
+    })
   },
   navText: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: '#667eea',
   },
   monthTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    letterSpacing: 0.5,
   },
   weekHeader: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 12,
+    paddingHorizontal: 4,
   },
   weekDayItem: {
     flex: 1,
@@ -364,38 +398,118 @@ const calendarStyles = StyleSheet.create({
   },
   weekDayText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#666',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    backgroundColor: '#fafbfc',
+    padding: 8,
+    borderRadius: 12,
+    gap: 4,
   },
   datesGrid: {
     flex: 1,
   },
   dateItem: {
-    flex: 1,
+    width: '13.5%',
     aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    margin: 2,
-    borderRadius: 8,
+    margin: 1,
+    borderRadius: 10,
     position: 'relative',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    ...Platform.select({
+      ios: {
+        minHeight: 48,
+        minWidth: 48,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        minHeight: 44,
+        elevation: 1,
+      },
+    }),
   },
   dateText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#1a1a1a',
+    textAlign: 'center',
+    includeFontPadding: false,
+    ...Platform.select({
+      ios: {
+        lineHeight: 20,
+        fontFamily: 'System',
+      },
+      android: {
+        textAlignVertical: 'center',
+      },
+    }),
   },
   today: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: '#e8f0fe',
+    borderColor: '#4285f4',
+    borderWidth: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#4285f4',
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      }
+    })
   },
-  selected: {
-    backgroundColor: '#007AFF',
-  },
-  selectedText: {
-    color: 'white',
+  todayText: {
+    color: '#4285f4',
     fontWeight: 'bold',
   },
+  selected: {
+    backgroundColor: '#667eea',
+    borderWidth: 0,
+    transform: [{ scale: 1.05 }],
+    ...Platform.select({
+      ios: {
+        shadowColor: '#667eea',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      }
+    })
+  },
+  selectedText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    ...Platform.select({
+      ios: {
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
+        fontFamily: 'System',
+      },
+    }),
+  },
   hasBookings: {
+    borderColor: '#34a853',
     borderWidth: 2,
-    borderColor: '#4CAF50',
+    backgroundColor: '#f0fdf4',
+  },
+  otherMonth: {
+    opacity: 0.3,
   },
   disabled: {
     opacity: 0.3,
@@ -403,21 +517,38 @@ const calendarStyles = StyleSheet.create({
   disabledText: {
     color: '#ccc',
   },
+  otherMonthText: {
+    color: '#bbb',
+  },
   bookingIndicator: {
     position: 'absolute',
     top: 2,
     right: 2,
-    backgroundColor: '#FF5722',
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
+    backgroundColor: '#ea4335',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#ea4335',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 4,
+      }
+    })
   },
   bookingCount: {
     color: 'white',
     fontSize: 10,
     fontWeight: 'bold',
+    lineHeight: 12,
   },
   // 모달 관련 스타일
   modalContainer: {
@@ -433,77 +564,109 @@ const calendarStyles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    backgroundColor: '#fafbfc',
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1a1a1a',
   },
   closeButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    backgroundColor: '#667eea',
+    borderRadius: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#667eea',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      }
+    })
   },
   closeButtonText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: '600',
   },
   modalContent: {
     flex: 1,
     paddingHorizontal: 20,
+    paddingTop: 16,
   },
   treatmentItem: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
     marginVertical: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
+    borderLeftColor: '#34a853',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      }
+    })
   },
   treatmentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   treatmentTime: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
   },
   treatmentStatus: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#666',
-    backgroundColor: '#e3f2fd',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    fontWeight: '600',
+    color: '#667eea',
+    backgroundColor: '#f0f2ff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   customerName: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 4,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 6,
   },
   serviceName: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 8,
+    marginBottom: 10,
+    lineHeight: 20,
   },
   treatmentNotes: {
     fontSize: 12,
     color: '#888',
     fontStyle: 'italic',
+    backgroundColor: '#f8f9fa',
+    padding: 8,
+    borderRadius: 8,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 60,
   },
   emptyText: {
     fontSize: 16,
     color: '#888',
+    textAlign: 'center',
   },
 });

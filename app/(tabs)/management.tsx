@@ -1,194 +1,242 @@
 import { Collapsible } from '@/components/Collapsible';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { Staff, staffService } from '@/services/mockServices';
+import { Staff, staffService, Service, serviceService } from '@/services/mockServices';
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { Alert, ScrollView, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { Colors } from '@/constants/Colors';
 
 export default function ManagementScreen() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [serviceList, setServiceList] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const colorScheme = useColorScheme() ?? 'light';
 
   useEffect(() => {
-    loadStaff();
+    loadData();
   }, []);
 
-  const loadStaff = async () => {
+  const loadData = async () => {
     try {
-      const staffData = await staffService.getAllStaff();
+      setLoading(true);
+      const [staffData, serviceData] = await Promise.all([
+        staffService.getAllStaff(),
+        serviceService.getAllServices(),
+      ]);
       setStaffList(staffData);
+      setServiceList(serviceData);
     } catch (error) {
-      console.error('직원 데이터 로딩 중 오류:', error);
+      console.error('데이터 로딩 중 오류:', error);
+      Alert.alert('오류', '데이터를 불러오는 중 문제가 발생했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddStaff = () => {
-    Alert.alert('직원 추가', '새 직원을 추가하는 화면으로 이동합니다.');
-  };
-
-  const handleEditStaff = (staffId: string) => {
-    Alert.alert('직원 수정', `직원 ID: ${staffId}의 정보를 수정합니다.`);
-  };
-
+  // Staff handlers
+  const handleAddStaff = () => Alert.alert('직원 추가', '새 직원을 추가하는 화면으로 이동합니다.');
+  const handleEditStaff = (staffId: string) => Alert.alert('직원 수정', `직원 ID: ${staffId}의 정보를 수정합니다.`);
   const toggleStaffStatus = (staffId: string) => {
-    setStaffList(prev => 
-      prev.map(staff => 
-        staff.id === staffId 
+    setStaffList(prev =>
+      prev.map(staff =>
+        staff.id === staffId
           ? { ...staff, status: staff.status === 'active' ? 'inactive' : 'active' }
           : staff
       )
     );
   };
 
+  // Service handlers
+  const handleAddService = () => Alert.alert('시술 추가', '새 시술을 추가하는 화면으로 이동합니다.');
+  const handleEditService = (serviceId: string) => Alert.alert('시술 수정', `시술 ID: ${serviceId}의 정보를 수정합니다.`);
+  const toggleServiceStatus = (serviceId: string) => {
+    setServiceList(prev =>
+      prev.map(service =>
+        service.id === serviceId ? { ...service, isActive: !service.isActive } : service
+      )
+    );
+  };
+
   const activeStaff = staffList.filter(staff => staff.status === 'active');
   const inactiveStaff = staffList.filter(staff => staff.status === 'inactive');
+  const activeServices = serviceList.filter(service => service.isActive);
+  const inactiveServices = serviceList.filter(service => !service.isActive);
+
+  const styles = createStyles(colorScheme);
 
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText type="title" style={styles.title}>
-          직원 관리
-        </ThemedText>
+        <ThemedText type="title" style={styles.title}>매장 관리</ThemedText>
         <ThemedView style={styles.loadingContainer}>
-          <ThemedText>직원 정보를 불러오는 중...</ThemedText>
+          <ThemedText>데이터를 불러오는 중...</ThemedText>
         </ThemedView>
       </ThemedView>
     );
   }
 
   const renderStaffItem = (staff: Staff) => (
-    <ThemedView key={staff.id} style={styles.staffItem}>
-      <ThemedView style={styles.staffInfo}>
-        <ThemedText type="subtitle">{staff.name}</ThemedText>
-        <ThemedText>{staff.position}</ThemedText>
-        <ThemedText style={styles.specialties}>
-          전문분야: {staff.specialties.join(', ')}
-        </ThemedText>
+    <ThemedView key={staff.id} style={styles.card}>
+      <ThemedView style={styles.cardInfo}>
+        <ThemedText type="subtitle" style={styles.cardTitle}>{staff.name}</ThemedText>
+        <ThemedText style={styles.cardSubtitle}>{staff.position}</ThemedText>
+        <ThemedText style={styles.cardDetails}>전문분야: {staff.specialties.join(', ')}</ThemedText>
       </ThemedView>
-      <ThemedView style={styles.staffActions}>
-        <TouchableOpacity 
-          style={styles.editButton}
-          onPress={() => handleEditStaff(staff.id)}
-        >
-          <ThemedText style={styles.buttonText}>수정</ThemedText>
+      <ThemedView style={styles.cardActions}>
+        <TouchableOpacity style={styles.iconButton} onPress={() => handleEditStaff(staff.id)}>
+          <MaterialIcons name="edit" size={22} color={Colors[colorScheme].text} />
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[
-            styles.statusButton,
-            staff.status === 'active' ? styles.deactivateButton : styles.activateButton
-          ]}
+        <TouchableOpacity
+          style={styles.iconButton}
           onPress={() => toggleStaffStatus(staff.id)}
         >
-          <ThemedText style={styles.buttonText}>
-            {staff.status === 'active' ? '비활성화' : '활성화'}
-          </ThemedText>
+          <MaterialIcons 
+            name={staff.status === 'active' ? 'toggle-on' : 'toggle-off'} 
+            size={28} 
+            color={staff.status === 'active' ? Colors.light.tint : Colors[colorScheme].icon} />
+        </TouchableOpacity>
+      </ThemedView>
+    </ThemedView>
+  );
+
+  const renderServiceItem = (service: Service) => (
+    <ThemedView key={service.id} style={styles.card}>
+      <ThemedView style={styles.cardInfo}>
+        <ThemedText type="subtitle" style={styles.cardTitle}>{service.name}</ThemedText>
+        <ThemedText style={styles.cardSubtitle}>{service.category} - {service.duration}분</ThemedText>
+        <ThemedText style={styles.cardDetails}>{service.price.toLocaleString()}원</ThemedText>
+      </ThemedView>
+      <ThemedView style={styles.cardActions}>
+        <TouchableOpacity style={styles.iconButton} onPress={() => handleEditService(service.id)}>
+          <MaterialIcons name="edit" size={22} color={Colors[colorScheme].text} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => toggleServiceStatus(service.id)}
+        >
+          <MaterialIcons 
+            name={service.isActive ? 'toggle-on' : 'toggle-off'} 
+            size={28} 
+            color={service.isActive ? Colors.light.tint : Colors[colorScheme].icon} />
         </TouchableOpacity>
       </ThemedView>
     </ThemedView>
   );
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        직원 관리
-      </ThemedText>
+    <ScrollView style={styles.container}>
+      <ThemedText type="title" style={styles.title}>매장 관리</ThemedText>
       
-      <TouchableOpacity style={styles.addButton} onPress={handleAddStaff}>
-        <ThemedText type="defaultSemiBold" style={styles.addButtonText}>
-          + 새 직원 추가
-        </ThemedText>
-      </TouchableOpacity>
+      <Collapsible title={`직원 관리 (${staffList.length})`} containerStyle={styles.collapsibleSection}>
+        <TouchableOpacity style={styles.addButton} onPress={handleAddStaff}>
+          <MaterialIcons name="add" size={20} color="#fff" />
+          <ThemedText style={styles.addButtonText}>새 직원 추가</ThemedText>
+        </TouchableOpacity>
+        <ThemedView style={styles.listContainer}>
+            {staffList.length > 0 ? 
+                staffList.map(renderStaffItem) : 
+                <ThemedText style={styles.emptyListText}>등록된 직원이 없습니다.</ThemedText>}
+        </ThemedView>
+      </Collapsible>
 
-      <ScrollView style={styles.content}>
-        <Collapsible title={`활성 직원 (${activeStaff.length}명)`}>
-          <ThemedView style={styles.staffContainer}>
-            {activeStaff.map(renderStaffItem)}
-          </ThemedView>
-        </Collapsible>
-
-        <Collapsible title={`비활성 직원 (${inactiveStaff.length}명)`}>
-          <ThemedView style={styles.staffContainer}>
-            {inactiveStaff.map(renderStaffItem)}
-          </ThemedView>
-        </Collapsible>
-      </ScrollView>
-    </ThemedView>
+      <Collapsible title={`시술 관리 (${serviceList.length})`} containerStyle={styles.collapsibleSection}>
+        <TouchableOpacity style={styles.addButton} onPress={handleAddService}>
+          <MaterialIcons name="add" size={20} color="#fff" />
+          <ThemedText style={styles.addButtonText}>새 시술 추가</ThemedText>
+        </TouchableOpacity>
+        <ThemedView style={styles.listContainer}>
+            {serviceList.length > 0 ? 
+                serviceList.map(renderServiceItem) : 
+                <ThemedText style={styles.emptyListText}>등록된 시술이 없습니다.</ThemedText>}
+        </ThemedView>
+      </Collapsible>
+    </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    backgroundColor: Colors[colorScheme].background,
+    padding: 16,
   },
   title: {
-    marginBottom: 20,
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 24,
     textAlign: 'center',
-  },
-  addButton: {
-    backgroundColor: '#28a745',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: 'white',
-  },
-  content: {
-    flex: 1,
-  },
-  staffContainer: {
-    gap: 10,
-  },
-  staffItem: {
-    flexDirection: 'row',
-    padding: 15,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  staffInfo: {
-    flex: 1,
-  },
-  specialties: {
-    fontSize: 12,
-    opacity: 0.7,
-    marginTop: 5,
-  },
-  staffActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  editButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 5,
-  },
-  statusButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 5,
-  },
-  activateButton: {
-    backgroundColor: '#28a745',
-  },
-  deactivateButton: {
-    backgroundColor: '#dc3545',
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 12,
+    color: Colors[colorScheme].text,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+  },
+  collapsibleSection: {
+    marginBottom: 20,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.light.tint,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  listContainer: {
+    gap: 12,
+  },
+  card: {
+    flexDirection: 'row',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: Colors[colorScheme].background,
+    borderWidth: 1,
+    borderColor: Colors[colorScheme].icon + '33', // Add some transparency
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: Colors[colorScheme].icon,
+  },
+  cardDetails: {
+    fontSize: 12,
+    color: Colors[colorScheme].icon,
+    marginTop: 4,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconButton: {
+    padding: 4,
+  },
+  emptyListText: {
+    textAlign: 'center',
+    paddingVertical: 20,
+    color: Colors[colorScheme].icon,
   },
 });
