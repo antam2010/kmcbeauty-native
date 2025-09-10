@@ -1,6 +1,7 @@
 import { Collapsible } from '@/components/Collapsible';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { useAuthStore } from '@/stores/authContext';
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 
@@ -13,9 +14,10 @@ interface UserProfile {
 }
 
 export default function ProfileScreen() {
+  const { logout, user } = useAuthStore();
   const [profile, setProfile] = useState<UserProfile>({
-    name: '김관리자',
-    email: 'admin@kmcbeauty.com',
+    name: user?.name || '김관리자',
+    email: user?.email || 'admin@kmcbeauty.com',
     phone: '010-1234-5678',
     role: 'admin',
     joinDate: '2024-01-15'
@@ -41,8 +43,15 @@ export default function ProfileScreen() {
       '정말 로그아웃 하시겠습니까?',
       [
         { text: '취소', style: 'cancel' },
-        { text: '로그아웃', style: 'destructive', onPress: () => {
-          Alert.alert('로그아웃', '로그아웃되었습니다.');
+        { text: '로그아웃', style: 'destructive', onPress: async () => {
+          try {
+            console.log('🚪 사용자가 로그아웃 버튼을 눌렀습니다');
+            await logout();
+            console.log('✅ 로그아웃 완료 - AuthNavigator가 자동으로 로그인 화면으로 이동할 것입니다');
+          } catch (error) {
+            console.error('로그아웃 실패:', error);
+            Alert.alert('오류', '로그아웃 중 오류가 발생했습니다.');
+          }
         }}
       ]
     );

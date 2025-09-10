@@ -63,8 +63,8 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
         { 
           text: '데모 로그인', 
           onPress: () => {
-            setEmail('test@example.com');
-            setPassword('test123');
+            setEmail('antam2010@naver.com');
+            setPassword('1111');
             console.log('🔵 데모 계정 설정됨');
           }
         }

@@ -109,17 +109,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const logout = useCallback(async () => {
+    console.log('🚪 로그아웃 시작');
+    
+    try {
+      // API 서버에 로그아웃 요청 (선택사항)
+      // await authService.logout();
+    } catch (error) {
+      console.error('서버 로그아웃 요청 실패:', error);
+      // 서버 요청 실패해도 로컬 로그아웃은 진행
+    }
+    
     const newState = {
       isAuthenticated: false,
       accessToken: null,
       user: null,
       loading: false,
     };
+    
+    // 로컬 상태 업데이트
     setAuthState(newState);
-    // 비동기 함수를 적절히 처리
-    await saveAuthToStorage(newState).catch(error => {
-      console.error('Failed to save logout to storage:', error);
-    });
+    
+    // AsyncStorage에서 인증 정보 완전 삭제
+    try {
+      await AsyncStorage.multiRemove(['auth-storage', 'auth-token', 'refresh-token']);
+      console.log('✅ 로컬 인증 정보 삭제 완료');
+    } catch (error) {
+      console.error('AsyncStorage 삭제 실패:', error);
+    }
+    
+    console.log('🚪 로그아웃 완료');
   }, []);
 
   const setUser = useCallback((user: User) => {

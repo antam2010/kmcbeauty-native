@@ -75,7 +75,7 @@ export const apiClient = axios.create({
   timeout: 10000, // 10초 타임아웃
 });
 
-// 요청 인터셉터 (인증 토큰 추가는 각 API 호출에서 직접 처리)
+// 요청 인터셉터
 apiClient.interceptors.request.use(
   (config) => {
     return config;
@@ -155,17 +155,27 @@ apiClient.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return apiClient(originalRequest);
         } else {
-          // 리프레시 토큰도 만료됨 - 로그인 화면으로 이동
+          // 리프레시 토큰도 만료됨 - 완전 로그아웃 처리
           throw new Error('Refresh token expired');
         }
       } catch (refreshError) {
-        console.log('❌ 리프레시 토큰 갱신 실패 - 로그인 화면으로 이동');
+        console.log('❌ 리프레시 토큰 갱신 실패 - 완전 로그아웃 처리');
         processQueue(refreshError, null);
         
         if (!isNavigatingToLogin) {
           isNavigatingToLogin = true;
+          
           // 인증 정보 완전 삭제
           await AsyncStorage.multiRemove(['auth-storage', 'auth-token', 'refresh-token']);
+          
+          // 동적 import로 AuthContext에 접근하여 로그아웃 처리
+          try {
+            const { useAuthStore } = await import('@/stores/authContext');
+            // AuthContext의 logout 함수 호출 (React Context 외부에서는 직접 호출 불가)
+            // 대신 AsyncStorage 삭제 후 로그인 화면으로 이동
+          } catch (contextError) {
+            console.error('AuthContext 접근 실패:', contextError);
+          }
           
           // 로그인 화면으로 이동
           import('expo-router').then(({ router }) => {
