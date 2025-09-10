@@ -1,4 +1,4 @@
-import { api } from '../../api';
+import { apiClient } from '../../../services/api';
 
 // 인증 관련 타입
 export interface LoginCredentials {
@@ -32,7 +32,7 @@ export const authAPI = {
     formData.append('password', credentials.password);
     formData.append('grant_type', 'password');
 
-    const response = await api.post('/auth/login', formData, {
+    const response = await apiClient.post('/auth/login', formData, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
@@ -42,18 +42,18 @@ export const authAPI = {
 
   // 로그아웃
   logout: async (): Promise<void> => {
-    await api.post('/auth/logout');
+    await apiClient.post('/auth/logout');
   },
 
   // 내 정보 가져오기
   getMe: async (): Promise<User> => {
-    const response = await api.get('/auth/me');
+    const response = await apiClient.get('/auth/me');
     return response.data as User;
   },
 
-  // 토큰 갱신
-  refreshToken: async (refreshToken: string): Promise<{ access_token: string; refresh_token?: string }> => {
-    const response = await api.post('/auth/refresh', { refresh_token: refreshToken });
+  // 토큰 갱신 (OpenAPI 스펙에 따르면 쿠키로 리프레시 토큰을 받음)
+  refreshToken: async (): Promise<{ access_token: string; refresh_token?: string }> => {
+    const response = await apiClient.post('/auth/refresh');
     return response.data as { access_token: string; refresh_token?: string };
   }
 };

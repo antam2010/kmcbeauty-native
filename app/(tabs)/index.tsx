@@ -2,42 +2,31 @@ import Calendar from '@/components/calendar/Calendar';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { dashboardService, DashboardSummaryResponse } from '@/services/api/dashboard';
-import { useAuthStore } from '@/stores/authContext';
-import React, { useEffect, useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-
-interface DashboardStats {
-  todayBookings: number;
-  activeStaff: number;
-  monthlyRevenue: number;
-  newCustomers: number;
-  completedBookings: number;
-  cancelledBookings: number;
-}
+import { dashboardAPI } from '@/src/features/dashboard/api';
+import { DashboardResponse } from '@/src/types/dashboard';
+import { Treatment } from '@/src/types/treatment';
+import { useAuth } from '@/stores/authContext';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 
 export default function HomeScreen() {
-  const [dashboardData, setDashboardData] = useState<DashboardSummaryResponse | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedTreatments, setSelectedTreatments] = useState<Treatment[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, accessToken } = useAuthStore();
+  const [refreshing, setRefreshing] = useState(false);
+  const { isAuthenticated, user } = useAuth();
 
-  useEffect(() => {
-    if (accessToken) {
-      loadDashboardData();
-    }
-  }, [accessToken]);
-
-  const loadDashboardData = async () => {
-    if (!accessToken) {
+  // 대시보드 데이터 로드
+  const loadDashboardData = useCallback(async () => {
+    if (!isAuthenticated) {
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      const today = new Date().toISOString().split('T')[0];
-      const data = await dashboardService.getDashboardSummary(accessToken, today);
+      const data = await dashboardAPI.getTodaySummary();
       setDashboardData(data);
     } catch (error) {
       console.error('대시보드 데이터 로딩 중 오류:', error);
@@ -45,9 +34,22 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
-  const quickStats = dashboardData ? [
+  // 새로고침
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadDashboardData();
+    setRefreshing(false);
+  }, [loadDashboardData]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadDashboardData();
+    }
+  }, [isAuthenticated, loadDashboardData]);
+
+  const quickStats = dashboardData?.summary ? [
     { 
       label: '오늘 예약', 
       value: dashboardData.summary.target_date.total_reservations.toString(), 
@@ -98,17 +100,31 @@ export default function HomeScreen() {
     }
   };
 
+  // 달력에서 트리트먼트 데이터를 받아와서 선택된 날짜의 데이터 필터링
+  const handleTreatmentsLoad = useCallback((treatments: Treatment[]) => {
+    // 선택된 날짜의 트리트먼트만 필터링
+    const selectedDateTreatments = treatments.filter(treatment => 
+      treatment.reserved_at.split('T')[0] === selectedDate
+    );
+    setSelectedTreatments(selectedDateTreatments);
+  }, [selectedDate]);
+
   const handleDateSelect = (dateString: string) => {
-    const date = new Date(dateString);
-    setSelectedDate(date);
+    setSelectedDate(dateString);
+    
+    // 이미 로드된 트리트먼트에서 해당 날짜의 데이터만 필터링
+    // API 재호출 없이 기존 데이터 활용
+    
+    // 날짜 객체로 변환하여 표시
+    const dateObj = new Date(dateString);
     Alert.alert(
       '날짜 선택됨',
-      `${date.toLocaleDateString('ko-KR')}을 선택하셨습니다.\n이 날짜의 예약을 관리하시겠습니까?`,
+      `${dateObj.toLocaleDateString('ko-KR')}을 선택하셨습니다.\n이 날짜의 예약을 관리하시겠습니까?`,
       [
         { text: '취소', style: 'cancel' },
         { text: '예약 관리', onPress: () => {
           // 여기서 예약 관리 탭으로 이동할 수 있습니다
-          console.log('Navigate to booking management for:', date);
+          console.log('Navigate to booking management for:', dateString);
         }}
       ]
     );
@@ -143,7 +159,18 @@ export default function HomeScreen() {
         </ThemedText>
       </ThemedView>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#007AFF"
+            colors={['#007AFF']}
+          />
+        }
+      >
         {/* 빠른 통계 */}
         <ThemedView style={styles.section}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>
@@ -187,17 +214,17 @@ export default function HomeScreen() {
             최근 고객 인사이트
           </ThemedText>
           <ThemedView style={styles.bookingsList}>
-            {dashboardData?.customer_insights.slice(0, 3).map((insight) => (
+            {(dashboardData?.insights || []).slice(0, 3).map((insight) => (
               <ThemedView key={insight.id} style={styles.bookingItem}>
                 <ThemedView style={styles.bookingInfo}>
                   <ThemedText type="defaultSemiBold">
                     {insight.customer_name || '고객'}
                   </ThemedText>
                   <ThemedText>
-                    총 {insight.total_reservations}회 예약 • ₩{insight.total_spent.toLocaleString()}
+                    예약일: {new Date(insight.reserved_at).toLocaleDateString('ko-KR')}
                   </ThemedText>
                   <ThemedText style={styles.insightText}>
-                    노쇼율: {insight.no_show_rate.toFixed(1)}%
+                    서비스: {insight.menu_detail_name || '미정'} • 담당: {insight.staff_user_name || '미정'}
                   </ThemedText>
                 </ThemedView>
                 <ThemedView 
@@ -212,7 +239,7 @@ export default function HomeScreen() {
                 </ThemedView>
               </ThemedView>
             ))}
-            {!dashboardData?.customer_insights.length && (
+            {!(dashboardData?.insights || []).length && (
               <ThemedView style={styles.emptyState}>
                 <ThemedText>표시할 고객 정보가 없습니다.</ThemedText>
               </ThemedView>
@@ -244,16 +271,62 @@ export default function HomeScreen() {
           </ThemedText>
           <Calendar 
             onDateSelect={handleDateSelect} 
-            selectedDate={selectedDate?.toISOString().split('T')[0]}
+            selectedDate={selectedDate}
+            onTreatmentsLoad={handleTreatmentsLoad}
           />
           {selectedDate && (
             <ThemedView style={styles.selectedDateInfo}>
               <ThemedText style={styles.selectedDateText}>
-                선택된 날짜: {selectedDate.toLocaleDateString('ko-KR')}
+                선택된 날짜: {new Date(selectedDate).toLocaleDateString('ko-KR')}
               </ThemedText>
+              {selectedTreatments.length > 0 && (
+                <ThemedText style={styles.treatmentCount}>
+                  {selectedTreatments.length}개의 예약이 있습니다
+                </ThemedText>
+              )}
             </ThemedView>
           )}
         </ThemedView>
+
+        {/* 선택된 날짜의 예약 목록 */}
+        {selectedTreatments.length > 0 && (
+          <ThemedView style={styles.section}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              📋 선택된 날짜의 예약
+            </ThemedText>
+            {selectedTreatments.slice(0, 5).map((treatment) => (
+              <ThemedView key={treatment.id} style={styles.treatmentItem}>
+                <ThemedView style={styles.treatmentHeader}>
+                  <ThemedText style={styles.treatmentTime}>
+                    {new Date(treatment.reserved_at).toLocaleTimeString('ko-KR', { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                  </ThemedText>
+                  <ThemedText style={[
+                    styles.treatmentStatus,
+                    { color: getStatusColor(treatment.status) }
+                  ]}>
+                    {getStatusText(treatment.status)}
+                  </ThemedText>
+                </ThemedView>
+                <ThemedText style={styles.treatmentCustomer}>
+                  {treatment.phonebook.name} ({treatment.phonebook.phone_number})
+                </ThemedText>
+                {treatment.treatment_items.length > 0 && (
+                  <ThemedText style={styles.treatmentService}>
+                    {treatment.treatment_items.map(item => item.menu_detail.name).join(', ')}
+                  </ThemedText>
+                )}
+              </ThemedView>
+            ))}
+            {selectedTreatments.length > 5 && (
+              <ThemedText style={styles.moreText}>
+                ... 외 {selectedTreatments.length - 5}개의 예약
+              </ThemedText>
+            )}
+          </ThemedView>
+        )}
       </ScrollView>
     </ThemedView>
   );
@@ -435,6 +508,60 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: '600',
     textAlign: 'center',
+  },
+  treatmentCount: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  treatmentItem: {
+    backgroundColor: 'white',
+    padding: 12,
+    marginVertical: 4,
+    borderRadius: 8,
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+    }),
+    elevation: 2,
+  },
+  treatmentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  treatmentTime: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  treatmentStatus: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  treatmentCustomer: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 2,
+  },
+  treatmentService: {
+    fontSize: 12,
+    color: '#888',
+    fontStyle: 'italic',
+  },
+  moreText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   insightText: {
     fontSize: 12,

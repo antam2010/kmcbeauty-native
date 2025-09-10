@@ -57,7 +57,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
 
     console.log('🔄 리프레시 토큰으로 액세스 토큰 갱신 시도');
     
-    const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
+    const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
       refresh_token: refreshToken
     });
 

@@ -4,7 +4,37 @@ import React, { createContext, ReactNode, useCallback, useContext, useEffect, us
 
 // 새로운 API 구조에서 타입과 API 가져오기
 import { authAPI, LoginCredentials, User } from '@/src/features/auth/api';
-import { tokenManager } from '@/src/api';
+
+// 간단한 토큰 관리자
+const tokenManager = {
+  async saveTokens(accessToken: string, refreshToken?: string): Promise<void> {
+    try {
+      // auth-storage에 액세스 토큰 저장 (기존 방식 유지)
+      const authData = await AsyncStorage.getItem('auth-storage');
+      const existingData = authData ? JSON.parse(authData) : {};
+      
+      const updatedData = {
+        ...existingData,
+        accessToken,
+        // 리프레시 토큰은 쿠키로 관리하므로 저장하지 않음
+      };
+      
+      await AsyncStorage.setItem('auth-storage', JSON.stringify(updatedData));
+      console.log('✅ 토큰 저장 완료');
+    } catch (error) {
+      console.error('토큰 저장 실패:', error);
+    }
+  },
+
+  async removeTokens(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove(['auth-storage', 'auth-token']);
+      console.log('✅ 토큰 삭제 완료');
+    } catch (error) {
+      console.error('토큰 삭제 실패:', error);
+    }
+  }
+};
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -86,8 +116,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // 실제 API 호출
       const response = await authAPI.login(credentials);
       
-      // 토큰 저장
-      await tokenManager.saveToken(response.access_token);
+      // 액세스 토큰과 리프레시 토큰 저장
+      await tokenManager.saveTokens(response.access_token, response.refresh_token);
       
       console.log('🟡 로그인 성공, 상태 업데이트 중');
       
@@ -101,7 +131,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setAuthState(newState);
       await saveAuthToStorage(newState);
       
-      console.log('✅ 로그인 완료');
+      console.log('✅ 로그인 완료 - 홈 화면으로 이동');
+      
+      // 로그인 성공 후 홈 화면으로 이동
+      try {
+        if (typeof window !== 'undefined') {
+          // 웹 환경
+          setTimeout(() => {
+            router.replace('/(tabs)');
+          }, 100);
+        } else {
+          // 모바일 환경
+          router.replace('/(tabs)');
+        }
+      } catch (navError) {
+        console.error('홈 화면 이동 실패:', navError);
+      }
+      
     } catch (error: any) {
       console.error('❌ 로그인 실패:', error);
       setAuthState(prev => ({ ...prev, loading: false }));
@@ -188,4 +234,5 @@ export const useAuth = () => {
 export const useAuthStore = useAuth;
 
 // 타입 내보내기 (기존 호환성을 위해)
-export type { User, LoginCredentials };
+export type { LoginCredentials, User };
+

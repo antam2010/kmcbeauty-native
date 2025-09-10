@@ -1,13 +1,23 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { CalendarDate } from '@/types';
-import React, { useState } from 'react';
+import { treatmentAPI } from '@/src/features/booking/api';
+import { Treatment } from '@/src/types/treatment';
+import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+interface CalendarDate {
+  date: string;
+  isToday: boolean;
+  isSelected: boolean;
+  hasBookings: boolean;
+  bookingCount: number;
+  isCurrentMonth: boolean;
+}
 
 interface CalendarProps {
   selectedDate?: string;
   onDateSelect: (date: string) => void;
-  bookingData?: { [date: string]: number };
+  onTreatmentsLoad?: (treatments: Treatment[]) => void;
   minDate?: string;
   maxDate?: string;
 }
@@ -15,11 +25,39 @@ interface CalendarProps {
 export default function Calendar({ 
   selectedDate, 
   onDateSelect, 
-  bookingData = {},
+  onTreatmentsLoad,
   minDate,
   maxDate 
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [treatments, setTreatments] = useState<Treatment[]>([]);
+
+  // 월별 시술 예약 데이터 로드
+  const loadMonthlyTreatments = useCallback(async (year: number, month: number) => {
+    try {
+      const monthlyTreatments = await treatmentAPI.getMonthlyTreatments(year, month);
+      setTreatments(monthlyTreatments);
+      onTreatmentsLoad?.(monthlyTreatments);
+    } catch (error) {
+      console.error('월별 시술 예약 로드 실패:', error);
+      setTreatments([]);
+    }
+  }, [onTreatmentsLoad]);
+
+  // 현재 월이 변경될 때마다 데이터 로드
+  useEffect(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth() + 1; // getMonth()는 0부터 시작
+    loadMonthlyTreatments(year, month);
+  }, [currentMonth, loadMonthlyTreatments]);
+
+  // 날짜별 예약 건수 계산
+  const getBookingCountByDate = (date: string): number => {
+    return treatments.filter(treatment => {
+      const treatmentDate = treatment.reserved_at.split('T')[0];
+      return treatmentDate === date;
+    }).length;
+  };
 
   // 달력 데이터 생성 함수
   const generateCalendarDates = () => {
@@ -36,12 +74,14 @@ export default function Calendar({
     // 이전 달 날짜들 (빈 칸 채우기)
     for (let i = startWeekday - 1; i >= 0; i--) {
       const date = new Date(year, month, -i);
+      const dateString = date.toISOString().split('T')[0];
       dates.push({
-        date: date.toISOString().split('T')[0],
+        date: dateString,
         isToday: false,
         isSelected: false,
         hasBookings: false,
         bookingCount: 0,
+        isCurrentMonth: false,
       });
     }
     
@@ -49,13 +89,15 @@ export default function Calendar({
     for (let day = 1; day <= lastDay.getDate(); day++) {
       const date = new Date(year, month, day);
       const dateString = date.toISOString().split('T')[0];
+      const bookingCount = getBookingCountByDate(dateString);
       
       dates.push({
         date: dateString,
         isToday: dateString === today,
         isSelected: dateString === selectedDate,
-        hasBookings: (bookingData[dateString] || 0) > 0,
-        bookingCount: bookingData[dateString] || 0,
+        hasBookings: bookingCount > 0,
+        bookingCount: bookingCount,
+        isCurrentMonth: true,
       });
     }
     
@@ -63,12 +105,14 @@ export default function Calendar({
     const remainingCells = 42 - dates.length;
     for (let day = 1; day <= remainingCells; day++) {
       const date = new Date(year, month + 1, day);
+      const dateString = date.toISOString().split('T')[0];
       dates.push({
-        date: date.toISOString().split('T')[0],
+        date: dateString,
         isToday: false,
         isSelected: false,
         hasBookings: false,
         bookingCount: 0,
+        isCurrentMonth: false,
       });
     }
     

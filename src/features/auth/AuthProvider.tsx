@@ -95,7 +95,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('🟡 로그인 시작:', credentials.email);
       setAuthState(prev => ({ ...prev, loading: true }));
       
-      const response = await apiClient.post('/api/auth/login', credentials);
+      const response = await apiClient.post('/auth/login', credentials);
       const { access_token, user } = response.data as { access_token: string; user: User };
       
       console.log('🟡 로그인 성공, 상태 업데이트 중');
@@ -124,7 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // 선택적으로 서버에 로그아웃 알림
       try {
-        await apiClient.post('/api/auth/logout');
+        await apiClient.post('/auth/logout');
       } catch (error) {
         console.log('서버 로그아웃 알림 실패 (무시):', error);
       }

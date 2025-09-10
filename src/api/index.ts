@@ -28,11 +28,39 @@ export const tokenManager = {
     }
   },
 
+  async getStoredRefreshToken(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem('refresh-token');
+    } catch (error) {
+      console.error('리프레시 토큰 가져오기 실패:', error);
+      return null;
+    }
+  },
+
   async saveToken(token: string): Promise<void> {
     try {
       await AsyncStorage.setItem('auth-token', token);
     } catch (error) {
       console.error('토큰 저장 실패:', error);
+    }
+  },
+
+  async saveRefreshToken(refreshToken: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem('refresh-token', refreshToken);
+    } catch (error) {
+      console.error('리프레시 토큰 저장 실패:', error);
+    }
+  },
+
+  async saveTokens(accessToken: string, refreshToken?: string): Promise<void> {
+    try {
+      await this.saveToken(accessToken);
+      if (refreshToken) {
+        await this.saveRefreshToken(refreshToken);
+      }
+    } catch (error) {
+      console.error('토큰들 저장 실패:', error);
     }
   },
 
@@ -55,6 +83,31 @@ export const tokenManager = {
   }
 };
 
+// 토큰 재발급 응답 타입
+interface RefreshTokenResponse {
+  access_token: string;
+  refresh_token?: string;
+}
+
+// 토큰 재발급 함수
+const refreshAccessToken = async (): Promise<string | null> => {
+  try {
+    console.log('🔄 액세스 토큰 재발급 시도');
+    const response = await apiClient.post('/auth/refresh');
+    
+    const { access_token, refresh_token: newRefreshToken } = response.data as RefreshTokenResponse;
+    
+    // 새 토큰들 저장
+    await tokenManager.saveTokens(access_token, newRefreshToken);
+    
+    console.log('✅ 액세스 토큰 재발급 성공');
+    return access_token;
+  } catch (error) {
+    console.error('❌ 토큰 재발급 실패:', error);
+    return null;
+  }
+};
+
 // 토큰을 요청에 추가하는 헬퍼 함수
 const addTokenToRequest = async (config: any) => {
   const token = await tokenManager.getStoredToken();
@@ -65,20 +118,87 @@ const addTokenToRequest = async (config: any) => {
   return config;
 };
 
-// 응답 인터셉터만 설정 (요청 인터셉터는 수동으로 처리)
+// 401 재시도 큐 관리
+let isRefreshing = false;
+let failedQueue: {
+  resolve: (value?: unknown) => void;
+  reject: (reason?: any) => void;
+  config: any;
+}[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(({ resolve, reject, config }) => {
+    if (error) {
+      reject(error);
+    } else {
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      resolve(config);
+    }
+  });
+  
+  failedQueue = [];
+};
+
+// 응답 인터셉터 설정
 apiClient.interceptors.response.use(
   (response) => {
     console.log(`✅ API 응답: ${response.status} ${response.config.url}`);
     return response;
   },
   async (error) => {
-    // 인증 오류 처리 (401, 403)
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      console.log('🔴 인증 오류 감지, 로그아웃 처리');
-      
+    const originalRequest = error.config;
+
+    // 401 에러 처리 - 토큰 재발급 시도
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // 이미 재발급 중이면 큐에 추가
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject, config: originalRequest });
+        }).then((config: any) => {
+          return apiClient(config);
+        }).catch((err) => {
+          return Promise.reject(err);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const newToken = await refreshAccessToken();
+        
+        if (newToken) {
+          // 재발급 성공 - 큐의 모든 요청에 새 토큰 적용
+          processQueue(null, newToken);
+          
+          // 원래 요청에 새 토큰 적용하여 재시도
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return apiClient(originalRequest);
+        } else {
+          // 재발급 실패 - 로그아웃 처리
+          processQueue(error, null);
+          await tokenManager.removeTokens();
+          tokenManager.redirectToLogin();
+          return Promise.reject(error);
+        }
+      } catch (refreshError) {
+        // 재발급 중 오류 - 로그아웃 처리
+        processQueue(refreshError, null);
+        await tokenManager.removeTokens();
+        tokenManager.redirectToLogin();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    // 403 에러 처리 (권한 없음)
+    if (error.response?.status === 403) {
+      console.log('🔴 권한 없음 오류 감지');
       await tokenManager.removeTokens();
       tokenManager.redirectToLogin();
-      
       return Promise.reject(error);
     }
 
@@ -123,7 +243,7 @@ export const handleLogout = async () => {
     
     // 서버에 로그아웃 알림 (선택적)
     try {
-      await api.post('/api/auth/logout');
+      await api.post('/auth/logout');
     } catch (error) {
       console.log('서버 로그아웃 알림 실패 (무시):', error);
     }

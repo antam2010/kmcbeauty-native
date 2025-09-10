@@ -112,7 +112,7 @@ export const handleLogout = async () => {
     
     // 서버에 로그아웃 알림 (선택적)
     try {
-      await apiClient.post('/api/auth/logout');
+      await apiClient.post('/auth/logout');
     } catch (error) {
       console.log('서버 로그아웃 알림 실패 (무시):', error);
     }

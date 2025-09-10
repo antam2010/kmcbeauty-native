@@ -16,7 +16,7 @@ export default React.memo(function LoginScreen() {
       console.log('🔴 LoginScreen: AuthContext.login 호출 직전');
       await login(credentials);
       console.log('🔴 LoginScreen: AuthContext.login 완료');
-      // 로그인 성공 시 자동으로 홈 화면으로 이동 (AuthContext에서 처리)
+      // 로그인 성공 시 AuthContext에서 자동으로 네비게이션 처리
     } catch (error) {
       console.error('🔴 LoginScreen: 로그인 에러:', error);
       Alert.alert(
