@@ -5,19 +5,19 @@ import { DashboardStats } from '../../types/models';
 export const dashboardAPI = {
   // 대시보드 통계 가져오기
   getStats: async (): Promise<DashboardStats> => {
-    const response = await api.get('/api/dashboard/stats');
+    const response = await api.get('/dashboard/stats');
     return response.data as DashboardStats;
   },
 
   // 오늘의 예약 목록
   getTodayBookings: async () => {
-    const response = await api.get('/api/dashboard/today-bookings');
+    const response = await api.get('/dashboard/today-bookings');
     return response.data;
   },
 
   // 월별 수익 통계
   getMonthlyRevenue: async (year: number, month: number) => {
-    const response = await api.get(`/api/dashboard/revenue/${year}/${month}`);
+    const response = await api.get(`/dashboard/revenue/${year}/${month}`);
     return response.data;
   }
 };

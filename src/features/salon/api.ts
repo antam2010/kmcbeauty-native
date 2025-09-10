@@ -22,19 +22,19 @@ export interface SelectShopResponse {
 export const shopAPI = {
   // 내 샵 목록 가져오기
   getMyShops: async (): Promise<Shop[]> => {
-    const response = await api.get('/api/shops/my');
+    const response = await api.get('/shops/my');
     return response.data as Shop[];
   },
 
   // 샵 선택
   selectShop: async (shopId: number): Promise<SelectShopResponse> => {
-    const response = await api.post('/api/shops/select', { shop_id: shopId });
+    const response = await api.post('/shops/select', { shop_id: shopId });
     return response.data as SelectShopResponse;
   },
 
   // 샵 상세 정보
   getShopDetail: async (shopId: number): Promise<Shop> => {
-    const response = await api.get(`/api/shops/${shopId}`);
+    const response = await api.get(`/shops/${shopId}`);
     return response.data as Shop;
   }
 };
