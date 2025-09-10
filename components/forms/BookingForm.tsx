@@ -20,6 +20,7 @@ interface BookingFormProps {
     description: string;
   };
   selectedDate?: string;
+  reservedTimes?: string[]; // 이미 예약된 시간들
   onClose: () => void;
   onBookingComplete: () => void;
 }
@@ -27,6 +28,7 @@ interface BookingFormProps {
 export default function BookingForm({ 
   service, 
   selectedDate, 
+  reservedTimes = [],
   onClose, 
   onBookingComplete 
 }: BookingFormProps) {
@@ -43,6 +45,11 @@ export default function BookingForm({
     '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
     '18:00', '18:30'
   ];
+
+  // 해당 시간이 이미 예약된 시간인지 확인
+  const isTimeReserved = (time: string): boolean => {
+    return reservedTimes.includes(time);
+  };
 
   const handleBooking = () => {
     if (!customerName.trim()) {
@@ -133,23 +140,32 @@ export default function BookingForm({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>시간 선택</Text>
           <View style={styles.timeGrid}>
-            {timeSlots.map((time) => (
-              <TouchableOpacity
-                key={time}
-                style={[
-                  styles.timeSlot,
-                  selectedTime === time && styles.selectedTimeSlot
-                ]}
-                onPress={() => setSelectedTime(time)}
-              >
-                <Text style={[
-                  styles.timeText,
-                  selectedTime === time && styles.selectedTimeText
-                ]}>
-                  {time}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {timeSlots.map((time) => {
+              const isReserved = isTimeReserved(time);
+              return (
+                <TouchableOpacity
+                  key={time}
+                  style={[
+                    styles.timeSlot,
+                    selectedTime === time && styles.selectedTimeSlot,
+                    isReserved && styles.reservedTimeSlot
+                  ]}
+                  onPress={() => !isReserved && setSelectedTime(time)}
+                  disabled={isReserved}
+                >
+                  <Text style={[
+                    styles.timeText,
+                    selectedTime === time && styles.selectedTimeText,
+                    isReserved && styles.reservedTimeText
+                  ]}>
+                    {time}
+                  </Text>
+                  {isReserved && (
+                    <Text style={styles.reservedLabel}>예약됨</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -385,6 +401,21 @@ const styles = StyleSheet.create({
   selectedTimeText: {
     color: '#ffffff',
     fontWeight: 'bold',
+  },
+  reservedTimeSlot: {
+    backgroundColor: '#f5f5f5',
+    borderColor: '#e0e0e0',
+    opacity: 0.6,
+  },
+  reservedTimeText: {
+    color: '#999999',
+    textDecorationLine: 'line-through',
+  },
+  reservedLabel: {
+    fontSize: 10,
+    color: '#ff6b6b',
+    fontWeight: '600',
+    marginTop: 2,
   },
   inputContainer: {
     marginBottom: 20,

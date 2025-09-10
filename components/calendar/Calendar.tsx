@@ -18,6 +18,7 @@ interface CalendarProps {
   selectedDate?: string;
   onDateSelect: (date: string) => void;
   onTreatmentsLoad?: (treatments: Treatment[]) => void;
+  onNewBookingRequest?: (date: string, reservedTimes: string[]) => void;
   minDate?: string;
   maxDate?: string;
 }
@@ -26,6 +27,7 @@ export default function Calendar({
   selectedDate, 
   onDateSelect, 
   onTreatmentsLoad,
+  onNewBookingRequest,
   minDate,
   maxDate 
 }: CalendarProps) {
@@ -204,6 +206,27 @@ export default function Calendar({
     }, 300);
   };
 
+  const handleNewBookingRequest = () => {
+    if (selectedDateTreatments.length > 0) {
+      const selectedDateString = selectedDateTreatments[0].reserved_at.split('T')[0];
+      
+      // 해당 날짜의 예약된 시간들을 추출
+      const reservedTimes = selectedDateTreatments.map(treatment => {
+        const date = new Date(treatment.reserved_at);
+        return date.toLocaleTimeString('ko-KR', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false 
+        });
+      });
+      
+      closeTreatmentsModal();
+      setTimeout(() => {
+        onNewBookingRequest?.(selectedDateString, reservedTimes);
+      }, 300);
+    }
+  };
+
   return (
     <View style={calendarStyles.container}>
       {/* 예약 목록 모달 */}
@@ -260,6 +283,20 @@ export default function Calendar({
             {selectedDateTreatments.length === 0 && (
               <ThemedView style={calendarStyles.emptyContainer}>
                 <ThemedText style={calendarStyles.emptyText}>예약이 없습니다.</ThemedText>
+              </ThemedView>
+            )}
+            
+            {/* 새 예약하기 버튼 */}
+            {selectedDateTreatments.length > 0 && onNewBookingRequest && (
+              <ThemedView style={calendarStyles.newBookingContainer}>
+                <TouchableOpacity 
+                  style={calendarStyles.newBookingButton} 
+                  onPress={handleNewBookingRequest}
+                >
+                  <ThemedText style={calendarStyles.newBookingButtonText}>
+                    ➕ 이 날에 새 예약하기
+                  </ThemedText>
+                </TouchableOpacity>
               </ThemedView>
             )}
           </ScrollView>
@@ -668,5 +705,35 @@ const calendarStyles = StyleSheet.create({
     fontSize: 16,
     color: '#888',
     textAlign: 'center',
+  },
+  // 새 예약하기 버튼 스타일
+  newBookingContainer: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  newBookingButton: {
+    backgroundColor: '#667eea',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#667eea',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      }
+    })
+  },
+  newBookingButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });

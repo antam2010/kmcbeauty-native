@@ -8,6 +8,7 @@ export default function BookingScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [isModalClosing, setIsModalClosing] = useState(false);
+  const [reservedTimes, setReservedTimes] = useState<string[]>([]);
   const insets = useSafeAreaInsets();
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -32,10 +33,24 @@ export default function BookingScreen() {
     ]).start();
 
     setSelectedDate(dateString);
+    setReservedTimes([]); // 새로운 날짜 선택 시 예약된 시간 초기화
     setTimeout(() => {
       setShowBookingForm(true);
     }, 200);
   }, [showBookingForm, isModalClosing, scaleAnim]);
+
+  const handleNewBookingRequest = useCallback(async (dateString: string, reservedTimesForDate: string[]) => {
+    // 이미 모달이 열려있거나 닫히는 중이면 무시
+    if (showBookingForm || isModalClosing) {
+      return;
+    }
+
+    setSelectedDate(dateString);
+    setReservedTimes(reservedTimesForDate); // 해당 날짜의 예약된 시간들 설정
+    setTimeout(() => {
+      setShowBookingForm(true);
+    }, 200);
+  }, [showBookingForm, isModalClosing]);
 
   const handleCloseBookingForm = useCallback(() => {
     setIsModalClosing(true);
@@ -44,6 +59,7 @@ export default function BookingScreen() {
     // 모달이 완전히 닫힌 후 상태 리셋
     setTimeout(() => {
       setSelectedDate(null);
+      setReservedTimes([]);
       setIsModalClosing(false);
     }, 500);
   }, []);
@@ -54,6 +70,7 @@ export default function BookingScreen() {
     
     setTimeout(() => {
       setSelectedDate(null);
+      setReservedTimes([]);
       setIsModalClosing(false);
       Alert.alert("완료", "예약이 완료되었습니다!", [
         { text: "확인", style: "default" }
@@ -96,7 +113,8 @@ export default function BookingScreen() {
           </View>
           <Calendar 
             selectedDate={selectedDate || undefined} 
-            onDateSelect={handleDateSelect} 
+            onDateSelect={handleDateSelect}
+            onNewBookingRequest={handleNewBookingRequest}
             minDate={new Date().toISOString().split("T")[0]} 
           />
         </Animated.View>
@@ -109,7 +127,8 @@ export default function BookingScreen() {
         onRequestClose={handleCloseBookingForm}
       >
         <BookingForm 
-          selectedDate={selectedDate || undefined} 
+          selectedDate={selectedDate || undefined}
+          reservedTimes={reservedTimes}
           onClose={handleCloseBookingForm} 
           onBookingComplete={handleBookingComplete} 
         />
