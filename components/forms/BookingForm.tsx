@@ -1,4 +1,5 @@
 import { phonebookApiService, type Phonebook } from '@/src/api/services/phonebook';
+import { shopApiService, type ShopUser } from '@/src/api/services/shop';
 import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import type { TreatmentCreate, TreatmentItemCreate } from '@/src/types/treatment';
@@ -42,12 +43,14 @@ export default function BookingForm({
   const [searchResults, setSearchResults] = useState<Phonebook[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedTreatments, setSelectedTreatments] = useState<SelectedTreatmentItem[]>([]);
+  const [selectedStaff, setSelectedStaff] = useState<ShopUser | null>(null);
   const [memo, setMemo] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'CASH' | 'UNPAID'>('CARD');
   
   // 로딩 상태
   const [isLoading, setIsLoading] = useState(false);
   const [treatmentMenus, setTreatmentMenus] = useState<TreatmentMenu[]>([]);
+  const [staffUsers, setStaffUsers] = useState<ShopUser[]>([]);
   const [isLoadingMenus, setIsLoadingMenus] = useState(true);
   
   const insets = useSafeAreaInsets();
@@ -60,9 +63,10 @@ export default function BookingForm({
     '18:00', '18:30'
   ];
 
-  // 시술 메뉴 로드
+  // 시술 메뉴와 직원 목록 로드
   useEffect(() => {
     loadTreatmentMenus();
+    loadStaffUsers();
   }, []);
 
   // 고객 검색
@@ -94,6 +98,17 @@ export default function BookingForm({
       Alert.alert('오류', '시술 메뉴를 불러오는데 실패했습니다.');
     } finally {
       setIsLoadingMenus(false);
+    }
+  };
+
+  const loadStaffUsers = async () => {
+    try {
+      const users = await shopApiService.getCurrentShopUsers();
+      setStaffUsers(users);
+    } catch (error) {
+      console.error('직원 목록 로드 실패:', error);
+      // 직원 목록 로드는 실패해도 앱이 동작하도록 경고만 표시
+      console.warn('직원 목록을 불러올 수 없습니다. 직원 선택 없이 진행됩니다.');
     }
   };
 
@@ -172,6 +187,7 @@ export default function BookingForm({
         memo: memo.trim() || null,
         status: 'RESERVED',
         payment_method: paymentMethod,
+        staff_user_id: selectedStaff?.user_id || null,
         treatment_items: treatmentItems
       };
 
@@ -317,6 +333,9 @@ export default function BookingForm({
           {/* 시술 선택 */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>💅 시술 선택</Text>
+            <Text style={styles.sectionSubtitle}>
+              💡 같은 시술을 여러 회차로 예약할 수 있습니다 (예: 두피마사지 2회차)
+            </Text>
             {treatmentMenus.map((menu) => (
               <View key={menu.id} style={styles.menuGroup}>
                 <Text style={styles.menuGroupTitle}>{menu.name}</Text>
@@ -342,7 +361,7 @@ export default function BookingForm({
           {/* 선택된 시술들 */}
           {selectedTreatments.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>✅ 선택된 시술</Text>
+              <Text style={styles.sectionTitle}>✅ 선택된 시술 (회차별)</Text>
               {selectedTreatments.map((item, index) => (
                 <View key={index} style={styles.selectedTreatment}>
                   <View style={styles.treatmentInfo}>
@@ -358,7 +377,7 @@ export default function BookingForm({
                     >
                       <Text style={styles.sessionButtonText}>-</Text>
                     </TouchableOpacity>
-                    <Text style={styles.sessionNo}>{item.sessionNo}회</Text>
+                    <Text style={styles.sessionNo}>{item.sessionNo}회차</Text>
                     <TouchableOpacity
                       style={styles.sessionButton}
                       onPress={() => updateSessionNo(index, item.sessionNo + 1)}
@@ -382,6 +401,53 @@ export default function BookingForm({
               </View>
             </View>
           )}
+
+          {/* 담당 직원 선택 */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>👨‍💼 담당 직원 (선택사항)</Text>
+            <View style={styles.staffSelection}>
+              <TouchableOpacity
+                style={[
+                  styles.staffOption,
+                  !selectedStaff && styles.selectedStaffOption
+                ]}
+                onPress={() => setSelectedStaff(null)}
+              >
+                <Text style={[
+                  styles.staffOptionText,
+                  !selectedStaff && styles.selectedStaffOptionText
+                ]}>
+                  직접 시술
+                </Text>
+              </TouchableOpacity>
+              
+              {staffUsers.map((staff) => (
+                <TouchableOpacity
+                  key={staff.user_id}
+                  style={[
+                    styles.staffOption,
+                    selectedStaff?.user_id === staff.user_id && styles.selectedStaffOption
+                  ]}
+                  onPress={() => setSelectedStaff(staff)}
+                >
+                  <View style={styles.staffInfo}>
+                    <Text style={[
+                      styles.staffOptionText,
+                      selectedStaff?.user_id === staff.user_id && styles.selectedStaffOptionText
+                    ]}>
+                      {staff.user.name}
+                    </Text>
+                    <Text style={[
+                      styles.staffRole,
+                      selectedStaff?.user_id === staff.user_id && styles.selectedStaffRole
+                    ]}>
+                      {staff.is_primary_owner === 1 ? '대표' : '직원'} • {staff.user.role}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
           {/* 결제 방법 */}
           <View style={styles.section}>
@@ -500,6 +566,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#212529',
     marginBottom: 12,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#6c757d',
+    marginBottom: 12,
+    fontStyle: 'italic',
   },
   dateCard: {
     backgroundColor: '#ffffff',
@@ -761,5 +833,39 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#ffffff',
+  },
+  // 직원 선택 관련 스타일
+  staffSelection: {
+    gap: 8,
+  },
+  staffOption: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderRadius: 8,
+    padding: 12,
+  },
+  selectedStaffOption: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#1976d2',
+  },
+  staffInfo: {
+    flex: 1,
+  },
+  staffOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#495057',
+  },
+  selectedStaffOptionText: {
+    color: '#1976d2',
+  },
+  staffRole: {
+    fontSize: 13,
+    color: '#6c757d',
+    marginTop: 2,
+  },
+  selectedStaffRole: {
+    color: '#1565c0',
   },
 });

@@ -7,8 +7,8 @@ import { treatmentApiService } from './treatment';
 import { treatmentMenuApiService } from './treatmentMenu';
 
 export {
-  authApiService,
-  dashboardApiService, phonebookApiService, shopApiService, treatmentApiService, treatmentMenuApiService
+    authApiService,
+    dashboardApiService, phonebookApiService, shopApiService, treatmentApiService, treatmentMenuApiService
 };
 
 // 편의를 위한 통합 API 객체
