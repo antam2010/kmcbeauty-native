@@ -3,8 +3,8 @@ import { router } from 'expo-router';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 // 새로운 API 구조에서 타입과 API 가져오기
-import { authAPI, LoginCredentials, User } from '@/src/features/auth/api';
 import { tokenManager } from '@/src/api';
+import { authAPI, LoginCredentials, User } from '@/src/features/auth/api';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -188,4 +188,5 @@ export const useAuth = () => {
 export const useAuthStore = useAuth;
 
 // 타입 내보내기 (기존 호환성을 위해)
-export type { User, LoginCredentials };
+export type { LoginCredentials, User };
+

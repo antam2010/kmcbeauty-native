@@ -108,10 +108,6 @@ beauty-app/
 │  │  ├─ money.ts                         # 통화/할인/포인트 계산
 │  │  └─ validators.ts
 │  │
-│  ├─ i18n/
-│  │  ├─ index.ts                         # i18next init
-│  │  ├─ ko.json
-│  │  └─ en.json
 │  └─ types/
 │     ├─ models.d.ts                      # 앱 전용 타입(서버 공통 외)
 │     └─ route.d.ts

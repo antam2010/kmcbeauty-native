@@ -1,11 +1,11 @@
 import LoginScreen from '@/app/login';
-import { useAuthStore } from '@/stores/authContext';
+import { useAuth } from '@/stores/authContext';
 import { Stack } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 const AuthNavigator: React.FC = React.memo(() => {
-  const { isAuthenticated, loading } = useAuthStore();
+  const { isAuthenticated, loading } = useAuth();
 
   console.log('🔐 AuthNavigator - isAuthenticated:', isAuthenticated, 'loading:', loading);
 

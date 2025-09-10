@@ -1,13 +1,13 @@
 import { ThemedView } from '@/components/ThemedView';
 import LoginForm from '@/components/forms/LoginForm';
-import { useAuthStore } from '@/stores/authContext';
-import { LoginCredentials } from '@/types';
+import { LoginCredentials } from '@/src/features/auth/api';
+import { useAuth } from '@/stores/authContext';
 import React, { useState } from 'react';
 import { Alert, StyleSheet } from 'react-native';
 
 export default React.memo(function LoginScreen() {
   const [loading, setLoading] = useState(false);
-  const { login } = useAuthStore();
+  const { login } = useAuth();
 
   const handleLogin = async (credentials: LoginCredentials) => {
     try {

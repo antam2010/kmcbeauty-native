@@ -1,7 +1,7 @@
 import { Collapsible } from '@/components/Collapsible';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { useAuthStore } from '@/stores/authContext';
+import { useAuth } from '@/stores/authContext';
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 
@@ -14,7 +14,7 @@ interface UserProfile {
 }
 
 export default function ProfileScreen() {
-  const { logout, user } = useAuthStore();
+  const { logout, user } = useAuth();
   const [profile, setProfile] = useState<UserProfile>({
     name: user?.name || '김관리자',
     email: user?.email || 'admin@kmcbeauty.com',

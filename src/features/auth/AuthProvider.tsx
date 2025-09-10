@@ -1,10 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import apiClient from '../../api/client';
 
-// 새로운 API 구조에서 타입과 API 가져오기
-import { authAPI, LoginCredentials, User } from '@/src/features/auth/api';
-import { tokenManager } from '@/src/api';
+// 타입 정의
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: 'ADMIN' | 'MASTER' | 'MANAGER';
+  role_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -83,18 +95,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('🟡 로그인 시작:', credentials.email);
       setAuthState(prev => ({ ...prev, loading: true }));
       
-      // 실제 API 호출
-      const response = await authAPI.login(credentials);
-      
-      // 토큰 저장
-      await tokenManager.saveToken(response.access_token);
+      const response = await apiClient.post('/api/auth/login', credentials);
+      const { access_token, user } = response.data as { access_token: string; user: User };
       
       console.log('🟡 로그인 성공, 상태 업데이트 중');
       
       const newState = {
         isAuthenticated: true,
-        accessToken: response.access_token,
-        user: response.user,
+        accessToken: access_token,
+        user,
         loading: false,
       };
       
@@ -113,9 +122,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('🚪 로그아웃 시작');
       
-      // 서버에 로그아웃 알림
+      // 선택적으로 서버에 로그아웃 알림
       try {
-        await authAPI.logout();
+        await apiClient.post('/api/auth/logout');
       } catch (error) {
         console.log('서버 로그아웃 알림 실패 (무시):', error);
       }
@@ -130,10 +139,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setAuthState(newState);
       
       // AsyncStorage에서 완전 삭제
-      await tokenManager.removeTokens();
-      
-      // 로그인 화면으로 이동
-      router.replace('/login');
+      await AsyncStorage.multiRemove(['auth-storage', 'auth-token', 'refresh-token']);
       
       console.log('✅ 로그아웃 완료');
     } catch (error) {
@@ -175,17 +181,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 };
 
-// Hook for using auth context
-export const useAuth = () => {
+export const useAuthStore = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuthStore must be used within an AuthProvider');
   }
   return context;
 };
-
-// 기존 호환성을 위한 alias
-export const useAuthStore = useAuth;
-
-// 타입 내보내기 (기존 호환성을 위해)
-export type { User, LoginCredentials };

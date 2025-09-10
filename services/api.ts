@@ -1,33 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { router } from 'expo-router';
 
 // API 기본 설정
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://kmcbeauty.codeidea.io';
 
 console.log('📍 API_BASE_URL 설정됨 (api.ts):', API_BASE_URL);
 
 // 네비게이션 중복 방지를 위한 플래그
 let isNavigatingToShopSelection = false;
 let isNavigatingToLogin = false;
-let isRefreshing = false;
-let failedQueue: { resolve: Function; reject: Function }[] = [];
-
-// 실패한 요청들을 큐에서 처리하는 함수
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach(({ resolve, reject }) => {
-    if (error) {
-      reject(error);
-    } else {
-      resolve(token);
-    }
-  });
-  
-  failedQueue = [];
-};
-
-// 리프레시 토큰으로 액세스 토큰 갱신
-const refreshAccessToken = async (): Promise<string | null> => {
-  try {
     const authData = await AsyncStorage.getItem('auth-storage');
     if (!authData) {
       throw new Error('No auth data found');
