@@ -1,4 +1,4 @@
-import type { Treatment, TreatmentListParams, TreatmentResponse } from '../../types/treatment';
+import type { Treatment, TreatmentCreate, TreatmentListParams, TreatmentResponse, TreatmentSimpleResponse, TreatmentUpdate } from '../../types/treatment';
 import { BaseApiService } from './base';
 
 class TreatmentApiService extends BaseApiService {
@@ -16,13 +16,13 @@ class TreatmentApiService extends BaseApiService {
   }
 
   // 시술 예약 생성
-  async create(data: Partial<Treatment>): Promise<Treatment> {
-    return this.post<Treatment>('', data);
+  async create(data: TreatmentCreate): Promise<TreatmentSimpleResponse> {
+    return this.post<TreatmentSimpleResponse>('', data);
   }
 
   // 시술 예약 수정
-  async update(id: number, data: Partial<Treatment>): Promise<Treatment> {
-    return this.put<Treatment>(`/${id}`, data);
+  async update(id: number, data: TreatmentUpdate): Promise<TreatmentSimpleResponse> {
+    return this.put<TreatmentSimpleResponse>(`/${id}`, data);
   }
 
   // 시술 예약 삭제

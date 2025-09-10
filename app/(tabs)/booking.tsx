@@ -115,7 +115,6 @@ export default function BookingScreen() {
             selectedDate={selectedDate || undefined} 
             onDateSelect={handleDateSelect}
             onNewBookingRequest={handleNewBookingRequest}
-            minDate={new Date().toISOString().split("T")[0]} 
           />
         </Animated.View>
       </ScrollView>

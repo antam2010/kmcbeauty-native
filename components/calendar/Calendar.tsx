@@ -157,7 +157,7 @@ export default function Calendar({
         setIsInteracting(false);
       }, 300);
     } else {
-      // 새 예약 생성
+      // 모든 날짜에서 새 예약 생성 가능 (과거 날짜 포함)
       onDateSelect(date.date);
       
       // 선택 후 인터랙션 상태 해제
@@ -229,6 +229,13 @@ export default function Calendar({
 
   return (
     <View style={calendarStyles.container}>
+      {/* 사용 안내 메시지 */}
+      <View style={calendarStyles.infoContainer}>
+        <Text style={calendarStyles.infoText}>
+          💡 모든 날짜에서 예약이 가능합니다. 과거 예약도 추가하실 수 있어요!
+        </Text>
+      </View>
+      
       {/* 예약 목록 모달 */}
       <Modal
         visible={showTreatmentsModal}
@@ -286,7 +293,7 @@ export default function Calendar({
               </ThemedView>
             )}
             
-            {/* 새 예약하기 버튼 */}
+            {/* 새 예약하기 버튼 - 모든 날짜에서 가능 */}
             {selectedDateTreatments.length > 0 && onNewBookingRequest && (
               <ThemedView style={calendarStyles.newBookingContainer}>
                 <TouchableOpacity 
@@ -330,6 +337,8 @@ export default function Calendar({
       <View style={calendarStyles.calendarGrid}>
         {calendarData.dates.map((date, index) => {
           const dateNumber = new Date(date.date).getDate();
+          const today = new Date().toISOString().split('T')[0];
+          const isPastDate = date.date < today;
           
           return (
             <TouchableOpacity
@@ -341,6 +350,7 @@ export default function Calendar({
                 date.hasBookings && calendarStyles.hasBookings,
                 !date.isCurrentMonth && calendarStyles.otherMonth,
                 isDateDisabled(date.date) && calendarStyles.disabled,
+                isPastDate && calendarStyles.pastDate,
               ]}
               onPress={() => handleDatePress(date)}
               disabled={isDateDisabled(date.date) || isInteracting}
@@ -352,6 +362,7 @@ export default function Calendar({
                 date.isToday && calendarStyles.todayText,
                 !date.isCurrentMonth && calendarStyles.otherMonthText,
                 isDateDisabled(date.date) && calendarStyles.disabledText,
+                isPastDate && calendarStyles.pastDateText,
               ]}>
                 {dateNumber}
               </Text>
@@ -385,6 +396,22 @@ const calendarStyles = StyleSheet.create({
       shadowRadius: 8,
     }),
     elevation: 6,
+  },
+  // 안내 메시지 스타일
+  infoContainer: {
+    backgroundColor: '#e3f2fd',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2196f3',
+  },
+  infoText: {
+    color: '#1976d2',
+    fontSize: 13,
+    textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 18,
   },
   header: {
     flexDirection: 'row',
@@ -540,19 +567,27 @@ const calendarStyles = StyleSheet.create({
       },
     }),
   },
-  hasBookings: {
-    borderColor: '#34a853',
-    borderWidth: 2,
-    backgroundColor: '#f0fdf4',
-  },
-  otherMonth: {
-    opacity: 0.3,
-  },
   disabled: {
     opacity: 0.3,
   },
   disabledText: {
     color: '#ccc',
+  },
+  hasBookings: {
+    borderColor: '#34a853',
+    borderWidth: 2,
+    backgroundColor: '#f0fdf4',
+  },
+  pastDate: {
+    backgroundColor: '#f5f5f5',
+    borderColor: '#e0e0e0',
+  },
+  pastDateText: {
+    color: '#999',
+    fontWeight: '400',
+  },
+  otherMonth: {
+    opacity: 0.3,
   },
   otherMonthText: {
     color: '#bbb',
@@ -735,5 +770,21 @@ const calendarStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  // 과거 날짜 정보 스타일
+  pastDateInfo: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    margin: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  pastDateInfoText: {
+    color: '#6c757d',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });

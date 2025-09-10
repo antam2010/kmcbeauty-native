@@ -173,3 +173,37 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Build the App
+
+To build the app for Android using Expo's EAS (Expo Application Services), you can use the following command:
+
+```bash
+eas build -p android --profile preview
+```
+
+### Steps to Build
+
+1. **Install EAS CLI** (if not already installed):
+   ```bash
+   npm install -g eas-cli
+   ```
+
+2. **Login to your Expo account**:
+   ```bash
+   eas login
+   ```
+
+3. **Run the build command**:
+   ```bash
+   eas build -p android --profile preview
+   ```
+
+   This will create a build using the `preview` profile defined in your `eas.json` file.
+
+4. **Download the build**:
+   Once the build is complete, you'll receive a link to download the APK or AAB file.
+
+### Notes
+- Ensure your `eas.json` file is properly configured for the `preview` profile.
+- For more details, refer to the [EAS Build documentation](https://docs.expo.dev/build/introduction/).
+- Make sure your project is linked to an Expo account and has the necessary credentials set up for Android builds.
