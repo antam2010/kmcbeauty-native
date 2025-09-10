@@ -1,7 +1,7 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { CalendarDate, CalendarMonth } from '@/types';
-import React, { useEffect, useState } from 'react';
+import { CalendarDate } from '@/types';
+import React, { useState } from 'react';
 import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface CalendarProps {
@@ -20,25 +20,21 @@ export default function Calendar({
   maxDate 
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [calendarData, setCalendarData] = useState<CalendarMonth | null>(null);
 
-  useEffect(() => {
-    generateCalendarData();
-  }, [currentMonth, selectedDate, bookingData]);
-
-  const generateCalendarData = () => {
+  // 달력 데이터 생성 함수
+  const generateCalendarDates = () => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
-    const firstDayWeekday = firstDayOfMonth.getDay();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startWeekday = firstDay.getDay();
     
     const dates: CalendarDate[] = [];
     const today = new Date().toISOString().split('T')[0];
     
-    // 이전 달의 마지막 날들
-    for (let i = firstDayWeekday - 1; i >= 0; i--) {
+    // 이전 달 날짜들 (빈 칸 채우기)
+    for (let i = startWeekday - 1; i >= 0; i--) {
       const date = new Date(year, month, -i);
       dates.push({
         date: date.toISOString().split('T')[0],
@@ -49,8 +45,8 @@ export default function Calendar({
       });
     }
     
-    // 현재 달의 날들
-    for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
+    // 현재 달 날짜들
+    for (let day = 1; day <= lastDay.getDate(); day++) {
       const date = new Date(year, month, day);
       const dateString = date.toISOString().split('T')[0];
       
@@ -63,9 +59,9 @@ export default function Calendar({
       });
     }
     
-    // 다음 달의 첫 날들 (42칸 맞추기)
-    const remainingSlots = 42 - dates.length;
-    for (let day = 1; day <= remainingSlots; day++) {
+    // 다음 달 날짜들 (6주 완성)
+    const remainingCells = 42 - dates.length;
+    for (let day = 1; day <= remainingCells; day++) {
       const date = new Date(year, month + 1, day);
       dates.push({
         date: date.toISOString().split('T')[0],
@@ -76,12 +72,14 @@ export default function Calendar({
       });
     }
     
-    setCalendarData({
+    return {
       year,
       month,
       dates,
-    });
+    };
   };
+
+  const calendarData = generateCalendarDates();
 
   const goToPreviousMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
@@ -102,7 +100,7 @@ export default function Calendar({
     return false;
   };
 
-  const getDateStyle = (date: CalendarDate) => {
+  const getDateItemStyle = (date: CalendarDate) => {
     const styles = [calendarStyles.dateItem];
     
     if (date.isToday) styles.push(calendarStyles.today as any);
@@ -115,7 +113,7 @@ export default function Calendar({
 
   const renderDateItem = ({ item: date }: { item: CalendarDate }) => (
     <TouchableOpacity
-      style={getDateStyle(date)}
+      style={getDateItemStyle(date)}
       onPress={() => handleDatePress(date)}
       disabled={isDateDisabled(date.date)}
     >
@@ -135,8 +133,6 @@ export default function Calendar({
       )}
     </TouchableOpacity>
   );
-
-  if (!calendarData) return null;
 
   const monthNames = [
     '1월', '2월', '3월', '4월', '5월', '6월',

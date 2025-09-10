@@ -1,5 +1,5 @@
 import { LoginCredentials } from '@/types';
-import axios from 'axios';
+import { apiClient } from '../api';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -40,15 +40,14 @@ export const authService = {
         email: credentials.email
       });
 
-      console.log('🌐 axios.post 호출 직전');
-      const loginResponse = await axios.post<LoginResponse>(
-        `${API_BASE_URL}/auth/login`,
+      console.log('🌐 apiClient.post 호출 직전');
+      const loginResponse = await apiClient.post<LoginResponse>(
+        '/auth/login',
         params.toString(),
         {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
-          withCredentials: true, // 쿠키 자동 저장을 위해
         }
       );
 
@@ -57,7 +56,7 @@ export const authService = {
 
       // 토큰으로 사용자 정보 조회
       console.log('📤 사용자 정보 요청');
-      const userResponse = await axios.get<User>(`${API_BASE_URL}/users/me`, {
+      const userResponse = await apiClient.get<User>('/users/me', {
         headers: {
           Authorization: `Bearer ${token.access_token}`,
         },

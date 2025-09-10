@@ -3,7 +3,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { shopService } from '@/services/api/shop';
 import { Shop } from '@/types';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -24,11 +24,7 @@ export default function ShopSelectionScreen() {
     size: 50
   });
 
-  useEffect(() => {
-    loadShops();
-  }, []);
-
-  const loadShops = async (page: number = 1) => {
+  const loadShops = useCallback(async (page: number = 1) => {
     try {
       setLoading(true);
       const response = await shopService.getShops(page, 50);
@@ -41,13 +37,22 @@ export default function ShopSelectionScreen() {
       });
     } catch (error: any) {
       console.error('상점 목록 로드 실패:', error);
+      // SHOP_NOT_SELECTED 에러인 경우 무한 루프 방지 (이미 shop-selection 페이지이므로)
+      if (error.response?.data?.detail?.code === 'SHOP_NOT_SELECTED') {
+        console.log('🏪 이미 상점 선택 페이지에 있음 - 추가 리다이렉트 하지 않음');
+        return;
+      }
       Alert.alert('오류', '상점 목록을 불러올 수 없습니다.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleSelectShop = async (shop: Shop) => {
+  useEffect(() => {
+    loadShops();
+  }, [loadShops]);
+
+  const handleSelectShop = useCallback(async (shop: Shop) => {
     try {
       setSelecting(true);
       await shopService.selectShop(shop.id);
@@ -74,9 +79,9 @@ export default function ShopSelectionScreen() {
     } finally {
       setSelecting(false);
     }
-  };
+  }, []);
 
-  const renderShopItem = ({ item }: { item: Shop }) => (
+  const renderShopItem = useCallback(({ item }: { item: Shop }) => (
     <TouchableOpacity
       style={styles.shopItem}
       onPress={() => handleSelectShop(item)}
@@ -93,7 +98,7 @@ export default function ShopSelectionScreen() {
         </ThemedText>
       </ThemedView>
     </TouchableOpacity>
-  );
+  ), [handleSelectShop, selecting]);
 
   if (loading) {
     return (

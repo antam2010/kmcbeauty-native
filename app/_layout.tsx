@@ -1,13 +1,14 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
+import React from 'react';
 import 'react-native-reanimated';
 
 import AuthNavigator from '@/components/navigation/AuthNavigator';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider } from '@/stores/authContext';
 
-export default function RootLayout() {
+export default React.memo(function RootLayout() {
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
@@ -26,4 +27,4 @@ export default function RootLayout() {
       </ThemeProvider>
     </AuthProvider>
   );
-}
+});

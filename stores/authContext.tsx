@@ -1,7 +1,7 @@
 import { authService } from '@/services/api/auth';
 import { LoginCredentials } from '@/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 export interface User {
   id: number;
@@ -44,28 +44,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // 앱 시작시 저장된 인증 정보 로드
   useEffect(() => {
-    loadStoredAuth();
-  }, []);
-
-  const loadStoredAuth = async () => {
-    try {
-      const storedData = await AsyncStorage.getItem('auth-storage');
-      if (storedData) {
-        const parsedData = JSON.parse(storedData);
-        setAuthState({
-          isAuthenticated: parsedData.isAuthenticated || false,
-          accessToken: parsedData.accessToken || null,
-          user: parsedData.user || null,
-          loading: false,
-        });
-      } else {
+    const initializeAuth = async () => {
+      try {
+        const storedData = await AsyncStorage.getItem('auth-storage');
+        if (storedData) {
+          const parsedData = JSON.parse(storedData);
+          setAuthState({
+            isAuthenticated: parsedData.isAuthenticated || false,
+            accessToken: parsedData.accessToken || null,
+            user: parsedData.user || null,
+            loading: false,
+          });
+        } else {
+          setAuthState(prev => ({ ...prev, loading: false }));
+        }
+      } catch (error) {
+        console.error('Failed to load stored auth:', error);
         setAuthState(prev => ({ ...prev, loading: false }));
       }
-    } catch (error) {
-      console.error('Failed to load stored auth:', error);
-      setAuthState(prev => ({ ...prev, loading: false }));
-    }
-  };
+    };
+
+    initializeAuth();
+  }, []); // 빈 의존성 배열로 한 번만 실행
 
   const saveAuthToStorage = async (data: Partial<AuthState>) => {
     try {
@@ -80,11 +80,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (credentials: LoginCredentials) => {
+  const login = useCallback(async (credentials: LoginCredentials) => {
     try {
       console.log('🟡 AuthContext.login 호출됨 - 시작:', credentials.email);
       console.log('🟡 AuthContext: setLoading(true) 호출');
-      setLoading(true);
+      setAuthState(prev => ({ ...prev, loading: true }));
       
       console.log('🟡 AuthContext: authService.login 호출 직전');
       const { token, user } = await authService.login(credentials);
@@ -103,12 +103,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('🟡 AuthContext: 로그인 완료');
     } catch (error: any) {
       console.error('🟡 AuthContext: 로그인 실패:', error);
-      setLoading(false);
+      setAuthState(prev => ({ ...prev, loading: false }));
       throw error;
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     const newState = {
       isAuthenticated: false,
       accessToken: null,
@@ -116,33 +116,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       loading: false,
     };
     setAuthState(newState);
-    await saveAuthToStorage(newState);
-  };
+    // 비동기 함수를 적절히 처리
+    await saveAuthToStorage(newState).catch(error => {
+      console.error('Failed to save logout to storage:', error);
+    });
+  }, []);
 
-  const setUser = (user: User) => {
+  const setUser = useCallback((user: User) => {
     setAuthState(prev => {
       const newState = { ...prev, user };
-      saveAuthToStorage(newState);
+      // 비동기 함수를 동기적으로 호출하지 않도록 수정
+      saveAuthToStorage(newState).catch(error => {
+        console.error('Failed to save user to storage:', error);
+      });
       return newState;
     });
-  };
+  }, []);
 
-  const setLoading = (loading: boolean) => {
+  const setLoading = useCallback((loading: boolean) => {
     setAuthState(prev => ({ ...prev, loading }));
-  };
+  }, []);
 
-  const clearAuth = async () => {
+  const clearAuth = useCallback(async () => {
     await logout();
-  };
+  }, [logout]);
 
-  const contextValue: AuthContextType = {
+  const contextValue: AuthContextType = useMemo(() => ({
     ...authState,
     login,
     logout,
     setUser,
     setLoading,
     clearAuth,
-  };
+  }), [authState, login, logout, setUser, setLoading, clearAuth]);
 
   return (
     <AuthContext.Provider value={contextValue}>

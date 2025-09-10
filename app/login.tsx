@@ -5,7 +5,7 @@ import { LoginCredentials } from '@/types';
 import React, { useState } from 'react';
 import { Alert, StyleSheet } from 'react-native';
 
-export default function LoginScreen() {
+export default React.memo(function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
 
@@ -35,7 +35,7 @@ export default function LoginScreen() {
       <LoginForm onLogin={handleLogin} loading={loading} />
     </ThemedView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

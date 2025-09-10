@@ -2,6 +2,7 @@
 mode: agent
 ---
 https://api-kmc2.daeho3.shop/openapi.json 에서 API 를 사용합니다.
+.env 에 있는 주소를 api 주소로 사용합니다.
 뷰티앱 어플 입니다.
 관리자가 직원을 관리할 수 있고 화장, 눈썹, 두피등 뷰티 관련 서비스를 예약할 수 있습니다.
 
