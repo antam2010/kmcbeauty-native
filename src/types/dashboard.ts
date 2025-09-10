@@ -57,3 +57,46 @@ export interface DashboardResponse {
   staff_summary: DashboardStaffSummary;
   insights: CustomerInsight[];
 }
+
+// 새로운 DashboardSummaryResponse 타입
+export interface DashboardSummaryResponse {
+  target_date: string;
+  summary: DashboardSummary;
+  sales: DashboardSalesSummary;
+  customer_insights: DetailedCustomerInsight[];
+  staff_summary: DashboardStaffSummary;
+}
+
+export interface DetailedCustomerInsight {
+  id: number;
+  reserved_at: string;
+  customer_name: string;
+  phone_number: string;
+  status: string;
+  treatments: TreatmentDetail[];
+  total_duration_min: number;
+  total_price: number;
+  memo: string | null;
+  payment_method: string;
+  staff: any;
+  staff_user: any;
+  total_reservations: number;
+  no_show_count: number;
+  no_show_rate: number;
+  unpaid_amount: number;
+  total_spent: number;
+}
+
+export interface TreatmentDetail {
+  treatment_id: number;
+  menu_detail_id: number;
+  base_price: number;
+  duration_min: number;
+  session_no: number;
+  menu_detail: {
+    menu_id: number;
+    name: string;
+    duration_min: number;
+    base_price: number;
+  };
+}

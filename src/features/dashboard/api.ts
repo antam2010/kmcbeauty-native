@@ -11,7 +11,10 @@ export const dashboardAPI = {
   getSummary: dashboardApiService.getSummary.bind(dashboardApiService),
   getTodaySummary: dashboardApiService.getTodaySummary.bind(dashboardApiService),
   getDateSummary: dashboardApiService.getDateSummary.bind(dashboardApiService),
+  getDetailedSummary: dashboardApiService.getDetailedSummary.bind(dashboardApiService),
+  getTodayDetailedSummary: dashboardApiService.getTodayDetailedSummary.bind(dashboardApiService),
+  getDateDetailedSummary: dashboardApiService.getDateDetailedSummary.bind(dashboardApiService),
 };
 
 // 타입들은 중앙에서 import
-export type { DashboardResponse } from '../../types/dashboard';
+export type { DashboardResponse, DashboardSummaryResponse } from '../../types/dashboard';

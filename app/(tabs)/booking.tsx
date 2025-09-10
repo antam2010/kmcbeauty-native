@@ -1,16 +1,20 @@
 import Calendar from '@/components/calendar/Calendar';
 import { Collapsible } from '@/components/Collapsible';
+import BookingForm from '@/components/forms/BookingForm';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Service, serviceService } from '@/services/mockServices';
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { Alert, Modal, Platform, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function BookingScreen() {
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     loadServices();
@@ -29,10 +33,19 @@ export default function BookingScreen() {
 
   const handleBooking = () => {
     if (!selectedService || !selectedDate) {
-      Alert.alert('알림', '서비스와 날짜를 선택해주세요.');
+      Alert.alert('알림', '서비스와 날짜를 모두 선택해주세요.', [
+        { text: '확인', style: 'default' }
+      ]);
       return;
     }
-    Alert.alert('예약 완료', '예약이 성공적으로 완료되었습니다.');
+    setShowBookingForm(true);
+  };
+
+  const handleBookingComplete = () => {
+    setShowBookingForm(false);
+    setSelectedService(null);
+    setSelectedDate(null);
+    Alert.alert('완료', '예약이 완료되었습니다!');
   };
 
   const handleDateSelect = (dateString: string) => {
@@ -41,7 +54,7 @@ export default function BookingScreen() {
 
   if (loading) {
     return (
-      <ThemedView style={styles.container}>
+      <ThemedView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 20 }]}>
         <ThemedText type="title" style={styles.title}>
           뷰티 서비스 예약
         </ThemedText>
@@ -53,12 +66,17 @@ export default function BookingScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       <ThemedText type="title" style={styles.title}>
         뷰티 서비스 예약
       </ThemedText>
       
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={{
+          paddingBottom: Platform.OS === 'ios' ? insets.bottom + 100 : 80
+        }}
+      >
         <Collapsible title="서비스 선택">
           <ThemedView style={styles.serviceContainer}>
             {services.map((service) => (
@@ -98,10 +116,24 @@ export default function BookingScreen() {
             type="defaultSemiBold" 
             style={styles.bookingButtonText}
           >
-            예약하기
+            🌸 예약하기 🌸
           </ThemedText>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* 예약 폼 모달 */}
+      <Modal
+        visible={showBookingForm}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <BookingForm
+          service={services.find(s => s.id === selectedService)}
+          selectedDate={selectedDate || undefined}
+          onClose={() => setShowBookingForm(false)}
+          onBookingComplete={handleBookingComplete}
+        />
+      </Modal>
     </ThemedView>
   );
 }
@@ -110,40 +142,57 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    backgroundColor: '#fdf7f0', // 따뜻한 베이지 톤
   },
   title: {
     marginBottom: 20,
     textAlign: 'center',
+    fontSize: 24, // 더 큰 폰트
+    color: '#8b4513', // 갈색 계열
   },
   content: {
     flex: 1,
   },
   serviceContainer: {
-    gap: 10,
+    gap: 15, // 간격 증가
   },
   serviceItem: {
-    padding: 15,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    padding: 20, // 더 큰 패딩
+    borderRadius: 12, // 둥근 모서리
+    borderWidth: 2,
+    borderColor: '#d4b996',
+    backgroundColor: '#fff8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   selectedService: {
-    borderColor: '#007AFF',
-    backgroundColor: '#f0f8ff',
+    borderColor: '#ff69b4', // 핑크 계열
+    backgroundColor: '#ffe4e8',
+    shadowOpacity: 0.2,
   },
   dateContainer: {
-    padding: 15,
-    gap: 10,
+    padding: 20, // 더 큰 패딩
+    gap: 15,
   },
   bookingButton: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
-    marginTop: 20,
+    backgroundColor: '#ff69b4', // 핑크 계열
+    padding: 20, // 더 큰 패딩
+    borderRadius: 15, // 더 둥글게
+    marginTop: 25,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
   },
   bookingButtonText: {
     color: 'white',
+    fontSize: 18, // 더 큰 폰트
+    fontWeight: 'bold',
   },
   loadingContainer: {
     flex: 1,
