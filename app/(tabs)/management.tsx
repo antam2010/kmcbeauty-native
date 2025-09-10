@@ -1,16 +1,18 @@
 import { Collapsible } from '@/components/Collapsible';
+import TreatmentMenuManagement from '@/components/management/TreatmentMenuManagement';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { Staff, staffService, Service, serviceService } from '@/services/mockServices';
+import { Colors } from '@/constants/Colors';
+import { Service, serviceService, Staff, staffService } from '@/services/mockServices';
+import { MaterialIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
 
 export default function ManagementScreen() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [serviceList, setServiceList] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showTreatmentManagement, setShowTreatmentManagement] = useState(false);
   const colorScheme = useColorScheme() ?? 'light';
 
   useEffect(() => {
@@ -58,12 +60,11 @@ export default function ManagementScreen() {
     );
   };
 
-  const activeStaff = staffList.filter(staff => staff.status === 'active');
-  const inactiveStaff = staffList.filter(staff => staff.status === 'inactive');
-  const activeServices = serviceList.filter(service => service.isActive);
-  const inactiveServices = serviceList.filter(service => !service.isActive);
-
   const styles = createStyles(colorScheme);
+
+  if (showTreatmentManagement) {
+    return <TreatmentMenuManagement onGoBack={() => setShowTreatmentManagement(false)} />;
+  }
 
   if (loading) {
     return (
@@ -128,29 +129,48 @@ export default function ManagementScreen() {
     <ScrollView style={styles.container}>
       <ThemedText type="title" style={styles.title}>매장 관리</ThemedText>
       
-      <Collapsible title={`직원 관리 (${staffList.length})`} containerStyle={styles.collapsibleSection}>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddStaff}>
-          <MaterialIcons name="add" size={20} color="#fff" />
-          <ThemedText style={styles.addButtonText}>새 직원 추가</ThemedText>
-        </TouchableOpacity>
-        <ThemedView style={styles.listContainer}>
-            {staffList.length > 0 ? 
-                staffList.map(renderStaffItem) : 
-                <ThemedText style={styles.emptyListText}>등록된 직원이 없습니다.</ThemedText>}
-        </ThemedView>
-      </Collapsible>
+      <ThemedView style={styles.collapsibleSection}>
+        <Collapsible title={`직원 관리 (${staffList.length})`}>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddStaff}>
+            <MaterialIcons name="add" size={20} color="#fff" />
+            <ThemedText style={styles.addButtonText}>새 직원 추가</ThemedText>
+          </TouchableOpacity>
+          <ThemedView style={styles.listContainer}>
+              {staffList.length > 0 ? 
+                  staffList.map(renderStaffItem) : 
+                  <ThemedText style={styles.emptyListText}>등록된 직원이 없습니다.</ThemedText>}
+          </ThemedView>
+        </Collapsible>
+      </ThemedView>
 
-      <Collapsible title={`시술 관리 (${serviceList.length})`} containerStyle={styles.collapsibleSection}>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddService}>
-          <MaterialIcons name="add" size={20} color="#fff" />
-          <ThemedText style={styles.addButtonText}>새 시술 추가</ThemedText>
-        </TouchableOpacity>
-        <ThemedView style={styles.listContainer}>
-            {serviceList.length > 0 ? 
-                serviceList.map(renderServiceItem) : 
-                <ThemedText style={styles.emptyListText}>등록된 시술이 없습니다.</ThemedText>}
-        </ThemedView>
-      </Collapsible>
+      <ThemedView style={styles.collapsibleSection}>
+        <Collapsible title={`시술 관리 (${serviceList.length})`}>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddService}>
+            <MaterialIcons name="add" size={20} color="#fff" />
+            <ThemedText style={styles.addButtonText}>새 시술 추가</ThemedText>
+          </TouchableOpacity>
+          <ThemedView style={styles.listContainer}>
+              {serviceList.length > 0 ? 
+                  serviceList.map(renderServiceItem) : 
+                  <ThemedText style={styles.emptyListText}>등록된 시술이 없습니다.</ThemedText>}
+          </ThemedView>
+        </Collapsible>
+      </ThemedView>
+
+      <ThemedView style={styles.collapsibleSection}>
+        <Collapsible title="시술 메뉴 관리">
+          <TouchableOpacity 
+            style={styles.addButton} 
+            onPress={() => setShowTreatmentManagement(true)}
+          >
+            <MaterialIcons name="menu-book" size={20} color="#fff" />
+            <ThemedText style={styles.addButtonText}>시술 메뉴 관리</ThemedText>
+          </TouchableOpacity>
+          <ThemedText style={styles.emptyListText}>
+            시술 메뉴와 하위 상세 메뉴를 관리할 수 있습니다.
+          </ThemedText>
+        </Collapsible>
+      </ThemedView>
     </ScrollView>
   );
 }
