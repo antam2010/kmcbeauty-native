@@ -1,6 +1,7 @@
-import { apiClient } from '../../../services/api';
+// 새로운 중앙집중식 API 서비스 사용
+import { authApiService } from '../../api/services/auth';
 
-// 인증 관련 타입
+// 타입들
 export interface LoginCredentials {
   email: string;
   password: string;
@@ -22,38 +23,10 @@ export interface LoginResponse {
   user: User;
 }
 
-// 인증 API
+// 기존 API와의 호환성을 위한 래퍼
 export const authAPI = {
-  // 로그인
-  login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
-    // OAuth2 form 데이터 형식으로 변환
-    const formData = new URLSearchParams();
-    formData.append('username', credentials.email);
-    formData.append('password', credentials.password);
-    formData.append('grant_type', 'password');
-
-    const response = await apiClient.post('/auth/login', formData, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    });
-    return response.data as LoginResponse;
-  },
-
-  // 로그아웃
-  logout: async (): Promise<void> => {
-    await apiClient.post('/auth/logout');
-  },
-
-  // 내 정보 가져오기
-  getMe: async (): Promise<User> => {
-    const response = await apiClient.get('/auth/me');
-    return response.data as User;
-  },
-
-  // 토큰 갱신 (OpenAPI 스펙에 따르면 쿠키로 리프레시 토큰을 받음)
-  refreshToken: async (): Promise<{ access_token: string; refresh_token?: string }> => {
-    const response = await apiClient.post('/auth/refresh');
-    return response.data as { access_token: string; refresh_token?: string };
-  }
+  login: authApiService.login.bind(authApiService),
+  refreshToken: authApiService.refreshToken.bind(authApiService),
+  logout: authApiService.logout.bind(authApiService),
+  getMe: authApiService.getMe.bind(authApiService),
 };

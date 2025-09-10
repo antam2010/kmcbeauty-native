@@ -1,39 +1,17 @@
-import { apiClient } from '../../../services/api';
-import { DashboardResponse } from '../../types/dashboard';
+// 새로운 중앙집중식 API 서비스 사용
+import { dashboardApiService } from '../../api/services/dashboard';
 
 export interface DashboardParams {
   target_date?: string; // YYYY-MM-DD
   force_refresh?: boolean;
 }
 
-// 대시보드 API
+// 기존 API와의 호환성을 위한 래퍼
 export const dashboardAPI = {
-  // 대시보드 요약 정보 조회
-  getSummary: async (params?: DashboardParams): Promise<DashboardResponse> => {
-    const searchParams = new URLSearchParams();
-    
-    if (params?.target_date) {
-      searchParams.append('target_date', params.target_date);
-    }
-    if (params?.force_refresh) {
-      searchParams.append('force_refresh', params.force_refresh.toString());
-    }
-
-    const queryString = searchParams.toString();
-    const url = `/summary/dashboard${queryString ? `?${queryString}` : ''}`;
-    
-    const response = await apiClient.get(url);
-    return response.data as DashboardResponse;
-  },
-
-  // 오늘 대시보드 정보 조회
-  getTodaySummary: async (): Promise<DashboardResponse> => {
-    const today = new Date().toISOString().split('T')[0];
-    return dashboardAPI.getSummary({ target_date: today });
-  },
-
-  // 특정 날짜 대시보드 정보 조회
-  getDateSummary: async (date: string): Promise<DashboardResponse> => {
-    return dashboardAPI.getSummary({ target_date: date });
-  }
+  getSummary: dashboardApiService.getSummary.bind(dashboardApiService),
+  getTodaySummary: dashboardApiService.getTodaySummary.bind(dashboardApiService),
+  getDateSummary: dashboardApiService.getDateSummary.bind(dashboardApiService),
 };
+
+// 타입들은 중앙에서 import
+export type { DashboardResponse } from '../../types/dashboard';
