@@ -3,7 +3,7 @@ import axios from 'axios';
 import { router } from 'expo-router';
 
 // 환경 변수에서 API 기본 URL 가져오기  
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://kmcbeauty.codeidea.io';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 console.log('📍 API Base URL:', API_BASE_URL);
 

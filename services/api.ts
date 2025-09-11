@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 // API 기본 설정
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://kmcbeauty.codeidea.io';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 console.log('📍 API_BASE_URL 설정됨 (api.ts):', API_BASE_URL);
 
