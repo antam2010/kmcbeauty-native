@@ -15,6 +15,8 @@ interface TreatmentDetailModalProps {
   visible: boolean;
   treatment: Treatment | null;
   onClose: () => void;
+  onBack?: () => void; // 뒤로가기 버튼 (목록으로 돌아가기)
+  showBackButton?: boolean; // 뒤로가기 버튼 표시 여부
 }
 
 const statusLabels: Record<string, string> = {
@@ -42,7 +44,9 @@ const paymentMethodLabels: Record<string, string> = {
 export default function TreatmentDetailModal({
   visible,
   treatment,
-  onClose
+  onClose,
+  onBack,
+  showBackButton = false
 }: TreatmentDetailModalProps) {
   const insets = useSafeAreaInsets();
 
@@ -83,6 +87,26 @@ export default function TreatmentDetailModal({
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* 헤더 */}
         <View style={styles.header}>
+          {showBackButton && onBack ? (
+            <TouchableOpacity 
+              onPress={onBack} 
+              style={styles.backButton}
+              activeOpacity={0.7}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            >
+              <Text style={styles.backButtonText}>← 목록</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              onPress={onClose} 
+              style={styles.closeButton}
+              activeOpacity={0.7}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            >
+              <Text style={styles.closeButtonText}>✕</Text>
+            </TouchableOpacity>
+          )}
+          <Text style={styles.headerTitle}>예약 상세</Text>
           <TouchableOpacity 
             onPress={onClose} 
             style={styles.closeButton}
@@ -91,8 +115,6 @@ export default function TreatmentDetailModal({
           >
             <Text style={styles.closeButtonText}>✕</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>예약 상세</Text>
-          <View style={styles.placeholder} />
         </View>
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -239,6 +261,19 @@ const styles = StyleSheet.create({
   closeButtonText: {
     fontSize: 18,
     color: '#6c757d',
+    fontWeight: '600',
+  },
+  backButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#e9ecef',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: 14,
+    color: '#495057',
     fontWeight: '600',
   },
   headerTitle: {

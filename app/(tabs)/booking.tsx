@@ -1,7 +1,6 @@
 ﻿import Calendar from "@/components/calendar/Calendar";
 import BookingForm from "@/components/forms/BookingForm";
-import TreatmentDetailModal from "@/components/modals/TreatmentDetailModal";
-import TreatmentListModal from "@/components/modals/TreatmentListModal";
+import UnifiedTreatmentModal from "@/components/modals/UnifiedTreatmentModal";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { Treatment } from "@/src/types/treatment";
 import React, { useCallback, useRef, useState } from "react";
@@ -13,18 +12,17 @@ export default function BookingScreen() {
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [isModalClosing, setIsModalClosing] = useState(false);
   const [reservedTimes, setReservedTimes] = useState<string[]>([]);
-  const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null);
-  const [showTreatmentDetail, setShowTreatmentDetail] = useState(false);
-  const [showTreatmentsList, setShowTreatmentsList] = useState(false);
+  const [showTreatmentModal, setShowTreatmentModal] = useState(false);
   const [treatmentsList, setTreatmentsList] = useState<Treatment[]>([]);
   const [treatmentsDate, setTreatmentsDate] = useState<string>('');
+  const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null);
   const insets = useSafeAreaInsets();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const { triggerRefresh } = useDashboard();
 
   const handleDateSelect = useCallback(async (dateString: string) => {
     // 이미 모달이 열려있거나 닫히는 중이면 무시
-    if (showBookingForm || isModalClosing || showTreatmentDetail || showTreatmentsList) {
+    if (showBookingForm || isModalClosing || showTreatmentModal) {
       return;
     }
 
@@ -47,11 +45,11 @@ export default function BookingScreen() {
     setTimeout(() => {
       setShowBookingForm(true);
     }, 200);
-  }, [showBookingForm, isModalClosing, showTreatmentDetail, showTreatmentsList, scaleAnim]);
+  }, [showBookingForm, isModalClosing, showTreatmentModal, scaleAnim]);
 
   const handleNewBookingRequest = useCallback(async (dateString: string, reservedTimesForDate: string[]) => {
     // 이미 모달이 열려있거나 닫히는 중이면 무시
-    if (showBookingForm || isModalClosing || showTreatmentDetail || showTreatmentsList) {
+    if (showBookingForm || isModalClosing || showTreatmentModal) {
       return;
     }
 
@@ -60,7 +58,7 @@ export default function BookingScreen() {
     setTimeout(() => {
       setShowBookingForm(true);
     }, 200);
-  }, [showBookingForm, isModalClosing, showTreatmentDetail, showTreatmentsList]);
+  }, [showBookingForm, isModalClosing, showTreatmentModal]);
 
   const handleCloseBookingForm = useCallback(() => {
     setIsModalClosing(true);
@@ -92,56 +90,39 @@ export default function BookingScreen() {
   }, [triggerRefresh]);
 
   const handleTreatmentPress = useCallback((treatment: Treatment) => {
-    // 다른 모달이 열려있으면 무시
-    if (showBookingForm || isModalClosing || showTreatmentDetail || showTreatmentsList) {
+    // 직접 상세로 이동하는 경우 (Calendar에서 직접 호출)
+    if (showBookingForm || isModalClosing || showTreatmentModal) {
       return;
     }
     
     setSelectedTreatment(treatment);
-    // 모바일에서 안전한 처리를 위해 약간의 지연
+    setTreatmentsList([]);
+    setTreatmentsDate('');
     setTimeout(() => {
-      setShowTreatmentDetail(true);
+      setShowTreatmentModal(true);
     }, 100);
-  }, [showBookingForm, isModalClosing, showTreatmentDetail, showTreatmentsList]);
-
-  const handleCloseTreatmentDetail = useCallback(() => {
-    setShowTreatmentDetail(false);
-    // 상태 리셋을 위한 지연
-    setTimeout(() => {
-      setSelectedTreatment(null);
-    }, 300);
-  }, []);
+  }, [showBookingForm, isModalClosing, showTreatmentModal]);
 
   const handleShowTreatmentsList = useCallback((treatments: Treatment[], date: string) => {
-    // 다른 모달이 열려있으면 무시
-    if (showBookingForm || isModalClosing || showTreatmentDetail || showTreatmentsList) {
+    // 목록 모달 표시
+    if (showBookingForm || isModalClosing || showTreatmentModal) {
       return;
     }
     
     setTreatmentsList(treatments);
     setTreatmentsDate(date);
+    setSelectedTreatment(null); // 목록 표시 시에는 선택된 treatment 없음
     setTimeout(() => {
-      setShowTreatmentsList(true);
+      setShowTreatmentModal(true);
     }, 100);
-  }, [showBookingForm, isModalClosing, showTreatmentDetail, showTreatmentsList]);
+  }, [showBookingForm, isModalClosing, showTreatmentModal]);
 
-  const handleCloseTreatmentsList = useCallback(() => {
-    setShowTreatmentsList(false);
+  const handleCloseTreatmentModal = useCallback(() => {
+    setShowTreatmentModal(false);
     setTimeout(() => {
       setTreatmentsList([]);
       setTreatmentsDate('');
-    }, 300);
-  }, []);
-
-  const handleTreatmentSelectFromList = useCallback((treatment: Treatment) => {
-    // 목록 모달을 먼저 닫고 상세 모달 열기
-    setShowTreatmentsList(false);
-    setSelectedTreatment(treatment);
-    
-    setTimeout(() => {
-      setTreatmentsList([]);
-      setTreatmentsDate('');
-      setShowTreatmentDetail(true);
+      setSelectedTreatment(null);
     }, 300);
   }, []);
 
@@ -202,20 +183,14 @@ export default function BookingScreen() {
         />
       </Modal>
 
-      <TreatmentDetailModal
-        visible={showTreatmentDetail}
-        treatment={selectedTreatment}
-        onClose={handleCloseTreatmentDetail}
-      />
-
-      <TreatmentListModal
-        visible={showTreatmentsList}
+      <UnifiedTreatmentModal
+        visible={showTreatmentModal}
         treatments={treatmentsList}
+        selectedTreatment={selectedTreatment}
         date={treatmentsDate}
-        onClose={handleCloseTreatmentsList}
-        onTreatmentSelect={handleTreatmentSelectFromList}
+        onClose={handleCloseTreatmentModal}
         onNewBooking={() => {
-          handleCloseTreatmentsList();
+          handleCloseTreatmentModal();
           setTimeout(() => {
             handleNewBookingRequest(treatmentsDate, []);
           }, 300);
