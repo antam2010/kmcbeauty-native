@@ -1,4 +1,5 @@
 import { useDashboard } from '@/contexts/DashboardContext';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -37,9 +38,9 @@ export default function HomeScreen() {
     }
   }, []);
 
-  const loadDashboardData = useCallback(async () => {
+  const loadDashboardData = useCallback(async (forceRefresh: boolean = false) => {
     try {
-      const data = await dashboardApiService.getTodayDetailedSummary();
+      const data = await dashboardApiService.getTodayDetailedSummary(forceRefresh);
       setDashboardData(data);
       await loadWeeklyTreatments();
     } catch (error) {
@@ -64,7 +65,11 @@ export default function HomeScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadDashboardData();
+    loadDashboardData(true); // 새로고침 시 force_refresh=true
+  };
+
+  const onHeaderRefresh = () => {
+    loadDashboardData(true); // 헤더 새로고침 버튼 클릭 시 force_refresh=true
   };
 
   const formatCurrency = (amount: number) => {
@@ -172,15 +177,24 @@ export default function HomeScreen() {
       >
         {/* 헤더 */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>오늘의 현황</Text>
-          <Text style={styles.headerDate}>
-            {new Date().toLocaleDateString('ko-KR', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              weekday: 'long'
-            })}
-          </Text>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>오늘의 현황</Text>
+            <Text style={styles.headerDate}>
+              {new Date().toLocaleDateString('ko-KR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long'
+              })}
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.refreshButton}
+            onPress={onHeaderRefresh}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="refresh" size={24} color="#007AFF" />
+          </TouchableOpacity>
         </View>
 
         {/* 간편 달력 위젯 */}
@@ -410,8 +424,18 @@ const styles = StyleSheet.create({
     color: '#dc3545',
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 20,
     paddingHorizontal: 4,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  refreshButton: {
+    padding: 8,
+    marginLeft: 16,
   },
   headerTitle: {
     fontSize: 28,

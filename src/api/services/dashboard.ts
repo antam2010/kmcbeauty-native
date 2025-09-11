@@ -33,9 +33,9 @@ class DashboardApiService extends BaseApiService {
   }
 
   // 오늘 상세 대시보드 정보 조회
-  async getTodayDetailedSummary(): Promise<DashboardSummaryResponse> {
+  async getTodayDetailedSummary(forceRefresh: boolean = false): Promise<DashboardSummaryResponse> {
     const today = new Date().toISOString().split('T')[0];
-    return this.getDetailedSummary({ target_date: today });
+    return this.getDetailedSummary({ target_date: today, force_refresh: forceRefresh });
   }
 
   // 특정 날짜 상세 대시보드 정보 조회

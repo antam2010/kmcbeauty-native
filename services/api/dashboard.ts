@@ -134,15 +134,20 @@ export interface TreatmentMenuResponse {
 }
 
 export const dashboardService = {
-  async getDashboardSummary(token: string, targetDate?: string): Promise<DashboardSummaryResponse> {
+  async getDashboardSummary(
+    token: string,
+    targetDate?: string,
+    force_refresh: boolean = false
+  ): Promise<DashboardSummaryResponse> {
     const client = createApiClient(token);
     const params = {
-      ...(targetDate ? { target_date: targetDate } : {}),
-      'force_refresh': true, // 강제 새로고침 옵션 추가
-    }
-    
-    
-    const response = await client.get<DashboardSummaryResponse>('/summary/dashboard', { params });
+      targetDate: targetDate,
+      force_refresh: force_refresh, // 기본값 false로 설정 (캐시 사용), 새로고침 버튼 시에만 true
+    };
+    const response = await client.get<DashboardSummaryResponse>(
+      "/summary/dashboard",
+      { params }
+    );
     return response.data;
   },
 };
