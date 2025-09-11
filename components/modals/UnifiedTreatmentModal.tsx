@@ -18,6 +18,7 @@ interface TreatmentModalProps {
   date: string;
   onClose: () => void;
   onNewBooking?: () => void;
+  onEditRequest?: (treatment: Treatment) => void;
 }
 
 type ModalView = 'list' | 'detail';
@@ -28,7 +29,8 @@ export default function TreatmentModal({
   selectedTreatment,
   date,
   onClose,
-  onNewBooking
+  onNewBooking,
+  onEditRequest
 }: TreatmentModalProps) {
   const insets = useSafeAreaInsets();
   const [currentView, setCurrentView] = useState<ModalView>('list');
@@ -355,23 +357,45 @@ export default function TreatmentModal({
               </View>
             </View>
           )}
+
+          {/* 수정 버튼 */}
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => {
+                console.log('수정 버튼 클릭됨, currentTreatment:', currentTreatment?.id);
+                if (currentTreatment && onEditRequest) {
+                  console.log('onEditRequest 호출 중...');
+                  onEditRequest(currentTreatment);
+                } else {
+                  console.log('currentTreatment 또는 onEditRequest가 없음');
+                }
+              }}
+              activeOpacity={0.6}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.editButtonText}>✏️ 예약 수정</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </>
     );
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        {currentView === 'list' ? renderListView() : renderDetailView()}
-      </View>
-    </Modal>
+    <>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={onClose}
+      >
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          {currentView === 'list' ? renderListView() : renderDetailView()}
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -639,5 +663,29 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#495057',
     lineHeight: 22,
+  },
+  editButton: {
+    backgroundColor: '#007bff',
+    borderRadius: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+    minHeight: 52,
+    marginHorizontal: 4,
+  },
+  editButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
+    letterSpacing: 0.5,
   },
 });

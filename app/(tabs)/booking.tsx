@@ -1,5 +1,6 @@
 ﻿import Calendar from "@/components/calendar/Calendar";
 import BookingForm from "@/components/forms/BookingForm";
+import EditTreatmentModal from "@/components/modals/EditTreatmentModal";
 import UnifiedTreatmentModal from "@/components/modals/UnifiedTreatmentModal";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { Treatment } from "@/src/types/treatment";
@@ -16,6 +17,8 @@ export default function BookingScreen() {
   const [treatmentsList, setTreatmentsList] = useState<Treatment[]>([]);
   const [treatmentsDate, setTreatmentsDate] = useState<string>('');
   const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [treatmentToEdit, setTreatmentToEdit] = useState<Treatment | null>(null);
   const insets = useSafeAreaInsets();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const { triggerRefresh } = useDashboard();
@@ -47,14 +50,29 @@ export default function BookingScreen() {
     }, 200);
   }, [showBookingForm, isModalClosing, showTreatmentModal, scaleAnim]);
 
-  const handleNewBookingRequest = useCallback(async (dateString: string, reservedTimesForDate: string[]) => {
+    const handleEditRequest = useCallback((treatment: Treatment) => {
+    console.log('handleEditRequest 호출됨, treatment:', treatment.id);
+    // 현재 모달들을 먼저 닫고
+    setShowTreatmentModal(false);
+    setSelectedTreatment(null);
+    
+    // 수정할 예약 설정하고 수정 모달 열기
+    setTimeout(() => {
+      setTreatmentToEdit(treatment);
+      setShowEditModal(true);
+      console.log('수정 모달 열기 완료');
+    }, 300); // 모달 닫기 애니메이션 대기
+  }, []);
+
+  const handleNewBookingRequest = useCallback((date?: string) => {
     // 예약 폼이 이미 열려있거나 닫히는 중이면 무시
     if (showBookingForm || isModalClosing) {
       return;
     }
 
-    setSelectedDate(dateString);
-    setReservedTimes(reservedTimesForDate); // 해당 날짜의 예약된 시간들 설정
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    setSelectedDate(targetDate);
+    setReservedTimes([]); // 빈 배열로 초기화
     setTimeout(() => {
       setShowBookingForm(true);
     }, 200);
@@ -189,6 +207,7 @@ export default function BookingScreen() {
         selectedTreatment={selectedTreatment}
         date={treatmentsDate}
         onClose={handleCloseTreatmentModal}
+        onEditRequest={handleEditRequest}
         onNewBooking={() => {
           console.log('새 예약 버튼 클릭됨', { treatmentsDate, showTreatmentModal });
           // 트리트먼트 모달을 닫고 새 예약 폼 열기
@@ -197,10 +216,29 @@ export default function BookingScreen() {
             // treatmentsDate가 있으면 그 날짜로, 없으면 오늘 날짜로
             const targetDate = treatmentsDate || new Date().toISOString().split('T')[0];
             console.log('새 예약 요청:', targetDate);
-            handleNewBookingRequest(targetDate, []);
+            handleNewBookingRequest(targetDate);
           }, 300);
         }}
       />
+
+      {/* 수정 모달 */}
+      {treatmentToEdit && (
+        <EditTreatmentModal
+          visible={showEditModal}
+          treatment={treatmentToEdit}
+          onClose={() => {
+            console.log('EditTreatmentModal 닫기');
+            setShowEditModal(false);
+            setTreatmentToEdit(null);
+          }}
+          onUpdateSuccess={() => {
+            console.log('EditTreatmentModal 수정 성공');
+            setShowEditModal(false);
+            setTreatmentToEdit(null);
+            // 대시보드 새로고침은 EditTreatmentModal에서 처리됨
+          }}
+        />
+      )}
     </View>
   );
 }
