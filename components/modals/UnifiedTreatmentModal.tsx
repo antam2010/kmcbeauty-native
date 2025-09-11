@@ -196,11 +196,14 @@ export default function TreatmentModal({
           </View>
         )}
         
-        {/* 새 예약하기 버튼 */}
+        {/* 새 예약하기 버튼 - 항상 표시 */}
         {onNewBooking && (
           <TouchableOpacity
             style={styles.newBookingButton}
-            onPress={onNewBooking}
+            onPress={() => {
+              console.log('UnifiedTreatmentModal: 새 예약 버튼 클릭');
+              onNewBooking();
+            }}
             activeOpacity={0.8}
           >
             <Text style={styles.newBookingButtonText}>+ 새 예약 추가</Text>

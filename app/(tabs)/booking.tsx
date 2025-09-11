@@ -48,8 +48,8 @@ export default function BookingScreen() {
   }, [showBookingForm, isModalClosing, showTreatmentModal, scaleAnim]);
 
   const handleNewBookingRequest = useCallback(async (dateString: string, reservedTimesForDate: string[]) => {
-    // 이미 모달이 열려있거나 닫히는 중이면 무시
-    if (showBookingForm || isModalClosing || showTreatmentModal) {
+    // 예약 폼이 이미 열려있거나 닫히는 중이면 무시
+    if (showBookingForm || isModalClosing) {
       return;
     }
 
@@ -58,7 +58,7 @@ export default function BookingScreen() {
     setTimeout(() => {
       setShowBookingForm(true);
     }, 200);
-  }, [showBookingForm, isModalClosing, showTreatmentModal]);
+  }, [showBookingForm, isModalClosing]);
 
   const handleCloseBookingForm = useCallback(() => {
     setIsModalClosing(true);
@@ -190,9 +190,14 @@ export default function BookingScreen() {
         date={treatmentsDate}
         onClose={handleCloseTreatmentModal}
         onNewBooking={() => {
+          console.log('새 예약 버튼 클릭됨', { treatmentsDate, showTreatmentModal });
+          // 트리트먼트 모달을 닫고 새 예약 폼 열기
           handleCloseTreatmentModal();
           setTimeout(() => {
-            handleNewBookingRequest(treatmentsDate, []);
+            // treatmentsDate가 있으면 그 날짜로, 없으면 오늘 날짜로
+            const targetDate = treatmentsDate || new Date().toISOString().split('T')[0];
+            console.log('새 예약 요청:', targetDate);
+            handleNewBookingRequest(targetDate, []);
           }, 300);
         }}
       />
