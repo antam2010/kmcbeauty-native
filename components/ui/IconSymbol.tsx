@@ -1,7 +1,7 @@
 // Fallback for using MaterialIcons on Android and web.
 
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { SymbolWeight, SymbolViewProps } from 'expo-symbols';
+import { SymbolViewProps, SymbolWeight } from 'expo-symbols';
 import { ComponentProps } from 'react';
 import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
@@ -14,10 +14,16 @@ type IconSymbolName = keyof typeof MAPPING;
  * - see SF Symbols in the [SF Symbols](https://developer.apple.com/sf-symbols/) app.
  */
 const MAPPING = {
+  // 기존 매핑
   'house.fill': 'home',
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  
+  // 탭 아이콘 매핑 - 더 적절한 Material Icons 사용
+  'calendar': 'calendar-today',           // 예약 탭
+  'person.3.fill': 'group',               // 관리 탭 (직원 관리)
+  'person.fill': 'account-circle',        // 프로필 탭
 } as IconMapping;
 
 /**
