@@ -95,8 +95,9 @@ export default function BookingScreen() {
     setIsModalClosing(true);
     setShowBookingForm(false);
     
-    // 대시보드 새로고침 트리거
+    // 대시보드와 달력 새로고침 트리거
     triggerRefresh();
+    setCalendarRefreshTrigger(prev => prev + 1);
     
     setTimeout(() => {
       setSelectedDate(null);
