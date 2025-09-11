@@ -7,7 +7,9 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Keyboard,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
@@ -45,6 +47,7 @@ export default function BookingForm({
   const [searchResults, setSearchResults] = useState<Phonebook[]>([]);
   const [recentCustomers, setRecentCustomers] = useState<Phonebook[]>([]); // 최근 고객들
   const [showRecentCustomers, setShowRecentCustomers] = useState(false); // 최근 고객 표시 여부
+  const [isSearching, setIsSearching] = useState(false); // 검색 중 상태
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedTreatments, setSelectedTreatments] = useState<SelectedTreatmentItem[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<ShopUser | null>(null);
@@ -93,24 +96,53 @@ export default function BookingForm({
   // 고객 검색
   useEffect(() => {
     const searchCustomers = async () => {
-      try {
-        const results = await phonebookApiService.search(customerSearch);
-        setSearchResults(results);
-        setShowRecentCustomers(false); // 검색 중일 때는 최근 고객 숨김
-      } catch (error) {
-        console.error('고객 검색 실패:', error);
+      if (!customerSearch.trim()) {
         setSearchResults([]);
+        setShowRecentCustomers(true);
+        setIsSearching(false);
+        return;
+      }
+
+      try {
+        setIsSearching(true);
+        console.log('🔍 고객 검색 시작:', customerSearch);
+        
+        const results = await phonebookApiService.search(customerSearch.trim());
+        console.log('🔍 검색 결과:', results.length, '명');
+        
+        setSearchResults(results || []);
+        setShowRecentCustomers(false);
+      } catch (error) {
+        console.error('🔍 고객 검색 실패:', error);
+        setSearchResults([]);
+        // 안드로이드에서 네트워크 오류 확인을 위한 상세 로깅
+        if (error instanceof Error) {
+          console.error('🔍 에러 상세:', error.message);
+        }
+      } finally {
+        setIsSearching(false);
       }
     };
 
-    if (customerSearch.trim().length > 0) {
+    // 디바운싱을 위한 타이머
+    const timeoutId = setTimeout(() => {
       searchCustomers();
-    } else {
-      setSearchResults([]);
-      // 검색어가 없으면 최근 고객 표시
-      setShowRecentCustomers(true);
-    }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
   }, [customerSearch]);
+
+  // 디버깅용 로그
+  useEffect(() => {
+    console.log('🔍 UI 렌더링 상태:', {
+      isSearching,
+      searchResultsLength: searchResults.length,
+      customerSearchLength: customerSearch.trim().length,
+      showRecentCustomers,
+      recentCustomersLength: recentCustomers.length,
+      selectedCustomer: selectedCustomer?.name || 'none'
+    });
+  }, [isSearching, searchResults, customerSearch, showRecentCustomers, recentCustomers, selectedCustomer]);
 
   const loadTreatmentMenus = async () => {
     try {
@@ -267,16 +299,22 @@ export default function BookingForm({
   }
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={[bookingFormStyles.container, { paddingTop: insets.top }]}>
-        <ScrollView 
-          style={bookingFormStyles.scrollView}
-          contentContainerStyle={{
-            paddingBottom: Platform.OS === 'ios' ? insets.bottom + 20 : 16
-          }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={[bookingFormStyles.container, { paddingTop: insets.top }]}>
+          <ScrollView 
+            style={bookingFormStyles.scrollView}
+            contentContainerStyle={{
+              paddingBottom: Platform.OS === 'ios' ? insets.bottom + 20 : 16
+            }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled={true}
+          >
           {/* 헤더 */}
           <View style={bookingFormStyles.header}>
             <TouchableOpacity onPress={onClose} style={bookingFormStyles.closeButton}>
@@ -312,12 +350,14 @@ export default function BookingForm({
               value={customerSearch}
               onChangeText={setCustomerSearch}
               onFocus={() => {
+                console.log('🎯 검색 입력 포커스');
                 // 포커스 시 최근 고객 표시
                 if (!customerSearch.trim() && !selectedCustomer) {
                   setShowRecentCustomers(true);
                 }
               }}
               onBlur={() => {
+                console.log('🎯 검색 입력 블러');
                 // 포커스 해제 시 최근 고객 목록 숨김 (선택되지 않은 경우에만)
                 setTimeout(() => {
                   if (!selectedCustomer && !customerSearch.trim()) {
@@ -326,6 +366,10 @@ export default function BookingForm({
                 }, 150); // 약간의 지연으로 선택 이벤트와 겹치지 않도록
               }}
               autoCapitalize="none"
+              autoCorrect={false}
+              underlineColorAndroid="transparent"
+              selectionColor="#667eea"
+              placeholderTextColor="#999"
             />
             
             {selectedCustomer && (
@@ -346,62 +390,91 @@ export default function BookingForm({
               </View>
             )}
 
-            {/* 검색 결과 또는 최근 고객 표시 */}
+            {/* 고객 검색 결과 표시 */}
             {!selectedCustomer && (
-              <>
+              <View>
+                {/* 검색 중 표시 */}
+                {isSearching && (
+                  <View style={[bookingFormStyles.searchResults, { alignItems: 'center', padding: 20 }]}>
+                    <ActivityIndicator size="small" color="#667eea" />
+                    <Text style={{ marginTop: 8, color: '#666' }}>검색 중...</Text>
+                  </View>
+                )}
+
                 {/* 검색 결과 (검색어가 있을 때) */}
-                {searchResults.length > 0 && customerSearch.trim().length > 0 && (
+                {!isSearching && searchResults.length > 0 && customerSearch.trim().length > 0 && (
                   <View style={bookingFormStyles.searchResults}>
-                    <Text style={bookingFormStyles.searchResultsTitle}>검색 결과</Text>
-                    {searchResults.slice(0, 8).map((customer) => (
-                      <TouchableOpacity
-                        key={customer.id}
-                        style={bookingFormStyles.customerItem}
-                        onPress={() => {
-                          setSelectedCustomer(customer);
-                          setCustomerSearch('');
-                          setSearchResults([]);
-                          setShowRecentCustomers(false);
-                          Keyboard.dismiss();
-                        }}
-                      >
-                        <Text style={bookingFormStyles.customerItemName}>{customer.name}</Text>
-                        <Text style={bookingFormStyles.customerItemPhone}>{customer.phone_number}</Text>
-                      </TouchableOpacity>
-                    ))}
+                    <Text style={bookingFormStyles.searchResultsTitle}>검색 결과 ({searchResults.length}명)</Text>
+                    <FlatList
+                      data={searchResults.slice(0, 8)}
+                      keyExtractor={(item) => item.id.toString()}
+                      renderItem={({ item: customer }) => (
+                        <TouchableOpacity
+                          style={bookingFormStyles.customerItem}
+                          onPress={() => {
+                            console.log('고객 선택:', customer.name);
+                            setSelectedCustomer(customer);
+                            setCustomerSearch('');
+                            setSearchResults([]);
+                            setShowRecentCustomers(false);
+                            Keyboard.dismiss();
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={bookingFormStyles.customerItemName}>{customer.name}</Text>
+                          <Text style={bookingFormStyles.customerItemPhone}>{customer.phone_number}</Text>
+                        </TouchableOpacity>
+                      )}
+                      scrollEnabled={false}
+                      nestedScrollEnabled={true}
+                    />
+                  </View>
+                )}
+
+                {/* 검색 결과가 없을 때 */}
+                {!isSearching && searchResults.length === 0 && customerSearch.trim().length > 0 && (
+                  <View style={[bookingFormStyles.searchResults, { alignItems: 'center', padding: 20 }]}>
+                    <Text style={{ color: '#666' }}>검색 결과가 없습니다.</Text>
                   </View>
                 )}
 
                 {/* 최근 등록된 고객들 (포커스 시 또는 검색어가 없을 때) */}
-                {showRecentCustomers && recentCustomers.length > 0 && customerSearch.trim().length === 0 && (
+                {!isSearching && showRecentCustomers && recentCustomers.length > 0 && customerSearch.trim().length === 0 && (
                   <View style={bookingFormStyles.searchResults}>
-                    <Text style={bookingFormStyles.searchResultsTitle}>💚 최근 등록된 고객</Text>
-                    {recentCustomers.slice(0, 8).map((customer) => (
-                      <TouchableOpacity
-                        key={customer.id}
-                        style={bookingFormStyles.customerItem}
-                        onPress={() => {
-                          setSelectedCustomer(customer);
-                          setCustomerSearch('');
-                          setShowRecentCustomers(false);
-                          Keyboard.dismiss();
-                        }}
-                      >
-                        <View style={bookingFormStyles.customerItemHeader}>
-                          <Text style={bookingFormStyles.customerItemName}>{customer.name}</Text>
-                          <Text style={bookingFormStyles.customerItemDate}>
-                            {new Date(customer.created_at).toLocaleDateString('ko-KR', {
-                              month: 'short',
-                              day: 'numeric'
-                            })}
-                          </Text>
-                        </View>
-                        <Text style={bookingFormStyles.customerItemPhone}>{customer.phone_number}</Text>
-                      </TouchableOpacity>
-                    ))}
+                    <Text style={bookingFormStyles.searchResultsTitle}>💚 최근 등록된 고객 ({recentCustomers.length}명)</Text>
+                    <FlatList
+                      data={recentCustomers.slice(0, 8)}
+                      keyExtractor={(item) => item.id.toString()}
+                      renderItem={({ item: customer }) => (
+                        <TouchableOpacity
+                          style={bookingFormStyles.customerItem}
+                          onPress={() => {
+                            console.log('최근 고객 선택:', customer.name);
+                            setSelectedCustomer(customer);
+                            setCustomerSearch('');
+                            setShowRecentCustomers(false);
+                            Keyboard.dismiss();
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <View style={bookingFormStyles.customerItemHeader}>
+                            <Text style={bookingFormStyles.customerItemName}>{customer.name}</Text>
+                            <Text style={bookingFormStyles.customerItemDate}>
+                              {new Date(customer.created_at).toLocaleDateString('ko-KR', {
+                                month: 'short',
+                                day: 'numeric'
+                              })}
+                            </Text>
+                          </View>
+                          <Text style={bookingFormStyles.customerItemPhone}>{customer.phone_number}</Text>
+                        </TouchableOpacity>
+                      )}
+                      scrollEnabled={false}
+                      nestedScrollEnabled={true}
+                    />
                   </View>
                 )}
-              </>
+              </View>
             )}
           </View>
 
@@ -685,5 +758,6 @@ export default function BookingForm({
         </ScrollView>
       </View>
     </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }

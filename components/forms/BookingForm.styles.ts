@@ -94,6 +94,15 @@ export const bookingFormStyles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     marginBottom: 10,
+    elevation: 1, // 안드로이드 그림자
+    shadowColor: '#000', // iOS 그림자
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    minHeight: 48, // 안드로이드 접근성을 위한 최소 높이
   },
   selectedCustomer: {
     backgroundColor: '#e3f2fd',
@@ -125,6 +134,14 @@ export const bookingFormStyles = StyleSheet.create({
     borderColor: '#e9ecef',
     maxHeight: 300,
     marginTop: 8,
+    elevation: 2, // 안드로이드 그림자
+    shadowColor: '#000', // iOS 그림자
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
   },
   searchResultsTitle: {
     fontSize: 14,
@@ -140,6 +157,8 @@ export const bookingFormStyles = StyleSheet.create({
     padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f8f9fa',
+    backgroundColor: '#ffffff',
+    minHeight: 60, // 최소 높이 보장
   },
   customerItemHeader: {
     flexDirection: 'row',
