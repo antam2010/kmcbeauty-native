@@ -3,7 +3,7 @@ import { shopApiService, type ShopUser } from '@/src/api/services/shop';
 import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import type { Treatment, TreatmentItemCreate, TreatmentUpdate } from '@/src/types/treatment';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -55,11 +55,6 @@ export default function EditTreatmentModal({
   // 드롭다운 상태들
   const [treatmentMenus, setTreatmentMenus] = useState<TreatmentMenu[]>([]);
   const [staffUsers, setStaffUsers] = useState<ShopUser[]>([]);
-  
-  // UI 상태들
-  const [showStaffDropdown, setShowStaffDropdown] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
 
   
   // 시간 슬롯
@@ -134,38 +129,47 @@ export default function EditTreatmentModal({
     }
   };
 
-  const handleAddTreatment = (menuDetail: TreatmentMenuDetail) => {
+  const handleAddTreatment = useCallback((menuDetail: TreatmentMenuDetail) => {
     const newTreatment: SelectedTreatmentItem = {
       menuDetail,
       sessionNo: 1,
       customPrice: menuDetail.base_price,
       customDuration: menuDetail.duration_min
     };
-    setSelectedTreatments([...selectedTreatments, newTreatment]);
-  };
+    
+    setSelectedTreatments(prev => {
+      const newArray = [...prev, newTreatment];
+      return newArray;
+    });
+  }, []);
 
-  const handleRemoveTreatment = (index: number) => {
-    const updated = selectedTreatments.filter((_, i) => i !== index);
-    setSelectedTreatments(updated);
-  };
+  const handleRemoveTreatment = useCallback((index: number) => {
+    setSelectedTreatments(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
-  const updateSessionNo = (index: number, sessionNo: number) => {
-    const updated = [...selectedTreatments];
-    updated[index].sessionNo = Math.max(1, sessionNo);
-    setSelectedTreatments(updated);
-  };
+  const updateSessionNo = useCallback((index: number, sessionNo: number) => {
+    setSelectedTreatments(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], sessionNo: Math.max(1, sessionNo) };
+      return updated;
+    });
+  }, []);
 
-  const updateCustomPrice = (index: number, price: number) => {
-    const updated = [...selectedTreatments];
-    updated[index].customPrice = Math.max(0, price);
-    setSelectedTreatments(updated);
-  };
+  const updateCustomPrice = useCallback((index: number, price: number) => {
+    setSelectedTreatments(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], customPrice: Math.max(0, price) };
+      return updated;
+    });
+  }, []);
 
-  const updateCustomDuration = (index: number, duration: number) => {
-    const updated = [...selectedTreatments];
-    updated[index].customDuration = Math.max(1, duration);
-    setSelectedTreatments(updated);
-  };
+  const updateCustomDuration = useCallback((index: number, duration: number) => {
+    setSelectedTreatments(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], customDuration: Math.max(1, duration) };
+      return updated;
+    });
+  }, []);
 
   const handlePriceTextChange = (index: number, text: string) => {
     const numericText = text.replace(/[^0-9]/g, '');
@@ -261,18 +265,11 @@ export default function EditTreatmentModal({
   };
 
   const handleClose = () => {
-    // 드롭다운들 닫기
-    setShowStaffDropdown(false);
-    setShowStatusDropdown(false);
-    setShowPaymentDropdown(false);
     onClose();
   };
 
   const dismissKeyboard = () => {
     Keyboard.dismiss();
-    setShowStaffDropdown(false);
-    setShowStatusDropdown(false);
-    setShowPaymentDropdown(false);
   };
 
   if (!visible || !treatment) return null;
@@ -352,35 +349,51 @@ export default function EditTreatmentModal({
               </ScrollView>
             </View>
 
-            {/* 담당자 선택 */}
+            {/* 담당 직원 선택 */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>담당자</Text>
-              <TouchableOpacity
-                style={styles.dropdown}
-                onPress={() => setShowStaffDropdown(!showStaffDropdown)}
-              >
-                <Text style={styles.dropdownText}>
-                  {selectedStaff ? selectedStaff.user.name : '담당자를 선택하세요'}
-                </Text>
-                <Text style={styles.dropdownArrow}>▼</Text>
-              </TouchableOpacity>
-              
-              {showStaffDropdown && (
-                <View style={styles.dropdownList}>
-                  {staffUsers.map((staff) => (
-                    <TouchableOpacity
-                      key={staff.user_id}
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setSelectedStaff(staff);
-                        setShowStaffDropdown(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownItemText}>{staff.user.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+              <Text style={styles.sectionTitle}>👨‍💼 담당 직원</Text>
+              <View style={styles.staffSelection}>
+                <TouchableOpacity
+                  style={[
+                    styles.staffOption,
+                    !selectedStaff && styles.selectedStaffOption
+                  ]}
+                  onPress={() => setSelectedStaff(null)}
+                >
+                  <Text style={[
+                    styles.staffOptionText,
+                    !selectedStaff && styles.selectedStaffOptionText
+                  ]}>
+                    직접 시술
+                  </Text>
+                </TouchableOpacity>
+                
+                {staffUsers.map((staff) => (
+                  <TouchableOpacity
+                    key={staff.user_id}
+                    style={[
+                      styles.staffOption,
+                      selectedStaff?.user_id === staff.user_id && styles.selectedStaffOption
+                    ]}
+                    onPress={() => setSelectedStaff(staff)}
+                  >
+                    <View style={styles.staffInfo}>
+                      <Text style={[
+                        styles.staffOptionText,
+                        selectedStaff?.user_id === staff.user_id && styles.selectedStaffOptionText
+                      ]}>
+                        {staff.user.name}
+                      </Text>
+                      <Text style={[
+                        styles.staffRole,
+                        selectedStaff?.user_id === staff.user_id && styles.selectedStaffRole
+                      ]}>
+                        {staff.is_primary_owner === 1 ? '대표' : '직원'} • {staff.user.role}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {/* 시술 메뉴 */}
@@ -485,60 +498,59 @@ export default function EditTreatmentModal({
 
             {/* 예약 상태 */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>예약 상태</Text>
-              <TouchableOpacity
-                style={styles.dropdown}
-                onPress={() => setShowStatusDropdown(!showStatusDropdown)}
-              >
-                <Text style={styles.dropdownText}>{status}</Text>
-                <Text style={styles.dropdownArrow}>▼</Text>
-              </TouchableOpacity>
-              
-              {showStatusDropdown && (
-                <View style={styles.dropdownList}>
-                  {['RESERVED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].map((statusOption) => (
-                    <TouchableOpacity
-                      key={statusOption}
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setStatus(statusOption as Treatment['status']);
-                        setShowStatusDropdown(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownItemText}>{statusOption}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+              <Text style={styles.sectionTitle}>📋 예약 상태</Text>
+              <View style={styles.statusSelection}>
+                {[
+                  { key: 'RESERVED', label: '예약됨' },
+                  { key: 'COMPLETED', label: '완료' },
+                  { key: 'CANCELLED', label: '취소됨' },
+                  { key: 'NO_SHOW', label: '노쇼' }
+                ].map((statusOption) => (
+                  <TouchableOpacity
+                    key={statusOption.key}
+                    style={[
+                      styles.statusOption,
+                      status === statusOption.key && styles.selectedStatusOption
+                    ]}
+                    onPress={() => setStatus(statusOption.key as Treatment['status'])}
+                  >
+                    <Text style={[
+                      styles.statusOptionText,
+                      status === statusOption.key && styles.selectedStatusOptionText
+                    ]}>
+                      {statusOption.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {/* 결제 방법 */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>결제 방법</Text>
-              <TouchableOpacity
-                style={styles.dropdown}
-                onPress={() => setShowPaymentDropdown(!showPaymentDropdown)}
-              >
-                <Text style={styles.dropdownText}>{paymentMethod}</Text>
-                <Text style={styles.dropdownArrow}>▼</Text>
-              </TouchableOpacity>
-              
-              {showPaymentDropdown && (
-                <View style={styles.dropdownList}>
-                  {['CARD', 'CASH', 'UNPAID'].map((paymentOption) => (
-                    <TouchableOpacity
-                      key={paymentOption}
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setPaymentMethod(paymentOption as Treatment['payment_method']);
-                        setShowPaymentDropdown(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownItemText}>{paymentOption}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+              <Text style={styles.sectionTitle}>💳 결제 방법</Text>
+              <View style={styles.paymentMethods}>
+                {[
+                  { key: 'CARD', label: '카드' },
+                  { key: 'CASH', label: '현금' },
+                  { key: 'UNPAID', label: '외상' }
+                ].map((method) => (
+                  <TouchableOpacity
+                    key={method.key}
+                    style={[
+                      styles.paymentMethod,
+                      paymentMethod === method.key && styles.selectedPaymentMethod
+                    ]}
+                    onPress={() => setPaymentMethod(method.key as Treatment['payment_method'])}
+                  >
+                    <Text style={[
+                      styles.paymentMethodText,
+                      paymentMethod === method.key && styles.selectedPaymentMethodText
+                    ]}>
+                      {method.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {/* 메모 */}
@@ -832,5 +844,96 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 100,
+  },
+  // 직원 선택 관련 스타일 (BookingForm과 동일)
+  staffSelection: {
+    gap: 8,
+  },
+  staffOption: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderRadius: 8,
+    padding: 12,
+  },
+  selectedStaffOption: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#1976d2',
+  },
+  staffInfo: {
+    flex: 1,
+  },
+  staffOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#495057',
+  },
+  selectedStaffOptionText: {
+    color: '#1976d2',
+  },
+  staffRole: {
+    fontSize: 13,
+    color: '#6c757d',
+    marginTop: 2,
+  },
+  selectedStaffRole: {
+    color: '#1565c0',
+  },
+  // 상태 선택 관련 스타일
+  statusSelection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  statusOption: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    minWidth: '22%',
+  },
+  selectedStatusOption: {
+    backgroundColor: '#667eea',
+    borderColor: '#667eea',
+  },
+  statusOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#495057',
+    textAlign: 'center',
+  },
+  selectedStatusOptionText: {
+    color: '#ffffff',
+  },
+  // 결제방법 관련 스타일 (BookingForm과 동일)
+  paymentMethods: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  paymentMethod: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  selectedPaymentMethod: {
+    backgroundColor: '#667eea',
+    borderColor: '#667eea',
+  },
+  paymentMethodText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#495057',
+  },
+  selectedPaymentMethodText: {
+    color: '#ffffff',
   },
 });
