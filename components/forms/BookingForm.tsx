@@ -29,6 +29,8 @@ interface BookingFormProps {
 interface SelectedTreatmentItem {
   menuDetail: TreatmentMenuDetail;
   sessionNo: number;
+  customPrice: number;  // 회차별 개별 가격
+  customDuration: number;  // 회차별 개별 시간
 }
 
 export default function BookingForm({ 
@@ -119,7 +121,9 @@ export default function BookingForm({
   const addTreatment = (menuDetail: TreatmentMenuDetail) => {
     const newTreatment: SelectedTreatmentItem = {
       menuDetail,
-      sessionNo: 1
+      sessionNo: 1,
+      customPrice: menuDetail.base_price,
+      customDuration: menuDetail.duration_min
     };
     setSelectedTreatments([...selectedTreatments, newTreatment]);
   };
@@ -135,15 +139,41 @@ export default function BookingForm({
     setSelectedTreatments(updated);
   };
 
+  const updateCustomPrice = (index: number, price: number) => {
+    const updated = [...selectedTreatments];
+    updated[index].customPrice = Math.max(0, price);
+    setSelectedTreatments(updated);
+  };
+
+  const updateCustomDuration = (index: number, duration: number) => {
+    const updated = [...selectedTreatments];
+    updated[index].customDuration = Math.max(1, duration); // 최소 1분
+    setSelectedTreatments(updated);
+  };
+
+  const handlePriceTextChange = (index: number, text: string) => {
+    // 숫자만 허용하고 빈 문자열도 허용 (임시로)
+    const numericText = text.replace(/[^0-9]/g, '');
+    const price = numericText === '' ? 0 : parseInt(numericText);
+    updateCustomPrice(index, price);
+  };
+
+  const handleDurationTextChange = (index: number, text: string) => {
+    // 숫자만 허용하고 빈 문자열도 허용 (임시로)
+    const numericText = text.replace(/[^0-9]/g, '');
+    const duration = numericText === '' ? 1 : parseInt(numericText);
+    updateCustomDuration(index, duration);
+  };
+
   const getTotalPrice = () => {
     return selectedTreatments.reduce((total, item) => {
-      return total + (item.menuDetail.base_price * item.sessionNo);
+      return total + item.customPrice;
     }, 0);
   };
 
   const getTotalDuration = () => {
     return selectedTreatments.reduce((total, item) => {
-      return total + (item.menuDetail.duration_min * item.sessionNo);
+      return total + item.customDuration;
     }, 0);
   };
 
@@ -175,8 +205,8 @@ export default function BookingForm({
       // 시술 항목들 준비
       const treatmentItems: TreatmentItemCreate[] = selectedTreatments.map(item => ({
         menu_detail_id: item.menuDetail.id,
-        base_price: item.menuDetail.base_price,
-        duration_min: item.menuDetail.duration_min,
+        base_price: item.customPrice,
+        duration_min: item.customDuration,
         session_no: item.sessionNo
       }));
 
@@ -220,9 +250,10 @@ export default function BookingForm({
         <ScrollView 
           style={styles.scrollView}
           contentContainerStyle={{
-            paddingBottom: Platform.OS === 'ios' ? insets.bottom + 30 : 20
+            paddingBottom: Platform.OS === 'ios' ? insets.bottom + 20 : 16
           }}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           {/* 헤더 */}
           <View style={styles.header}>
@@ -362,15 +393,28 @@ export default function BookingForm({
           {selectedTreatments.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>✅ 선택된 시술 (회차별)</Text>
+              <Text style={styles.sectionSubtitle}>
+                💡 각 회차별로 가격과 시간을 개별 조정할 수 있습니다 (패키지 상품 등)
+              </Text>
               {selectedTreatments.map((item, index) => (
                 <View key={index} style={styles.selectedTreatment}>
-                  <View style={styles.treatmentInfo}>
-                    <Text style={styles.treatmentName}>{item.menuDetail.name}</Text>
-                    <Text style={styles.treatmentDetails}>
-                      {item.menuDetail.base_price.toLocaleString()}원 • {item.menuDetail.duration_min}분
-                    </Text>
+                  <View style={styles.treatmentHeader}>
+                    <View style={styles.treatmentBasicInfo}>
+                      <Text style={styles.treatmentName}>{item.menuDetail.name}</Text>
+                      <Text style={styles.treatmentBaseInfo}>
+                        기본: {item.menuDetail.base_price.toLocaleString()}원 • {item.menuDetail.duration_min}분
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.removeButton}
+                      onPress={() => removeTreatment(index)}
+                    >
+                      <Text style={styles.removeButtonText}>✕</Text>
+                    </TouchableOpacity>
                   </View>
+                  
                   <View style={styles.sessionControls}>
+                    <Text style={styles.sessionLabel}>회차:</Text>
                     <TouchableOpacity
                       style={styles.sessionButton}
                       onPress={() => updateSessionNo(index, item.sessionNo - 1)}
@@ -385,12 +429,70 @@ export default function BookingForm({
                       <Text style={styles.sessionButtonText}>+</Text>
                     </TouchableOpacity>
                   </View>
-                  <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={() => removeTreatment(index)}
-                  >
-                    <Text style={styles.removeButtonText}>✕</Text>
-                  </TouchableOpacity>
+                  
+                  {/* 가격 및 시간 조정 */}
+                  <View style={styles.customControls}>
+                    <View style={styles.customControlRow}>
+                      <View style={styles.customControlItem}>
+                        <Text style={styles.customControlLabel}>실제 가격</Text>
+                        <View style={styles.customInputGroup}>
+                          <TextInput
+                            style={styles.customInput}
+                            value={item.customPrice.toString()}
+                            onChangeText={(text) => handlePriceTextChange(index, text)}
+                            keyboardType="numeric"
+                            placeholder="0"
+                            selectTextOnFocus={true}
+                          />
+                          <Text style={styles.customUnit}>원</Text>
+                        </View>
+                      </View>
+                      
+                      <View style={styles.customControlItem}>
+                        <Text style={styles.customControlLabel}>실제 시간</Text>
+                        <View style={styles.customInputGroup}>
+                          <TextInput
+                            style={styles.customInput}
+                            value={item.customDuration.toString()}
+                            onChangeText={(text) => handleDurationTextChange(index, text)}
+                            keyboardType="numeric"
+                            placeholder="1"
+                            selectTextOnFocus={true}
+                          />
+                          <Text style={styles.customUnit}>분</Text>
+                        </View>
+                      </View>
+                    </View>
+                    
+                    {/* 빠른 가격 설정 */}
+                    <View style={styles.quickActionsRow}>
+                      <TouchableOpacity
+                        style={styles.quickButton}
+                        onPress={() => updateCustomPrice(index, 0)}
+                      >
+                        <Text style={styles.quickButtonText}>무료</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.quickButton}
+                        onPress={() => updateCustomPrice(index, item.menuDetail.base_price)}
+                      >
+                        <Text style={styles.quickButtonText}>기본가</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.quickButton}
+                        onPress={() => updateCustomPrice(index, Math.round(item.menuDetail.base_price * 0.5))}
+                      >
+                        <Text style={styles.quickButtonText}>50%</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  
+                  {/* 현재 회차 요약 */}
+                  <View style={styles.itemSummary}>
+                    <Text style={styles.itemSummaryText}>
+                      {item.sessionNo}회차 • {item.customPrice.toLocaleString()}원 • {item.customDuration}분
+                    </Text>
+                  </View>
                 </View>
               ))}
               
@@ -530,8 +632,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
@@ -558,20 +660,21 @@ const styles = StyleSheet.create({
     width: 40,
   },
   section: {
-    marginBottom: 24,
-    paddingHorizontal: 20,
+    marginBottom: 20,
+    paddingHorizontal: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
     color: '#212529',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sectionSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6c757d',
-    marginBottom: 12,
+    marginBottom: 10,
     fontStyle: 'italic',
+    lineHeight: 18,
   },
   dateCard: {
     backgroundColor: '#ffffff',
@@ -590,10 +693,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e9ecef',
     borderRadius: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 16,
-    marginBottom: 12,
+    fontSize: 15,
+    marginBottom: 10,
   },
   selectedCustomer: {
     backgroundColor: '#e3f2fd',
@@ -624,34 +727,37 @@ const styles = StyleSheet.create({
     maxHeight: 200,
   },
   customerItem: {
-    padding: 12,
+    padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f8f9fa',
   },
   customerItemName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
     color: '#212529',
   },
   customerItemPhone: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6c757d',
     marginTop: 2,
   },
   timeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
+    justifyContent: 'space-between',
   },
   timeSlot: {
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e9ecef',
     borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    minWidth: 80,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    minWidth: '22%',
+    maxWidth: '23%',
     alignItems: 'center',
+    marginBottom: 6,
   },
   selectedTimeSlot: {
     backgroundColor: '#667eea',
@@ -662,7 +768,7 @@ const styles = StyleSheet.create({
     borderColor: '#dee2e6',
   },
   timeSlotText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
     color: '#495057',
   },
@@ -689,25 +795,25 @@ const styles = StyleSheet.create({
   },
   treatmentOption: {
     backgroundColor: '#ffffff',
-    padding: 12,
+    padding: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e9ecef',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   treatmentInfo: {
     flex: 1,
   },
   treatmentName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
     color: '#212529',
   },
   treatmentDetails: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6c757d',
     marginTop: 2,
   },
@@ -719,18 +825,32 @@ const styles = StyleSheet.create({
   },
   selectedTreatment: {
     backgroundColor: '#ffffff',
-    padding: 12,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#28a745',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   sessionControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 12,
+    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  sessionLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#495057',
+    marginRight: 8,
   },
   sessionButton: {
     width: 30,
@@ -820,7 +940,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#667eea',
     borderRadius: 12,
     paddingVertical: 16,
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginTop: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -867,5 +987,107 @@ const styles = StyleSheet.create({
   },
   selectedStaffRole: {
     color: '#1565c0',
+  },
+  // 커스텀 가격/시간 조정 관련 스타일
+  treatmentHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  treatmentBasicInfo: {
+    flex: 1,
+    marginRight: 8,
+    minWidth: '60%',
+  },
+  treatmentBaseInfo: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginTop: 2,
+  },
+  customControls: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  customControlRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 12,
+  },
+  customControlItem: {
+    flex: 1,
+  },
+  customControlLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#495057',
+    marginBottom: 8,
+  },
+  customInputGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 2,
+  },
+  customInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+    paddingVertical: 8,
+    color: '#212529',
+  },
+  customUnit: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  quickButton: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  quickButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#495057',
+  },
+  itemSummary: {
+    backgroundColor: '#e8f5e8',
+    padding: 8,
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#28a745',
+  },
+  itemSummaryText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#155724',
+    textAlign: 'center',
   },
 });
