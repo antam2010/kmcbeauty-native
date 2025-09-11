@@ -19,6 +19,7 @@ interface CalendarProps {
   onDateSelect: (date: string) => void;
   onTreatmentsLoad?: (treatments: Treatment[]) => void;
   onNewBookingRequest?: (date: string, reservedTimes: string[]) => void;
+  onTreatmentPress?: (treatment: Treatment) => void;
   minDate?: string;
   maxDate?: string;
 }
@@ -28,6 +29,7 @@ export default function Calendar({
   onDateSelect, 
   onTreatmentsLoad,
   onNewBookingRequest,
+  onTreatmentPress,
   minDate,
   maxDate 
 }: CalendarProps) {
@@ -139,7 +141,7 @@ export default function Calendar({
   };
 
   const handleDatePress = (date: CalendarDate) => {
-    if (isDateDisabled(date.date) || isInteracting) return;
+    if (isDateDisabled(date.date) || isInteracting || showTreatmentsModal) return;
     
     setIsInteracting(true);
     
@@ -150,12 +152,12 @@ export default function Calendar({
         return treatmentDate === date.date;
       });
       setSelectedDateTreatments(dateTreatments);
-      setShowTreatmentsModal(true);
       
-      // 모달이 열린 후 인터랙션 상태 해제
+      // 안전한 모달 열기를 위한 지연
       setTimeout(() => {
+        setShowTreatmentsModal(true);
         setIsInteracting(false);
-      }, 300);
+      }, 150);
     } else {
       // 모든 날짜에서 새 예약 생성 가능 (과거 날짜 포함)
       onDateSelect(date.date);
@@ -163,7 +165,7 @@ export default function Calendar({
       // 선택 후 인터랙션 상태 해제
       setTimeout(() => {
         setIsInteracting(false);
-      }, 200);
+      }, 100);
     }
   };
 
@@ -199,7 +201,11 @@ export default function Calendar({
   };
 
   const closeTreatmentsModal = () => {
+    if (isInteracting) return; // 이미 처리 중이면 무시
+    
+    setIsInteracting(true);
     setShowTreatmentsModal(false);
+    
     setTimeout(() => {
       setSelectedDateTreatments([]);
       setIsInteracting(false);
@@ -261,7 +267,20 @@ export default function Calendar({
           
           <ScrollView style={calendarStyles.modalContent}>
             {selectedDateTreatments.map((treatment, index) => (
-              <ThemedView key={treatment.id || index} style={calendarStyles.treatmentItem}>
+              <TouchableOpacity 
+                key={treatment.id || index} 
+                style={calendarStyles.treatmentItem}
+                onPress={() => {
+                  // 모바일에서 안전한 처리를 위해 모달을 먼저 닫고 콜백 호출
+                  setShowTreatmentsModal(false);
+                  setTimeout(() => {
+                    onTreatmentPress?.(treatment);
+                  }, 300);
+                }}
+                activeOpacity={0.7}
+                delayPressIn={0}
+                delayPressOut={0}
+              >
                 <ThemedView style={calendarStyles.treatmentHeader}>
                   <ThemedText style={calendarStyles.treatmentTime}>
                     {formatTime(treatment.reserved_at)}
@@ -284,7 +303,7 @@ export default function Calendar({
                     메모: {treatment.memo}
                   </ThemedText>
                 )}
-              </ThemedView>
+              </TouchableOpacity>
             ))}
             
             {selectedDateTreatments.length === 0 && (

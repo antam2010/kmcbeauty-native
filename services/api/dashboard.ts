@@ -136,7 +136,11 @@ export interface TreatmentMenuResponse {
 export const dashboardService = {
   async getDashboardSummary(token: string, targetDate?: string): Promise<DashboardSummaryResponse> {
     const client = createApiClient(token);
-    const params = targetDate ? { target_date: targetDate } : {};
+    const params = {
+      ...(targetDate ? { target_date: targetDate } : {}),
+      'force_refresh': true, // 강제 새로고침 옵션 추가
+    }
+    
     
     const response = await client.get<DashboardSummaryResponse>('/summary/dashboard', { params });
     return response.data;

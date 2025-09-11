@@ -1,3 +1,4 @@
+import { useDashboard } from '@/contexts/DashboardContext';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -24,6 +25,7 @@ export default function HomeScreen() {
   const [weeklyTreatments, setWeeklyTreatments] = useState<Treatment[]>([]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { refreshTrigger } = useDashboard();
 
   const loadWeeklyTreatments = useCallback(async () => {
     try {
@@ -52,6 +54,13 @@ export default function HomeScreen() {
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
+
+  // Dashboard refresh trigger 감지
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      loadDashboardData();
+    }
+  }, [refreshTrigger, loadDashboardData]);
 
   const onRefresh = () => {
     setRefreshing(true);

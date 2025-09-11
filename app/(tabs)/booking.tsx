@@ -1,5 +1,8 @@
 ﻿import Calendar from "@/components/calendar/Calendar";
 import BookingForm from "@/components/forms/BookingForm";
+import TreatmentDetailModal from "@/components/modals/TreatmentDetailModal";
+import { useDashboard } from "@/contexts/DashboardContext";
+import { Treatment } from "@/src/types/treatment";
 import React, { useCallback, useRef, useState } from "react";
 import { Alert, Animated, Modal, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,12 +12,15 @@ export default function BookingScreen() {
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [isModalClosing, setIsModalClosing] = useState(false);
   const [reservedTimes, setReservedTimes] = useState<string[]>([]);
+  const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null);
+  const [showTreatmentDetail, setShowTreatmentDetail] = useState(false);
   const insets = useSafeAreaInsets();
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const { triggerRefresh } = useDashboard();
 
   const handleDateSelect = useCallback(async (dateString: string) => {
     // 이미 모달이 열려있거나 닫히는 중이면 무시
-    if (showBookingForm || isModalClosing) {
+    if (showBookingForm || isModalClosing || showTreatmentDetail) {
       return;
     }
 
@@ -37,11 +43,11 @@ export default function BookingScreen() {
     setTimeout(() => {
       setShowBookingForm(true);
     }, 200);
-  }, [showBookingForm, isModalClosing, scaleAnim]);
+  }, [showBookingForm, isModalClosing, showTreatmentDetail, scaleAnim]);
 
   const handleNewBookingRequest = useCallback(async (dateString: string, reservedTimesForDate: string[]) => {
     // 이미 모달이 열려있거나 닫히는 중이면 무시
-    if (showBookingForm || isModalClosing) {
+    if (showBookingForm || isModalClosing || showTreatmentDetail) {
       return;
     }
 
@@ -50,7 +56,7 @@ export default function BookingScreen() {
     setTimeout(() => {
       setShowBookingForm(true);
     }, 200);
-  }, [showBookingForm, isModalClosing]);
+  }, [showBookingForm, isModalClosing, showTreatmentDetail]);
 
   const handleCloseBookingForm = useCallback(() => {
     setIsModalClosing(true);
@@ -68,6 +74,9 @@ export default function BookingScreen() {
     setIsModalClosing(true);
     setShowBookingForm(false);
     
+    // 대시보드 새로고침 트리거
+    triggerRefresh();
+    
     setTimeout(() => {
       setSelectedDate(null);
       setReservedTimes([]);
@@ -76,6 +85,27 @@ export default function BookingScreen() {
         { text: "확인", style: "default" }
       ]);
     }, 500);
+  }, [triggerRefresh]);
+
+  const handleTreatmentPress = useCallback((treatment: Treatment) => {
+    // 다른 모달이 열려있으면 무시
+    if (showBookingForm || isModalClosing || showTreatmentDetail) {
+      return;
+    }
+    
+    setSelectedTreatment(treatment);
+    // 모바일에서 안전한 처리를 위해 약간의 지연
+    setTimeout(() => {
+      setShowTreatmentDetail(true);
+    }, 100);
+  }, [showBookingForm, isModalClosing, showTreatmentDetail]);
+
+  const handleCloseTreatmentDetail = useCallback(() => {
+    setShowTreatmentDetail(false);
+    // 상태 리셋을 위한 지연
+    setTimeout(() => {
+      setSelectedTreatment(null);
+    }, 300);
   }, []);
 
   return (
@@ -115,6 +145,7 @@ export default function BookingScreen() {
             selectedDate={selectedDate || undefined} 
             onDateSelect={handleDateSelect}
             onNewBookingRequest={handleNewBookingRequest}
+            onTreatmentPress={handleTreatmentPress}
           />
         </Animated.View>
       </ScrollView>
@@ -132,6 +163,12 @@ export default function BookingScreen() {
           onBookingComplete={handleBookingComplete} 
         />
       </Modal>
+
+      <TreatmentDetailModal
+        visible={showTreatmentDetail}
+        treatment={selectedTreatment}
+        onClose={handleCloseTreatmentDetail}
+      />
     </View>
   );
 }
