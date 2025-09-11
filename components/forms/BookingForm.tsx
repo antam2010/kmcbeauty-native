@@ -10,7 +10,6 @@ import {
   Keyboard,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -18,6 +17,7 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { bookingFormStyles } from './BookingForm.styles';
 
 interface BookingFormProps {
   selectedDate?: string;
@@ -259,18 +259,18 @@ export default function BookingForm({
 
   if (isLoadingMenus) {
     return (
-      <View style={[styles.container, styles.loadingContainer, { paddingTop: insets.top }]}>
+      <View style={[bookingFormStyles.container, bookingFormStyles.loadingContainer, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>시술 메뉴를 불러오는 중...</Text>
+        <Text style={bookingFormStyles.loadingText}>시술 메뉴를 불러오는 중...</Text>
       </View>
     );
   }
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[bookingFormStyles.container, { paddingTop: insets.top }]}>
         <ScrollView 
-          style={styles.scrollView}
+          style={bookingFormStyles.scrollView}
           contentContainerStyle={{
             paddingBottom: Platform.OS === 'ios' ? insets.bottom + 20 : 16
           }}
@@ -278,20 +278,20 @@ export default function BookingForm({
           showsVerticalScrollIndicator={false}
         >
           {/* 헤더 */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
+          <View style={bookingFormStyles.header}>
+            <TouchableOpacity onPress={onClose} style={bookingFormStyles.closeButton}>
+              <Text style={bookingFormStyles.closeButtonText}>✕</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>새 예약 만들기</Text>
-            <View style={styles.placeholder} />
+            <Text style={bookingFormStyles.headerTitle}>새 예약 만들기</Text>
+            <View style={bookingFormStyles.placeholder} />
           </View>
 
           {/* 선택한 날짜 */}
           {selectedDate && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>📅 선택한 날짜</Text>
-              <View style={styles.dateCard}>
-                <Text style={styles.dateText}>
+            <View style={bookingFormStyles.section}>
+              <Text style={bookingFormStyles.sectionTitle}>📅 선택한 날짜</Text>
+              <View style={bookingFormStyles.dateCard}>
+                <Text style={bookingFormStyles.dateText}>
                   {new Date(selectedDate).toLocaleDateString('ko-KR', {
                     year: 'numeric',
                     month: 'long',
@@ -304,10 +304,10 @@ export default function BookingForm({
           )}
 
           {/* 고객 선택 */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>👤 고객 선택</Text>
+          <View style={bookingFormStyles.section}>
+            <Text style={bookingFormStyles.sectionTitle}>👤 고객 선택</Text>
             <TextInput
-              style={styles.searchInput}
+              style={bookingFormStyles.searchInput}
               placeholder="고객 이름 또는 전화번호 검색"
               value={customerSearch}
               onChangeText={setCustomerSearch}
@@ -329,19 +329,19 @@ export default function BookingForm({
             />
             
             {selectedCustomer && (
-              <View style={styles.selectedCustomer}>
-                <View style={styles.customerInfo}>
-                  <Text style={styles.customerName}>{selectedCustomer.name}</Text>
-                  <Text style={styles.customerPhone}>{selectedCustomer.phone_number}</Text>
+              <View style={bookingFormStyles.selectedCustomer}>
+                <View style={bookingFormStyles.customerInfo}>
+                  <Text style={bookingFormStyles.customerName}>{selectedCustomer.name}</Text>
+                  <Text style={bookingFormStyles.customerPhone}>{selectedCustomer.phone_number}</Text>
                 </View>
                 <TouchableOpacity 
                   onPress={() => {
                     setSelectedCustomer(null);
                     setShowRecentCustomers(false);
                   }}
-                  style={styles.removeButton}
+                  style={bookingFormStyles.removeButton}
                 >
-                  <Text style={styles.removeButtonText}>✕</Text>
+                  <Text style={bookingFormStyles.removeButtonText}>✕</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -351,12 +351,12 @@ export default function BookingForm({
               <>
                 {/* 검색 결과 (검색어가 있을 때) */}
                 {searchResults.length > 0 && customerSearch.trim().length > 0 && (
-                  <View style={styles.searchResults}>
-                    <Text style={styles.searchResultsTitle}>검색 결과</Text>
+                  <View style={bookingFormStyles.searchResults}>
+                    <Text style={bookingFormStyles.searchResultsTitle}>검색 결과</Text>
                     {searchResults.slice(0, 8).map((customer) => (
                       <TouchableOpacity
                         key={customer.id}
-                        style={styles.customerItem}
+                        style={bookingFormStyles.customerItem}
                         onPress={() => {
                           setSelectedCustomer(customer);
                           setCustomerSearch('');
@@ -365,8 +365,8 @@ export default function BookingForm({
                           Keyboard.dismiss();
                         }}
                       >
-                        <Text style={styles.customerItemName}>{customer.name}</Text>
-                        <Text style={styles.customerItemPhone}>{customer.phone_number}</Text>
+                        <Text style={bookingFormStyles.customerItemName}>{customer.name}</Text>
+                        <Text style={bookingFormStyles.customerItemPhone}>{customer.phone_number}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -374,12 +374,12 @@ export default function BookingForm({
 
                 {/* 최근 등록된 고객들 (포커스 시 또는 검색어가 없을 때) */}
                 {showRecentCustomers && recentCustomers.length > 0 && customerSearch.trim().length === 0 && (
-                  <View style={styles.searchResults}>
-                    <Text style={styles.searchResultsTitle}>💚 최근 등록된 고객</Text>
+                  <View style={bookingFormStyles.searchResults}>
+                    <Text style={bookingFormStyles.searchResultsTitle}>💚 최근 등록된 고객</Text>
                     {recentCustomers.slice(0, 8).map((customer) => (
                       <TouchableOpacity
                         key={customer.id}
-                        style={styles.customerItem}
+                        style={bookingFormStyles.customerItem}
                         onPress={() => {
                           setSelectedCustomer(customer);
                           setCustomerSearch('');
@@ -387,16 +387,16 @@ export default function BookingForm({
                           Keyboard.dismiss();
                         }}
                       >
-                        <View style={styles.customerItemHeader}>
-                          <Text style={styles.customerItemName}>{customer.name}</Text>
-                          <Text style={styles.customerItemDate}>
+                        <View style={bookingFormStyles.customerItemHeader}>
+                          <Text style={bookingFormStyles.customerItemName}>{customer.name}</Text>
+                          <Text style={bookingFormStyles.customerItemDate}>
                             {new Date(customer.created_at).toLocaleDateString('ko-KR', {
                               month: 'short',
                               day: 'numeric'
                             })}
                           </Text>
                         </View>
-                        <Text style={styles.customerItemPhone}>{customer.phone_number}</Text>
+                        <Text style={bookingFormStyles.customerItemPhone}>{customer.phone_number}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -406,31 +406,31 @@ export default function BookingForm({
           </View>
 
           {/* 시간 선택 */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>⏰ 시간 선택</Text>
-            <View style={styles.timeGrid}>
+          <View style={bookingFormStyles.section}>
+            <Text style={bookingFormStyles.sectionTitle}>⏰ 시간 선택</Text>
+            <View style={bookingFormStyles.timeGrid}>
               {timeSlots.map((time) => {
                 const isReserved = isTimeReserved(time);
                 return (
                   <TouchableOpacity
                     key={time}
                     style={[
-                      styles.timeSlot,
-                      selectedTime === time && styles.selectedTimeSlot,
-                      isReserved && styles.reservedTimeSlot
+                      bookingFormStyles.timeSlot,
+                      selectedTime === time && bookingFormStyles.selectedTimeSlot,
+                      isReserved && bookingFormStyles.reservedTimeSlot
                     ]}
                     onPress={() => !isReserved && setSelectedTime(time)}
                     disabled={isReserved}
                   >
                     <Text style={[
-                      styles.timeSlotText,
-                      selectedTime === time && styles.selectedTimeSlotText,
-                      isReserved && styles.reservedTimeSlotText
+                      bookingFormStyles.timeSlotText,
+                      selectedTime === time && bookingFormStyles.selectedTimeSlotText,
+                      isReserved && bookingFormStyles.reservedTimeSlotText
                     ]}>
                       {time}
                     </Text>
                     {isReserved && (
-                      <Text style={styles.reservedIndicator}>예약됨</Text>
+                      <Text style={bookingFormStyles.reservedIndicator}>예약됨</Text>
                     )}
                   </TouchableOpacity>
                 );
@@ -439,27 +439,27 @@ export default function BookingForm({
           </View>
 
           {/* 시술 선택 */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>💅 시술 선택</Text>
-            <Text style={styles.sectionSubtitle}>
+          <View style={bookingFormStyles.section}>
+            <Text style={bookingFormStyles.sectionTitle}>💅 시술 선택</Text>
+            <Text style={bookingFormStyles.sectionSubtitle}>
               💡 같은 시술을 여러 회차로 예약할 수 있습니다 (예: 두피마사지 2회차)
             </Text>
             {treatmentMenus.map((menu) => (
-              <View key={menu.id} style={styles.menuGroup}>
-                <Text style={styles.menuGroupTitle}>{menu.name}</Text>
+              <View key={menu.id} style={bookingFormStyles.menuGroup}>
+                <Text style={bookingFormStyles.menuGroupTitle}>{menu.name}</Text>
                 {menu.details.map((detail) => (
                   <TouchableOpacity
                     key={detail.id}
-                    style={styles.treatmentOption}
+                    style={bookingFormStyles.treatmentOption}
                     onPress={() => addTreatment(detail)}
                   >
-                    <View style={styles.treatmentInfo}>
-                      <Text style={styles.treatmentName}>{detail.name}</Text>
-                      <Text style={styles.treatmentDetails}>
+                    <View style={bookingFormStyles.treatmentInfo}>
+                      <Text style={bookingFormStyles.treatmentName}>{detail.name}</Text>
+                      <Text style={bookingFormStyles.treatmentDetails}>
                         {detail.base_price.toLocaleString()}원 • {detail.duration_min}분
                       </Text>
                     </View>
-                    <Text style={styles.addButton}>+</Text>
+                    <Text style={bookingFormStyles.addButton}>+</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -468,113 +468,113 @@ export default function BookingForm({
 
           {/* 선택된 시술들 */}
           {selectedTreatments.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>✅ 선택된 시술 (회차별)</Text>
-              <Text style={styles.sectionSubtitle}>
+            <View style={bookingFormStyles.section}>
+              <Text style={bookingFormStyles.sectionTitle}>✅ 선택된 시술 (회차별)</Text>
+              <Text style={bookingFormStyles.sectionSubtitle}>
                 💡 각 회차별로 가격과 시간을 개별 조정할 수 있습니다 (패키지 상품 등)
               </Text>
               {selectedTreatments.map((item, index) => (
-                <View key={index} style={styles.selectedTreatment}>
-                  <View style={styles.treatmentHeader}>
-                    <View style={styles.treatmentBasicInfo}>
-                      <Text style={styles.treatmentName}>{item.menuDetail.name}</Text>
-                      <Text style={styles.treatmentBaseInfo}>
+                <View key={index} style={bookingFormStyles.selectedTreatment}>
+                  <View style={bookingFormStyles.treatmentHeader}>
+                    <View style={bookingFormStyles.treatmentBasicInfo}>
+                      <Text style={bookingFormStyles.treatmentName}>{item.menuDetail.name}</Text>
+                      <Text style={bookingFormStyles.treatmentBaseInfo}>
                         기본: {item.menuDetail.base_price.toLocaleString()}원 • {item.menuDetail.duration_min}분
                       </Text>
                     </View>
                     <TouchableOpacity
-                      style={styles.removeButton}
+                      style={bookingFormStyles.removeButton}
                       onPress={() => removeTreatment(index)}
                     >
-                      <Text style={styles.removeButtonText}>✕</Text>
+                      <Text style={bookingFormStyles.removeButtonText}>✕</Text>
                     </TouchableOpacity>
                   </View>
                   
-                  <View style={styles.sessionControls}>
-                    <Text style={styles.sessionLabel}>회차:</Text>
+                  <View style={bookingFormStyles.sessionControls}>
+                    <Text style={bookingFormStyles.sessionLabel}>회차:</Text>
                     <TouchableOpacity
-                      style={styles.sessionButton}
+                      style={bookingFormStyles.sessionButton}
                       onPress={() => updateSessionNo(index, item.sessionNo - 1)}
                     >
-                      <Text style={styles.sessionButtonText}>-</Text>
+                      <Text style={bookingFormStyles.sessionButtonText}>-</Text>
                     </TouchableOpacity>
-                    <Text style={styles.sessionNo}>{item.sessionNo}회차</Text>
+                    <Text style={bookingFormStyles.sessionNo}>{item.sessionNo}회차</Text>
                     <TouchableOpacity
-                      style={styles.sessionButton}
+                      style={bookingFormStyles.sessionButton}
                       onPress={() => updateSessionNo(index, item.sessionNo + 1)}
                     >
-                      <Text style={styles.sessionButtonText}>+</Text>
+                      <Text style={bookingFormStyles.sessionButtonText}>+</Text>
                     </TouchableOpacity>
                   </View>
                   
                   {/* 가격 및 시간 조정 */}
-                  <View style={styles.customControls}>
-                    <View style={styles.customControlRow}>
-                      <View style={styles.customControlItem}>
-                        <Text style={styles.customControlLabel}>실제 가격</Text>
-                        <View style={styles.customInputGroup}>
+                  <View style={bookingFormStyles.customControls}>
+                    <View style={bookingFormStyles.customControlRow}>
+                      <View style={bookingFormStyles.customControlItem}>
+                        <Text style={bookingFormStyles.customControlLabel}>실제 가격</Text>
+                        <View style={bookingFormStyles.customInputGroup}>
                           <TextInput
-                            style={styles.customInput}
+                            style={bookingFormStyles.customInput}
                             value={item.customPrice.toString()}
                             onChangeText={(text) => handlePriceTextChange(index, text)}
                             keyboardType="numeric"
                             placeholder="0"
                             selectTextOnFocus={true}
                           />
-                          <Text style={styles.customUnit}>원</Text>
+                          <Text style={bookingFormStyles.customUnit}>원</Text>
                         </View>
                       </View>
                       
-                      <View style={styles.customControlItem}>
-                        <Text style={styles.customControlLabel}>실제 시간</Text>
-                        <View style={styles.customInputGroup}>
+                      <View style={bookingFormStyles.customControlItem}>
+                        <Text style={bookingFormStyles.customControlLabel}>실제 시간</Text>
+                        <View style={bookingFormStyles.customInputGroup}>
                           <TextInput
-                            style={styles.customInput}
+                            style={bookingFormStyles.customInput}
                             value={item.customDuration.toString()}
                             onChangeText={(text) => handleDurationTextChange(index, text)}
                             keyboardType="numeric"
                             placeholder="1"
                             selectTextOnFocus={true}
                           />
-                          <Text style={styles.customUnit}>분</Text>
+                          <Text style={bookingFormStyles.customUnit}>분</Text>
                         </View>
                       </View>
                     </View>
                     
                     {/* 빠른 가격 설정 */}
-                    <View style={styles.quickActionsRow}>
+                    <View style={bookingFormStyles.quickActionsRow}>
                       <TouchableOpacity
-                        style={styles.quickButton}
+                        style={bookingFormStyles.quickButton}
                         onPress={() => updateCustomPrice(index, 0)}
                       >
-                        <Text style={styles.quickButtonText}>무료</Text>
+                        <Text style={bookingFormStyles.quickButtonText}>무료</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.quickButton}
+                        style={bookingFormStyles.quickButton}
                         onPress={() => updateCustomPrice(index, item.menuDetail.base_price)}
                       >
-                        <Text style={styles.quickButtonText}>기본가</Text>
+                        <Text style={bookingFormStyles.quickButtonText}>기본가</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.quickButton}
+                        style={bookingFormStyles.quickButton}
                         onPress={() => updateCustomPrice(index, Math.round(item.menuDetail.base_price * 0.5))}
                       >
-                        <Text style={styles.quickButtonText}>50%</Text>
+                        <Text style={bookingFormStyles.quickButtonText}>50%</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
                   
                   {/* 현재 회차 요약 */}
-                  <View style={styles.itemSummary}>
-                    <Text style={styles.itemSummaryText}>
+                  <View style={bookingFormStyles.itemSummary}>
+                    <Text style={bookingFormStyles.itemSummaryText}>
                       {item.sessionNo}회차 • {item.customPrice.toLocaleString()}원 • {item.customDuration}분
                     </Text>
                   </View>
                 </View>
               ))}
               
-              <View style={styles.totalSummary}>
-                <Text style={styles.totalText}>
+              <View style={bookingFormStyles.totalSummary}>
+                <Text style={bookingFormStyles.totalText}>
                   총 {getTotalDuration()}분 • {getTotalPrice().toLocaleString()}원
                 </Text>
               </View>
@@ -582,19 +582,19 @@ export default function BookingForm({
           )}
 
           {/* 담당 직원 선택 */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>👨‍💼 담당 직원 (선택사항)</Text>
-            <View style={styles.staffSelection}>
+          <View style={bookingFormStyles.section}>
+            <Text style={bookingFormStyles.sectionTitle}>👨‍💼 담당 직원 (선택사항)</Text>
+            <View style={bookingFormStyles.staffSelection}>
               <TouchableOpacity
                 style={[
-                  styles.staffOption,
-                  !selectedStaff && styles.selectedStaffOption
+                  bookingFormStyles.staffOption,
+                  !selectedStaff && bookingFormStyles.selectedStaffOption
                 ]}
                 onPress={() => setSelectedStaff(null)}
               >
                 <Text style={[
-                  styles.staffOptionText,
-                  !selectedStaff && styles.selectedStaffOptionText
+                  bookingFormStyles.staffOptionText,
+                  !selectedStaff && bookingFormStyles.selectedStaffOptionText
                 ]}>
                   직접 시술
                 </Text>
@@ -604,21 +604,21 @@ export default function BookingForm({
                 <TouchableOpacity
                   key={staff.user_id}
                   style={[
-                    styles.staffOption,
-                    selectedStaff?.user_id === staff.user_id && styles.selectedStaffOption
+                    bookingFormStyles.staffOption,
+                    selectedStaff?.user_id === staff.user_id && bookingFormStyles.selectedStaffOption
                   ]}
                   onPress={() => setSelectedStaff(staff)}
                 >
-                  <View style={styles.staffInfo}>
+                  <View style={bookingFormStyles.staffInfo}>
                     <Text style={[
-                      styles.staffOptionText,
-                      selectedStaff?.user_id === staff.user_id && styles.selectedStaffOptionText
+                      bookingFormStyles.staffOptionText,
+                      selectedStaff?.user_id === staff.user_id && bookingFormStyles.selectedStaffOptionText
                     ]}>
                       {staff.user.name}
                     </Text>
                     <Text style={[
-                      styles.staffRole,
-                      selectedStaff?.user_id === staff.user_id && styles.selectedStaffRole
+                      bookingFormStyles.staffRole,
+                      selectedStaff?.user_id === staff.user_id && bookingFormStyles.selectedStaffRole
                     ]}>
                       {staff.is_primary_owner === 1 ? '대표' : '직원'} • {staff.user.role}
                     </Text>
@@ -629,9 +629,9 @@ export default function BookingForm({
           </View>
 
           {/* 결제 방법 */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>💳 결제 방법</Text>
-            <View style={styles.paymentMethods}>
+          <View style={bookingFormStyles.section}>
+            <Text style={bookingFormStyles.sectionTitle}>💳 결제 방법</Text>
+            <View style={bookingFormStyles.paymentMethods}>
               {[
                 { key: 'CARD', label: '카드' },
                 { key: 'CASH', label: '현금' },
@@ -640,14 +640,14 @@ export default function BookingForm({
                 <TouchableOpacity
                   key={method.key}
                   style={[
-                    styles.paymentMethod,
-                    paymentMethod === method.key && styles.selectedPaymentMethod
+                    bookingFormStyles.paymentMethod,
+                    paymentMethod === method.key && bookingFormStyles.selectedPaymentMethod
                   ]}
                   onPress={() => setPaymentMethod(method.key as any)}
                 >
                   <Text style={[
-                    styles.paymentMethodText,
-                    paymentMethod === method.key && styles.selectedPaymentMethodText
+                    bookingFormStyles.paymentMethodText,
+                    paymentMethod === method.key && bookingFormStyles.selectedPaymentMethodText
                   ]}>
                     {method.label}
                   </Text>
@@ -657,10 +657,10 @@ export default function BookingForm({
           </View>
 
           {/* 메모 */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📝 메모 (선택)</Text>
+          <View style={bookingFormStyles.section}>
+            <Text style={bookingFormStyles.sectionTitle}>📝 메모 (선택)</Text>
             <TextInput
-              style={styles.memoInput}
+              style={bookingFormStyles.memoInput}
               placeholder="특별한 요청사항이나 메모를 입력하세요"
               value={memo}
               onChangeText={setMemo}
@@ -672,14 +672,14 @@ export default function BookingForm({
 
           {/* 예약하기 버튼 */}
           <TouchableOpacity
-            style={[styles.bookingButton, isLoading && styles.disabledButton]}
+            style={[bookingFormStyles.bookingButton, isLoading && bookingFormStyles.disabledButton]}
             onPress={handleBooking}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text style={styles.bookingButtonText}>예약하기</Text>
+              <Text style={bookingFormStyles.bookingButtonText}>예약하기</Text>
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -687,510 +687,3 @@ export default function BookingForm({
     </TouchableWithoutFeedback>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: "#f8f9fa" 
-  },
-  loadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  scrollView: { 
-    flex: 1 
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f8f9fa',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 18,
-    color: '#6c757d',
-    fontWeight: '600',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#212529',
-  },
-  placeholder: {
-    width: 40,
-  },
-  section: {
-    marginBottom: 20,
-    paddingHorizontal: 16,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#212529',
-    marginBottom: 10,
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    color: '#6c757d',
-    marginBottom: 10,
-    fontStyle: 'italic',
-    lineHeight: 18,
-  },
-  dateCard: {
-    backgroundColor: '#ffffff',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  dateText: {
-    fontSize: 16,
-    color: '#495057',
-    textAlign: 'center',
-  },
-  searchInput: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    marginBottom: 10,
-  },
-  selectedCustomer: {
-    backgroundColor: '#e3f2fd',
-    padding: 12,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  customerInfo: {
-    flex: 1,
-  },
-  customerName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1976d2',
-  },
-  customerPhone: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  searchResults: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    maxHeight: 300, // 높이 증가 (더 많은 고객 표시)
-    marginTop: 8,
-  },
-  searchResultsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#495057',
-    padding: 12,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-    backgroundColor: '#f8f9fa',
-  },
-  customerItem: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f8f9fa',
-  },
-  customerItemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  customerItemName: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#212529',
-  },
-  customerItemPhone: {
-    fontSize: 13,
-    color: '#6c757d',
-    marginTop: 2,
-  },
-  customerItemDate: {
-    fontSize: 12,
-    color: '#28a745',
-    fontWeight: '500',
-    backgroundColor: '#f0fdf4',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  timeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    justifyContent: 'space-between',
-  },
-  timeSlot: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    minWidth: '22%',
-    maxWidth: '23%',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  selectedTimeSlot: {
-    backgroundColor: '#667eea',
-    borderColor: '#667eea',
-  },
-  reservedTimeSlot: {
-    backgroundColor: '#f8f9fa',
-    borderColor: '#dee2e6',
-  },
-  timeSlotText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#495057',
-  },
-  selectedTimeSlotText: {
-    color: '#ffffff',
-  },
-  reservedTimeSlotText: {
-    color: '#adb5bd',
-  },
-  reservedIndicator: {
-    fontSize: 10,
-    color: '#dc3545',
-    marginTop: 2,
-  },
-  menuGroup: {
-    marginBottom: 16,
-  },
-  menuGroupTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#495057',
-    marginBottom: 8,
-    paddingLeft: 8,
-  },
-  treatmentOption: {
-    backgroundColor: '#ffffff',
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  treatmentInfo: {
-    flex: 1,
-  },
-  treatmentName: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#212529',
-  },
-  treatmentDetails: {
-    fontSize: 13,
-    color: '#6c757d',
-    marginTop: 2,
-  },
-  addButton: {
-    fontSize: 20,
-    color: '#28a745',
-    fontWeight: 'bold',
-    paddingHorizontal: 8,
-  },
-  selectedTreatment: {
-    backgroundColor: '#ffffff',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#28a745',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  sessionControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  sessionLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#495057',
-    marginRight: 8,
-  },
-  sessionButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#f8f9fa',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#dee2e6',
-  },
-  sessionButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#495057',
-  },
-  sessionNo: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#495057',
-    marginHorizontal: 8,
-    minWidth: 30,
-    textAlign: 'center',
-  },
-  removeButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#dc3545',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removeButtonText: {
-    fontSize: 12,
-    color: '#ffffff',
-    fontWeight: 'bold',
-  },
-  totalSummary: {
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  totalText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#495057',
-    textAlign: 'center',
-  },
-  paymentMethods: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  paymentMethod: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  selectedPaymentMethod: {
-    backgroundColor: '#667eea',
-    borderColor: '#667eea',
-  },
-  paymentMethodText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#495057',
-  },
-  selectedPaymentMethodText: {
-    color: '#ffffff',
-  },
-  memoInput: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    minHeight: 80,
-  },
-  bookingButton: {
-    backgroundColor: '#667eea',
-    borderRadius: 12,
-    paddingVertical: 16,
-    marginHorizontal: 16,
-    marginTop: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 54,
-  },
-  disabledButton: {
-    backgroundColor: '#adb5bd',
-  },
-  bookingButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  // 직원 선택 관련 스타일
-  staffSelection: {
-    gap: 8,
-  },
-  staffOption: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    borderRadius: 8,
-    padding: 12,
-  },
-  selectedStaffOption: {
-    backgroundColor: '#e3f2fd',
-    borderColor: '#1976d2',
-  },
-  staffInfo: {
-    flex: 1,
-  },
-  staffOptionText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#495057',
-  },
-  selectedStaffOptionText: {
-    color: '#1976d2',
-  },
-  staffRole: {
-    fontSize: 13,
-    color: '#6c757d',
-    marginTop: 2,
-  },
-  selectedStaffRole: {
-    color: '#1565c0',
-  },
-  // 커스텀 가격/시간 조정 관련 스타일
-  treatmentHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    flexWrap: 'wrap',
-  },
-  treatmentBasicInfo: {
-    flex: 1,
-    marginRight: 8,
-    minWidth: '60%',
-  },
-  treatmentBaseInfo: {
-    fontSize: 12,
-    color: '#6c757d',
-    marginTop: 2,
-  },
-  customControls: {
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  customControlRow: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 12,
-  },
-  customControlItem: {
-    flex: 1,
-  },
-  customControlLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#495057',
-    marginBottom: 8,
-  },
-  customInputGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#dee2e6',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 2,
-  },
-  customInput: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-    paddingVertical: 8,
-    color: '#212529',
-  },
-  customUnit: {
-    fontSize: 14,
-    color: '#6c757d',
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  quickActionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'center',
-  },
-  quickButton: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#dee2e6',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  quickButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#495057',
-  },
-  itemSummary: {
-    backgroundColor: '#e8f5e8',
-    padding: 8,
-    borderRadius: 6,
-    borderLeftWidth: 3,
-    borderLeftColor: '#28a745',
-  },
-  itemSummaryText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#155724',
-    textAlign: 'center',
-  },
-});
