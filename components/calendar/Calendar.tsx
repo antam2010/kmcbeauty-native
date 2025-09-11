@@ -23,6 +23,7 @@ interface CalendarProps {
   onShowTreatmentsList?: (treatments: Treatment[], date: string) => void;
   minDate?: string;
   maxDate?: string;
+  refreshTrigger?: number; // 새로운 prop 추가
 }
 
 export default function Calendar({ 
@@ -33,7 +34,8 @@ export default function Calendar({
   onTreatmentPress,
   onShowTreatmentsList,
   minDate,
-  maxDate 
+  maxDate,
+  refreshTrigger 
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [treatments, setTreatments] = useState<Treatment[]>([]);
@@ -59,6 +61,15 @@ export default function Calendar({
     const month = currentMonth.getMonth() + 1; // getMonth()는 0부터 시작
     loadMonthlyTreatments(year, month);
   }, [currentMonth, loadMonthlyTreatments]);
+
+  // refreshTrigger가 변경될 때마다 데이터 다시 로드
+  useEffect(() => {
+    if (refreshTrigger !== undefined) {
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth() + 1;
+      loadMonthlyTreatments(year, month);
+    }
+  }, [refreshTrigger, currentMonth, loadMonthlyTreatments]);
 
   // 날짜별 예약 건수 계산
   const getBookingCountByDate = (date: string): number => {

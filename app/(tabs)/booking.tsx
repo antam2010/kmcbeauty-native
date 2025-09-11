@@ -19,6 +19,7 @@ export default function BookingScreen() {
   const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [treatmentToEdit, setTreatmentToEdit] = useState<Treatment | null>(null);
+  const [calendarRefreshTrigger, setCalendarRefreshTrigger] = useState(0);
   const insets = useSafeAreaInsets();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const { triggerRefresh } = useDashboard();
@@ -135,6 +136,23 @@ export default function BookingScreen() {
     }, 100);
   }, [showBookingForm, isModalClosing, showTreatmentModal]);
 
+  const handleEditComplete = useCallback(() => {
+    // 수정 모달 닫기
+    setShowEditModal(false);
+    setTreatmentToEdit(null);
+    
+    // 대시보드와 달력 새로고침
+    triggerRefresh();
+    setCalendarRefreshTrigger(prev => prev + 1);
+    
+    // 성공 메시지
+    setTimeout(() => {
+      Alert.alert("완료", "예약이 성공적으로 수정되었습니다!", [
+        { text: "확인", style: "default" }
+      ]);
+    }, 300);
+  }, [triggerRefresh]);
+
   const handleCloseTreatmentModal = useCallback(() => {
     setShowTreatmentModal(false);
     setTimeout(() => {
@@ -183,6 +201,7 @@ export default function BookingScreen() {
             onNewBookingRequest={handleNewBookingRequest}
             onTreatmentPress={handleTreatmentPress}
             onShowTreatmentsList={handleShowTreatmentsList}
+            refreshTrigger={calendarRefreshTrigger}
           />
         </Animated.View>
       </ScrollView>
@@ -231,12 +250,7 @@ export default function BookingScreen() {
             setShowEditModal(false);
             setTreatmentToEdit(null);
           }}
-          onUpdateSuccess={() => {
-            console.log('EditTreatmentModal 수정 성공');
-            setShowEditModal(false);
-            setTreatmentToEdit(null);
-            // 대시보드 새로고침은 EditTreatmentModal에서 처리됨
-          }}
+          onUpdateSuccess={handleEditComplete}
         />
       )}
     </View>
