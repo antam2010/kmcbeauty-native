@@ -43,6 +43,8 @@ export default function BookingForm({
   const [selectedCustomer, setSelectedCustomer] = useState<Phonebook | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
   const [searchResults, setSearchResults] = useState<Phonebook[]>([]);
+  const [recentCustomers, setRecentCustomers] = useState<Phonebook[]>([]); // 최근 고객들
+  const [showRecentCustomers, setShowRecentCustomers] = useState(false); // 최근 고객 표시 여부
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedTreatments, setSelectedTreatments] = useState<SelectedTreatmentItem[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<ShopUser | null>(null);
@@ -69,7 +71,24 @@ export default function BookingForm({
   useEffect(() => {
     loadTreatmentMenus();
     loadStaffUsers();
+    loadRecentCustomers(); // 최근 고객 로드 추가
   }, []);
+
+  // 최근 등록된 고객들 로드
+  const loadRecentCustomers = async () => {
+    try {
+      // 최근 등록 순서대로 5명 가져오기
+      const response = await phonebookApiService.list({ size: 5, page: 1 });
+      // created_at 기준으로 내림차순 정렬 (최신순)
+      const sortedCustomers = response.items.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      setRecentCustomers(sortedCustomers);
+    } catch (error) {
+      console.error('최근 고객 로드 실패:', error);
+      setRecentCustomers([]);
+    }
+  };
 
   // 고객 검색
   useEffect(() => {
@@ -77,6 +96,7 @@ export default function BookingForm({
       try {
         const results = await phonebookApiService.search(customerSearch);
         setSearchResults(results);
+        setShowRecentCustomers(false); // 검색 중일 때는 최근 고객 숨김
       } catch (error) {
         console.error('고객 검색 실패:', error);
         setSearchResults([]);
@@ -87,6 +107,8 @@ export default function BookingForm({
       searchCustomers();
     } else {
       setSearchResults([]);
+      // 검색어가 없으면 최근 고객 표시
+      setShowRecentCustomers(true);
     }
   }, [customerSearch]);
 
@@ -289,6 +311,20 @@ export default function BookingForm({
               placeholder="고객 이름 또는 전화번호 검색"
               value={customerSearch}
               onChangeText={setCustomerSearch}
+              onFocus={() => {
+                // 포커스 시 최근 고객 표시
+                if (!customerSearch.trim() && !selectedCustomer) {
+                  setShowRecentCustomers(true);
+                }
+              }}
+              onBlur={() => {
+                // 포커스 해제 시 최근 고객 목록 숨김 (선택되지 않은 경우에만)
+                setTimeout(() => {
+                  if (!selectedCustomer && !customerSearch.trim()) {
+                    setShowRecentCustomers(false);
+                  }
+                }, 150); // 약간의 지연으로 선택 이벤트와 겹치지 않도록
+              }}
               autoCapitalize="none"
             />
             
@@ -299,7 +335,10 @@ export default function BookingForm({
                   <Text style={styles.customerPhone}>{selectedCustomer.phone_number}</Text>
                 </View>
                 <TouchableOpacity 
-                  onPress={() => setSelectedCustomer(null)}
+                  onPress={() => {
+                    setSelectedCustomer(null);
+                    setShowRecentCustomers(false);
+                  }}
                   style={styles.removeButton}
                 >
                   <Text style={styles.removeButtonText}>✕</Text>
@@ -307,24 +346,62 @@ export default function BookingForm({
               </View>
             )}
 
-            {!selectedCustomer && searchResults.length > 0 && (
-              <View style={styles.searchResults}>
-                {searchResults.slice(0, 5).map((customer) => (
-                  <TouchableOpacity
-                    key={customer.id}
-                    style={styles.customerItem}
-                    onPress={() => {
-                      setSelectedCustomer(customer);
-                      setCustomerSearch('');
-                      setSearchResults([]);
-                      Keyboard.dismiss();
-                    }}
-                  >
-                    <Text style={styles.customerItemName}>{customer.name}</Text>
-                    <Text style={styles.customerItemPhone}>{customer.phone_number}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+            {/* 검색 결과 또는 최근 고객 표시 */}
+            {!selectedCustomer && (
+              <>
+                {/* 검색 결과 (검색어가 있을 때) */}
+                {searchResults.length > 0 && customerSearch.trim().length > 0 && (
+                  <View style={styles.searchResults}>
+                    <Text style={styles.searchResultsTitle}>검색 결과</Text>
+                    {searchResults.slice(0, 8).map((customer) => (
+                      <TouchableOpacity
+                        key={customer.id}
+                        style={styles.customerItem}
+                        onPress={() => {
+                          setSelectedCustomer(customer);
+                          setCustomerSearch('');
+                          setSearchResults([]);
+                          setShowRecentCustomers(false);
+                          Keyboard.dismiss();
+                        }}
+                      >
+                        <Text style={styles.customerItemName}>{customer.name}</Text>
+                        <Text style={styles.customerItemPhone}>{customer.phone_number}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {/* 최근 등록된 고객들 (포커스 시 또는 검색어가 없을 때) */}
+                {showRecentCustomers && recentCustomers.length > 0 && customerSearch.trim().length === 0 && (
+                  <View style={styles.searchResults}>
+                    <Text style={styles.searchResultsTitle}>💚 최근 등록된 고객</Text>
+                    {recentCustomers.slice(0, 8).map((customer) => (
+                      <TouchableOpacity
+                        key={customer.id}
+                        style={styles.customerItem}
+                        onPress={() => {
+                          setSelectedCustomer(customer);
+                          setCustomerSearch('');
+                          setShowRecentCustomers(false);
+                          Keyboard.dismiss();
+                        }}
+                      >
+                        <View style={styles.customerItemHeader}>
+                          <Text style={styles.customerItemName}>{customer.name}</Text>
+                          <Text style={styles.customerItemDate}>
+                            {new Date(customer.created_at).toLocaleDateString('ko-KR', {
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </Text>
+                        </View>
+                        <Text style={styles.customerItemPhone}>{customer.phone_number}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </>
             )}
           </View>
 
@@ -724,12 +801,29 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e9ecef',
-    maxHeight: 200,
+    maxHeight: 300, // 높이 증가 (더 많은 고객 표시)
+    marginTop: 8,
+  },
+  searchResultsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#495057',
+    padding: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+    backgroundColor: '#f8f9fa',
   },
   customerItem: {
-    padding: 10,
+    padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f8f9fa',
+  },
+  customerItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   customerItemName: {
     fontSize: 15,
@@ -740,6 +834,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6c757d',
     marginTop: 2,
+  },
+  customerItemDate: {
+    fontSize: 12,
+    color: '#28a745',
+    fontWeight: '500',
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   timeGrid: {
     flexDirection: 'row',
