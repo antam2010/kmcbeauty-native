@@ -20,6 +20,7 @@ interface CalendarProps {
   onTreatmentsLoad?: (treatments: Treatment[]) => void;
   onNewBookingRequest?: (date: string, reservedTimes: string[]) => void;
   onTreatmentPress?: (treatment: Treatment) => void;
+  onShowTreatmentsList?: (treatments: Treatment[], date: string) => void;
   minDate?: string;
   maxDate?: string;
 }
@@ -30,6 +31,7 @@ export default function Calendar({
   onTreatmentsLoad,
   onNewBookingRequest,
   onTreatmentPress,
+  onShowTreatmentsList,
   minDate,
   maxDate 
 }: CalendarProps) {
@@ -145,28 +147,34 @@ export default function Calendar({
     
     setIsInteracting(true);
     
-    // 예약이 있는 날짜를 클릭한 경우 모달 표시
+    // 예약이 있는 날짜를 클릭한 경우 상위 컴포넌트에 전달
     if (date.hasBookings && date.bookingCount > 0) {
       const dateTreatments = treatments.filter(treatment => {
         const treatmentDate = treatment.reserved_at.split('T')[0];
         return treatmentDate === date.date;
       });
-      setSelectedDateTreatments(dateTreatments);
       
-      // 안전한 모달 열기를 위한 지연
-      setTimeout(() => {
-        setShowTreatmentsModal(true);
-        setIsInteracting(false);
-      }, 150);
+      // 상위 컴포넌트에서 모달 관리하도록 전달
+      if (onShowTreatmentsList) {
+        onShowTreatmentsList(dateTreatments, date.date);
+      } else {
+        // 기존 방식 유지 (하위 호환성)
+        setSelectedDateTreatments(dateTreatments);
+        setTimeout(() => {
+          setShowTreatmentsModal(true);
+          setIsInteracting(false);
+        }, 150);
+        return;
+      }
     } else {
       // 모든 날짜에서 새 예약 생성 가능 (과거 날짜 포함)
       onDateSelect(date.date);
-      
-      // 선택 후 인터랙션 상태 해제
-      setTimeout(() => {
-        setIsInteracting(false);
-      }, 100);
     }
+    
+    // 상태 해제
+    setTimeout(() => {
+      setIsInteracting(false);
+    }, 100);
   };
 
   const isDateDisabled = (date: string) => {

@@ -1,6 +1,7 @@
 ﻿import Calendar from "@/components/calendar/Calendar";
 import BookingForm from "@/components/forms/BookingForm";
 import TreatmentDetailModal from "@/components/modals/TreatmentDetailModal";
+import TreatmentListModal from "@/components/modals/TreatmentListModal";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { Treatment } from "@/src/types/treatment";
 import React, { useCallback, useRef, useState } from "react";
@@ -14,13 +15,16 @@ export default function BookingScreen() {
   const [reservedTimes, setReservedTimes] = useState<string[]>([]);
   const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null);
   const [showTreatmentDetail, setShowTreatmentDetail] = useState(false);
+  const [showTreatmentsList, setShowTreatmentsList] = useState(false);
+  const [treatmentsList, setTreatmentsList] = useState<Treatment[]>([]);
+  const [treatmentsDate, setTreatmentsDate] = useState<string>('');
   const insets = useSafeAreaInsets();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const { triggerRefresh } = useDashboard();
 
   const handleDateSelect = useCallback(async (dateString: string) => {
     // 이미 모달이 열려있거나 닫히는 중이면 무시
-    if (showBookingForm || isModalClosing || showTreatmentDetail) {
+    if (showBookingForm || isModalClosing || showTreatmentDetail || showTreatmentsList) {
       return;
     }
 
@@ -43,11 +47,11 @@ export default function BookingScreen() {
     setTimeout(() => {
       setShowBookingForm(true);
     }, 200);
-  }, [showBookingForm, isModalClosing, showTreatmentDetail, scaleAnim]);
+  }, [showBookingForm, isModalClosing, showTreatmentDetail, showTreatmentsList, scaleAnim]);
 
   const handleNewBookingRequest = useCallback(async (dateString: string, reservedTimesForDate: string[]) => {
     // 이미 모달이 열려있거나 닫히는 중이면 무시
-    if (showBookingForm || isModalClosing || showTreatmentDetail) {
+    if (showBookingForm || isModalClosing || showTreatmentDetail || showTreatmentsList) {
       return;
     }
 
@@ -56,7 +60,7 @@ export default function BookingScreen() {
     setTimeout(() => {
       setShowBookingForm(true);
     }, 200);
-  }, [showBookingForm, isModalClosing, showTreatmentDetail]);
+  }, [showBookingForm, isModalClosing, showTreatmentDetail, showTreatmentsList]);
 
   const handleCloseBookingForm = useCallback(() => {
     setIsModalClosing(true);
@@ -89,7 +93,7 @@ export default function BookingScreen() {
 
   const handleTreatmentPress = useCallback((treatment: Treatment) => {
     // 다른 모달이 열려있으면 무시
-    if (showBookingForm || isModalClosing || showTreatmentDetail) {
+    if (showBookingForm || isModalClosing || showTreatmentDetail || showTreatmentsList) {
       return;
     }
     
@@ -98,13 +102,46 @@ export default function BookingScreen() {
     setTimeout(() => {
       setShowTreatmentDetail(true);
     }, 100);
-  }, [showBookingForm, isModalClosing, showTreatmentDetail]);
+  }, [showBookingForm, isModalClosing, showTreatmentDetail, showTreatmentsList]);
 
   const handleCloseTreatmentDetail = useCallback(() => {
     setShowTreatmentDetail(false);
     // 상태 리셋을 위한 지연
     setTimeout(() => {
       setSelectedTreatment(null);
+    }, 300);
+  }, []);
+
+  const handleShowTreatmentsList = useCallback((treatments: Treatment[], date: string) => {
+    // 다른 모달이 열려있으면 무시
+    if (showBookingForm || isModalClosing || showTreatmentDetail || showTreatmentsList) {
+      return;
+    }
+    
+    setTreatmentsList(treatments);
+    setTreatmentsDate(date);
+    setTimeout(() => {
+      setShowTreatmentsList(true);
+    }, 100);
+  }, [showBookingForm, isModalClosing, showTreatmentDetail, showTreatmentsList]);
+
+  const handleCloseTreatmentsList = useCallback(() => {
+    setShowTreatmentsList(false);
+    setTimeout(() => {
+      setTreatmentsList([]);
+      setTreatmentsDate('');
+    }, 300);
+  }, []);
+
+  const handleTreatmentSelectFromList = useCallback((treatment: Treatment) => {
+    // 목록 모달을 먼저 닫고 상세 모달 열기
+    setShowTreatmentsList(false);
+    setSelectedTreatment(treatment);
+    
+    setTimeout(() => {
+      setTreatmentsList([]);
+      setTreatmentsDate('');
+      setShowTreatmentDetail(true);
     }, 300);
   }, []);
 
@@ -146,6 +183,7 @@ export default function BookingScreen() {
             onDateSelect={handleDateSelect}
             onNewBookingRequest={handleNewBookingRequest}
             onTreatmentPress={handleTreatmentPress}
+            onShowTreatmentsList={handleShowTreatmentsList}
           />
         </Animated.View>
       </ScrollView>
@@ -168,6 +206,20 @@ export default function BookingScreen() {
         visible={showTreatmentDetail}
         treatment={selectedTreatment}
         onClose={handleCloseTreatmentDetail}
+      />
+
+      <TreatmentListModal
+        visible={showTreatmentsList}
+        treatments={treatmentsList}
+        date={treatmentsDate}
+        onClose={handleCloseTreatmentsList}
+        onTreatmentSelect={handleTreatmentSelectFromList}
+        onNewBooking={() => {
+          handleCloseTreatmentsList();
+          setTimeout(() => {
+            handleNewBookingRequest(treatmentsDate, []);
+          }, 300);
+        }}
       />
     </View>
   );
