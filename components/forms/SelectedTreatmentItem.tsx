@@ -5,6 +5,7 @@ import { bookingFormStyles } from './BookingForm.styles';
 
 export interface SelectedTreatmentItem {
   menuDetail: TreatmentMenuDetail;
+  sessionNo: number;
   customPrice: number;
   customDuration: number;
 }
@@ -13,18 +14,18 @@ interface SelectedTreatmentItemProps {
   item: SelectedTreatmentItem;
   index: number;
   onRemove: (index: number) => void;
+  onUpdateSessionNo: (index: number, sessionNo: number) => void;
   onUpdatePrice: (index: number, price: string) => void;
   onUpdateDuration: (index: number, duration: string) => void;
-  onQuickPrice: (index: number, price: number) => void;
 }
 
 const SelectedTreatmentItemComponent = memo(({
   item,
   index,
   onRemove,
+  onUpdateSessionNo,
   onUpdatePrice,
   onUpdateDuration,
-  onQuickPrice,
 }: SelectedTreatmentItemProps) => {
   return (
     <View style={bookingFormStyles.selectedTreatment}>
@@ -40,6 +41,29 @@ const SelectedTreatmentItemComponent = memo(({
           onPress={() => onRemove(index)}
         >
           <Text style={bookingFormStyles.removeButtonText}>✕</Text>
+        </TouchableOpacity>
+      </View>
+      
+      <View style={bookingFormStyles.sessionControls}>
+        <Text style={bookingFormStyles.sessionLabel}>회차:</Text>
+        <TouchableOpacity
+          style={bookingFormStyles.sessionButton}
+          onPress={() => {
+            console.log('마이너스 버튼 클릭:', item.sessionNo, '->', item.sessionNo - 1);
+            onUpdateSessionNo(index, item.sessionNo - 1);
+          }}
+        >
+          <Text style={bookingFormStyles.sessionButtonText}>-</Text>
+        </TouchableOpacity>
+        <Text style={bookingFormStyles.sessionNo}>{item.sessionNo}회차</Text>
+        <TouchableOpacity
+          style={bookingFormStyles.sessionButton}
+          onPress={() => {
+            console.log('플러스 버튼 클릭:', item.sessionNo, '->', item.sessionNo + 1);
+            onUpdateSessionNo(index, item.sessionNo + 1);
+          }}
+        >
+          <Text style={bookingFormStyles.sessionButtonText}>+</Text>
         </TouchableOpacity>
       </View>
       
@@ -76,34 +100,12 @@ const SelectedTreatmentItemComponent = memo(({
             </View>
           </View>
         </View>
-        
-        {/* 빠른 가격 설정 */}
-        <View style={bookingFormStyles.quickActionsRow}>
-          <TouchableOpacity
-            style={bookingFormStyles.quickButton}
-            onPress={() => onQuickPrice(index, 0)}
-          >
-            <Text style={bookingFormStyles.quickButtonText}>무료</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={bookingFormStyles.quickButton}
-            onPress={() => onQuickPrice(index, item.menuDetail.base_price)}
-          >
-            <Text style={bookingFormStyles.quickButtonText}>기본가</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={bookingFormStyles.quickButton}
-            onPress={() => onQuickPrice(index, Math.round(item.menuDetail.base_price * 0.5))}
-          >
-            <Text style={bookingFormStyles.quickButtonText}>50%</Text>
-          </TouchableOpacity>
-        </View>
       </View>
       
-      {/* 현재 시술 요약 */}
+      {/* 현재 회차 요약 */}
       <View style={bookingFormStyles.itemSummary}>
         <Text style={bookingFormStyles.itemSummaryText}>
-          {item.customPrice.toLocaleString()}원 • {item.customDuration}분
+          {item.sessionNo}회차 • {item.customPrice.toLocaleString()}원 • {item.customDuration}분
         </Text>
       </View>
     </View>

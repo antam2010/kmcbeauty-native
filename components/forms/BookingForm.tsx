@@ -176,6 +176,7 @@ export default function BookingForm({
 
     const newTreatment: SelectedTreatmentItem = {
       menuDetail,
+      sessionNo: 1,
       customPrice: menuDetail.base_price,
       customDuration: menuDetail.duration_min
     };
@@ -184,6 +185,17 @@ export default function BookingForm({
 
   const removeTreatment = useCallback((index: number) => {
     setSelectedTreatments(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const updateSessionNo = useCallback((index: number, sessionNo: number) => {
+    console.log('회차 업데이트:', index, sessionNo);
+    setSelectedTreatments(prev => {
+      const updated = [...prev];
+      const newSessionNo = Math.max(1, sessionNo);
+      console.log('새로운 회차:', newSessionNo);
+      updated[index] = { ...updated[index], sessionNo: newSessionNo };
+      return updated;
+    });
   }, []);
 
   const updateCustomPrice = useCallback((index: number, price: number) => {
@@ -258,7 +270,7 @@ export default function BookingForm({
         menu_detail_id: item.menuDetail.id,
         base_price: item.customPrice,
         duration_min: item.customDuration,
-        session_no: 1 // 항상 1회차로 고정
+        session_no: item.sessionNo
       }));
 
       // 시술 예약 생성
@@ -311,6 +323,8 @@ export default function BookingForm({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled={true}
+            removeClippedSubviews={true}
+            scrollEventThrottle={16}
           >
           {/* 헤더 */}
           <View style={bookingFormStyles.header}>
@@ -562,33 +576,38 @@ export default function BookingForm({
             <View style={bookingFormStyles.section}>
               <Text style={bookingFormStyles.sectionTitle}>✅ 선택된 시술</Text>
               <Text style={bookingFormStyles.sectionSubtitle}>
-                💡 가격과 시간을 개별 조정할 수 있습니다
+                💡 회차와 가격, 시간을 조정할 수 있습니다
               </Text>
               <FlatList
                 data={selectedTreatments}
-                keyExtractor={(_, index) => `treatment-${index}`}
+                keyExtractor={(item, index) => `treatment-${item.menuDetail.id}-${index}`}
                 renderItem={({ item, index }) => (
                   <SelectedTreatmentItemComponent
                     item={item}
                     index={index}
                     onRemove={removeTreatment}
+                    onUpdateSessionNo={updateSessionNo}
                     onUpdatePrice={handlePriceTextChange}
                     onUpdateDuration={handleDurationTextChange}
-                    onQuickPrice={updateCustomPrice}
                   />
                 )}
                 scrollEnabled={false}
                 nestedScrollEnabled={true}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={3}
-                updateCellsBatchingPeriod={50}
-                initialNumToRender={3}
-                windowSize={5}
+                removeClippedSubviews={false}
+                getItemLayout={(data, index) => ({
+                  length: 200, // 예상 아이템 높이
+                  offset: 200 * index,
+                  index,
+                })}
+                initialNumToRender={10}
+                maxToRenderPerBatch={5}
+                windowSize={10}
+                updateCellsBatchingPeriod={100}
               />
               
               <View style={bookingFormStyles.totalSummary}>
                 <Text style={bookingFormStyles.totalText}>
-                  총 {selectedTreatments.length}개 시술 • {totalDuration}분 • {totalPrice.toLocaleString()}원
+                  총 {totalDuration}분 • {totalPrice.toLocaleString()}원
                 </Text>
               </View>
             </View>
