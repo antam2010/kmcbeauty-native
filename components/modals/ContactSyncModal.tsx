@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -24,7 +24,54 @@ export default function ContactSyncModal({
   onSyncComplete
 }: ContactSyncModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState<'checking' | 'granted' | 'denied' | 'undetermined' | 'unavailable'>('checking');
   const insets = useSafeAreaInsets();
+
+  // 모달이 열릴 때 권한 상태 확인
+  useEffect(() => {
+    if (visible) {
+      checkPermissionStatus();
+    }
+  }, [visible]);
+
+  const checkPermissionStatus = async () => {
+    try {
+      setPermissionStatus('checking');
+      const status = await contactSyncService.checkContactsPermission();
+      setPermissionStatus(status);
+    } catch (error) {
+      console.error('권한 상태 확인 실패:', error);
+      setPermissionStatus('unavailable');
+    }
+  };
+
+  const getPermissionStatusText = () => {
+    switch (permissionStatus) {
+      case 'checking':
+        return '권한 상태 확인 중...';
+      case 'granted':
+        return '✅ 연락처 권한 허용됨';
+      case 'denied':
+        return '❌ 연락처 권한 거부됨';
+      case 'unavailable':
+        return '⚠️ 연락처 모듈 사용 불가';
+      default:
+        return '❓ 권한 상태 불명';
+    }
+  };
+
+  const getPermissionStatusColor = () => {
+    switch (permissionStatus) {
+      case 'granted':
+        return '#4CAF50';
+      case 'denied':
+        return '#F44336';
+      case 'unavailable':
+        return '#FF9800';
+      default:
+        return '#757575';
+    }
+  };
 
   const handleSync = async () => {
     try {
@@ -112,6 +159,13 @@ export default function ContactSyncModal({
               </View>
             ) : (
               <View style={styles.infoContainer}>
+                {/* 권한 상태 표시 */}
+                <View style={[styles.permissionStatus, { borderColor: getPermissionStatusColor() }]}>
+                  <Text style={[styles.permissionText, { color: getPermissionStatusColor() }]}>
+                    {getPermissionStatusText()}
+                  </Text>
+                </View>
+
                 <View style={styles.infoBox}>
                   <MaterialIcons name="info" size={20} color="#007AFF" />
                   <Text style={styles.infoText}>
@@ -134,12 +188,28 @@ export default function ContactSyncModal({
                   </View>
                 </View>
 
-                <View style={styles.warningBox}>
-                  <MaterialIcons name="warning" size={16} color="#FF5722" />
-                  <Text style={styles.warningText}>
-                    연락처 접근 권한이 필요합니다. 최초 1회만 허용하시면 됩니다.
-                  </Text>
-                </View>
+                {permissionStatus === 'denied' ? (
+                  <View style={styles.warningBox}>
+                    <MaterialIcons name="error" size={16} color="#F44336" />
+                    <Text style={styles.warningText}>
+                      연락처 권한이 거부되었습니다. 동기화를 진행하면 설정 화면으로 이동합니다.
+                    </Text>
+                  </View>
+                ) : permissionStatus === 'unavailable' ? (
+                  <View style={styles.warningBox}>
+                    <MaterialIcons name="warning" size={16} color="#FF9800" />
+                    <Text style={styles.warningText}>
+                      연락처 모듈을 사용할 수 없습니다. 새로운 development build가 필요합니다.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.warningBox}>
+                    <MaterialIcons name="warning" size={16} color="#FF5722" />
+                    <Text style={styles.warningText}>
+                      연락처 접근 권한이 필요합니다. 최초 1회만 허용하시면 됩니다.
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -246,6 +316,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#1a1a1a',
     lineHeight: 20,
+  },
+  permissionStatus: {
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  permissionText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   featureList: {
     gap: 12,

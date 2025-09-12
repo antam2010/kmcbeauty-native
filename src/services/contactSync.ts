@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 import { phonebookApiService, type Phonebook } from '../api/services/phonebook';
 import { formatPhoneNumber, isValidKoreanPhoneNumber, unformatPhoneNumber } from '../utils/phoneFormat';
 
@@ -91,12 +91,45 @@ class ContactSyncService {
       if (status === 'granted') {
         console.log('✅ 연락처 권한 허용됨');
         return true;
+      } else if (status === 'denied') {
+        console.log('❌ 연락처 권한 거부됨 - 설정 화면 이동 안내');
+        
+        // 권한이 거부된 경우 설정 화면으로 이동할지 묻기
+        return new Promise((resolve) => {
+          Alert.alert(
+            '연락처 권한 필요',
+            '연락처 동기화를 위해 연락처 접근 권한이 필요합니다.\n설정에서 권한을 허용하시겠습니까?',
+            [
+              {
+                text: '취소',
+                onPress: () => resolve(false),
+                style: 'cancel'
+              },
+              {
+                text: '설정으로 이동',
+                onPress: () => {
+                  this.openAppSettings();
+                  resolve(false);
+                }
+              }
+            ]
+          );
+        });
       } else {
-        console.log('❌ 연락처 권한 거부됨');
+        console.log('❓ 연락처 권한 상태 불명:', status);
         Alert.alert(
-          '권한 필요',
-          '연락처 동기화를 위해 연락처 접근 권한이 필요합니다.\n설정에서 권한을 허용해주세요.',
-          [{ text: '확인' }]
+          '권한 확인 필요',
+          '연락처 권한 상태를 확인할 수 없습니다.\n설정에서 권한을 확인해주세요.',
+          [
+            {
+              text: '취소',
+              style: 'cancel'
+            },
+            {
+              text: '설정으로 이동',
+              onPress: () => this.openAppSettings()
+            }
+          ]
         );
         return false;
       }
@@ -108,6 +141,45 @@ class ContactSyncService {
         [{ text: '확인' }]
       );
       return false;
+    }
+  }
+
+  /**
+   * 앱 설정 화면 열기
+   */
+  private openAppSettings(): void {
+    try {
+      if (Platform.OS === 'ios') {
+        Linking.openURL('app-settings:');
+      } else if (Platform.OS === 'android') {
+        Linking.openURL('package:com.antam2010.kmcbeautynative');
+      }
+    } catch (error) {
+      console.error('설정 화면 열기 실패:', error);
+      Alert.alert(
+        '설정 화면 열기 실패',
+        '수동으로 설정 > 앱 > KMC Beauty > 권한에서 연락처 권한을 허용해주세요.',
+        [{ text: '확인' }]
+      );
+    }
+  }
+
+  /**
+   * 현재 연락처 권한 상태 확인
+   */
+  async checkContactsPermission(): Promise<'granted' | 'denied' | 'undetermined' | 'unavailable'> {
+    try {
+      const Contacts = await getContactsModule();
+      
+      if (!Contacts || typeof Contacts.getPermissionsAsync !== 'function') {
+        return 'unavailable';
+      }
+      
+      const { status } = await Contacts.getPermissionsAsync();
+      return status;
+    } catch (error) {
+      console.warn('권한 상태 확인 실패:', error);
+      return 'unavailable';
     }
   }
 
@@ -306,7 +378,15 @@ class ContactSyncService {
     console.log('🚀 연락처 동기화 시작...');
 
     try {
-      // 1. 권한 확인
+      // 0. 먼저 현재 권한 상태 확인
+      const currentPermission = await this.checkContactsPermission();
+      console.log('📋 현재 권한 상태:', currentPermission);
+      
+      if (currentPermission === 'unavailable') {
+        throw new Error('연락처 모듈을 사용할 수 없습니다. 새로운 development build가 필요합니다.');
+      }
+
+      // 1. 권한 확인/요청
       const hasPermission = await this.requestContactsPermission();
       if (!hasPermission) {
         throw new Error('연락처 접근 권한이 필요합니다.');
@@ -338,6 +418,9 @@ class ContactSyncService {
           'expo-contacts 네이티브 모듈을 사용하려면 새로운 development build가 필요합니다.\n\n해결 방법:\n1. EAS Build를 사용하여 새로운 development build 생성\n2. 또는 production build 사용',
           [{ text: '확인' }]
         );
+      } else if (error instanceof Error && error.message.includes('권한')) {
+        // 권한 관련 오류는 이미 위에서 처리됨
+        console.log('권한 관련 오류 - 사용자에게 이미 안내됨');
       } else {
         Alert.alert(
           '동기화 실패',
