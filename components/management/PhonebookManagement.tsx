@@ -1,20 +1,21 @@
 import { phonebookAPI } from '@/src/services/api/phonebook';
 import { PhonebookCreate, PhonebookResponse } from '@/src/types/phonebook';
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Alert,
-  Keyboard,
-  Modal,
-  SafeAreaView,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
+    Alert,
+    Keyboard,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
 } from 'react-native';
 
+import ContactSyncModal from '../modals/ContactSyncModal';
 import { PhonebookManagementStyles } from './PhonebookManagement.styles';
 
 interface PhonebookManagementProps {
@@ -29,6 +30,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
   // 모달 관련 상태
   const [showModal, setShowModal] = useState(false);
   const [editingContact, setEditingContact] = useState<PhonebookResponse | null>(null);
+  const [showSyncModal, setShowSyncModal] = useState(false); // 동기화 모달 상태 추가
   
   // 폼 상태
   const [contactForm, setContactForm] = useState<PhonebookCreate>({
@@ -40,7 +42,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
 
   useEffect(() => {
     loadPhonebooks();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadPhonebooks = async () => {
     try {
@@ -134,6 +136,17 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
     );
   };
 
+  // 동기화 완료 후 콜백
+  const handleSyncComplete = () => {
+    setShowSyncModal(false);
+    loadPhonebooks(); // 동기화 후 연락처 목록 새로고침
+  };
+
+  // 동기화 모달 열기
+  const handleOpenSyncModal = () => {
+    setShowSyncModal(true);
+  };
+
   const renderContactItem = (contact: PhonebookResponse) => (
     <View key={contact.id} style={styles.contactCard}>
       <View style={styles.contactInfo}>
@@ -171,6 +184,14 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
             <MaterialIcons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.title}>전화번호 관리</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={handleOpenSyncModal} style={styles.syncButton}>
+              <MaterialIcons name="sync" size={24} color="#007AFF" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleCreateContact} style={styles.addButton}>
+              <MaterialIcons name="add" size={24} color="#007AFF" />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.loadingContainer}>
           <Text>전화번호부를 불러오는 중...</Text>
@@ -187,9 +208,14 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
           <MaterialIcons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>전화번호 관리</Text>
-        <TouchableOpacity onPress={handleCreateContact} style={styles.addButton}>
-          <MaterialIcons name="add" size={24} color="#007AFF" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={handleOpenSyncModal} style={styles.syncButton}>
+            <MaterialIcons name="sync" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleCreateContact} style={styles.addButton}>
+            <MaterialIcons name="add" size={24} color="#007AFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 검색 */}
@@ -305,6 +331,15 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* 연락처 동기화 모달 */}
+      {showSyncModal && (
+        <ContactSyncModal
+          visible={showSyncModal}
+          onClose={() => setShowSyncModal(false)}
+          onSyncComplete={handleSyncComplete}
+        />
+      )}
     </SafeAreaView>
   );
 }

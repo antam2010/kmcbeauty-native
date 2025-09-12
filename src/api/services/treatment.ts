@@ -1,4 +1,4 @@
-import type { Treatment, TreatmentCreate, TreatmentListParams, TreatmentResponse, TreatmentSimpleResponse, TreatmentUpdate } from '../../types/treatment';
+import type { Treatment, TreatmentCreate, TreatmentListParams, TreatmentResponse, TreatmentSimpleResponse, TreatmentUpdate } from '../../types';
 import { BaseApiService } from './base';
 
 class TreatmentApiService extends BaseApiService {

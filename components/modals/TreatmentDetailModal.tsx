@@ -1,13 +1,12 @@
 import type { Treatment } from '@/src/types/treatment';
-import React from 'react';
 import {
-    Modal,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Modal,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -196,7 +195,7 @@ export default function TreatmentDetailModal({
             <Text style={styles.sectionTitle}>👨‍💼 담당 직원</Text>
             <View style={styles.infoCard}>
               <Text style={styles.staffName}>
-                {treatment.staff_user?.name || '직접 시술'}
+                {treatment.staff_user?.name || '담당 직원 없음'}
               </Text>
             </View>
           </View>

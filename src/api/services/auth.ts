@@ -1,4 +1,4 @@
-import type { LoginCredentials, LoginResponse, User } from '../../types/auth';
+import type { LoginCredentials, LoginResponse, User } from '../../types';
 import { BaseApiService } from './base';
 
 class AuthApiService extends BaseApiService {

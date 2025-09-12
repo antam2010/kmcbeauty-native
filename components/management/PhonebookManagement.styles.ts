@@ -30,6 +30,18 @@ export const PhonebookManagementStyles = StyleSheet.create({
     flex: 1,
     textAlign: "center",
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  syncButton: {
+    padding: 12,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+  },
   addButton: {
     padding: 12,
     minWidth: 44,

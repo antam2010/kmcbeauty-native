@@ -1,11 +1,12 @@
 import PhonebookManagement from '@/components/management/PhonebookManagement';
 import StaffManagement from '@/components/management/StaffManagement';
 import TreatmentMenuManagement from '@/components/management/TreatmentMenuManagement';
+import ShopHeader from '@/components/navigation/ShopHeader';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
 
 export default function ManagementScreen() {
@@ -56,11 +57,12 @@ export default function ManagementScreen() {
   ];
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <ThemedText type="title" style={styles.title}>매장 관리</ThemedText>
-      <ThemedText style={styles.subtitle}>관리할 항목을 선택하세요</ThemedText>
-      
-      <ThemedView style={styles.cardContainer}>
+    <>
+      <ShopHeader title="매장 관리" />
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <ThemedText style={styles.subtitle}>관리할 항목을 선택하세요</ThemedText>
+        
+        <ThemedView style={styles.cardContainer}>
         {managementItems.map((item) => (
           <TouchableOpacity
             key={item.id}
@@ -78,12 +80,11 @@ export default function ManagementScreen() {
             <MaterialIcons name="chevron-right" size={24} color={Colors[colorScheme].icon} />
           </TouchableOpacity>
         ))}
-      </ThemedView>
-    </ScrollView>
+        </ThemedView>
+      </ScrollView>
+    </>
   );
-}
-
-const createStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
+}const createStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors[colorScheme].background,

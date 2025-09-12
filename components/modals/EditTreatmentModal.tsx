@@ -1,9 +1,13 @@
+import ContactSyncModal from '@/components/modals/ContactSyncModal';
+import CustomerRegistrationModal from '@/components/modals/CustomerRegistrationModal';
 import { useDashboard } from '@/contexts/DashboardContext';
+import { phonebookApiService, type Phonebook } from '@/src/api/services/phonebook';
 import { shopApiService, type ShopUser } from '@/src/api/services/shop';
 import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import type { Treatment, TreatmentItemCreate, TreatmentUpdate } from '@/src/types/treatment';
-import React, { useCallback, useEffect, useState } from 'react';
+import { detectInputType, formatPhoneNumber } from '@/src/utils/phoneFormat';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -46,6 +50,16 @@ export default function EditTreatmentModal({
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState('');
   
+  // 고객 선택 관련 상태
+  const [selectedCustomer, setSelectedCustomer] = useState<Phonebook | null>(null);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<Phonebook[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showRecentCustomers, setShowRecentCustomers] = useState(false);
+  const [recentCustomers, setRecentCustomers] = useState<Phonebook[]>([]);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [showContactSyncModal, setShowContactSyncModal] = useState(false);
+  
   // 드롭다운 상태들
   const [treatmentMenus, setTreatmentMenus] = useState<TreatmentMenu[]>([]);
   const [staffUsers, setStaffUsers] = useState<ShopUser[]>([]);
@@ -72,6 +86,22 @@ export default function EditTreatmentModal({
     setMemo(treatment.memo || '');
     setStatus(treatment.status);
     setPaymentMethod(treatment.payment_method);
+    
+    // 고객 정보 설정
+    if (treatment.phonebook) {
+      const customer: Phonebook = {
+        id: treatment.phonebook.id,
+        shop_id: treatment.shop_id,
+        name: treatment.phonebook.name,
+        phone_number: treatment.phonebook.phone_number,
+        group_name: treatment.phonebook.group_name,
+        memo: treatment.phonebook.memo,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      setSelectedCustomer(customer);
+      setCustomerSearch('');
+    }
     
     // 날짜와 시간 설정
     const reservedDate = new Date(treatment.reserved_at);
@@ -122,6 +152,108 @@ export default function EditTreatmentModal({
       Alert.alert('오류', '메뉴 및 직원 정보를 불러오는데 실패했습니다.');
     }
   };
+
+  // 최근 등록된 고객들 로드
+  const loadRecentCustomers = useCallback(async () => {
+    try {
+      const response = await phonebookApiService.list({ size: 10, page: 1 });
+      const sortedCustomers = response.items.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      setRecentCustomers(sortedCustomers);
+      
+      console.log('🔍 최근 고객 목록 로드 완료:', {
+        count: sortedCustomers.length,
+        customers: sortedCustomers.map(c => `${c.name}(${c.id})`),
+        showRecentCustomers,
+        customerSearchLength: customerSearch.length,
+        selectedCustomer: selectedCustomer?.name || 'none'
+      });
+    } catch (error) {
+      console.error('최근 고객 로드 실패:', error);
+      setRecentCustomers([]);
+    }
+  }, [showRecentCustomers, customerSearch.length, selectedCustomer?.name]);
+
+  // 고객 검색
+  useEffect(() => {
+    const searchCustomers = async () => {
+      if (!customerSearch.trim()) {
+        setSearchResults([]);
+        setShowRecentCustomers(true);
+        setIsSearching(false);
+        return;
+      }
+
+      try {
+        setIsSearching(true);
+        const results = await phonebookApiService.search(customerSearch.trim());
+        setSearchResults(results || []);
+        setShowRecentCustomers(false);
+      } catch (error) {
+        console.error('고객 검색 실패:', error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const timeoutId = setTimeout(searchCustomers, 300);
+    return () => clearTimeout(timeoutId);
+  }, [customerSearch]);
+
+  // showRecentCustomers 상태 변경 추적
+  useEffect(() => {
+    console.log('🔍 최근 고객 목록 상태 변경됨:', {
+      showRecentCustomers,
+      count: recentCustomers.length,
+      customers: recentCustomers.map(c => `${c.name}(${c.id})`),
+      selectedCustomer: selectedCustomer?.name || 'none',
+      customerSearchLength: customerSearch.length,
+      isSearching,
+      searchResultsLength: searchResults.length
+    });
+  }, [showRecentCustomers, recentCustomers, selectedCustomer?.name, customerSearch.length, isSearching, searchResults.length]);
+
+  const openRegistrationModal = useCallback((searchText?: string) => {
+    const input = searchText || customerSearch;
+    const inputType = detectInputType(input);
+    
+    if (inputType === 'phone') {
+      setCustomerSearch(input);
+      setShowRegistrationModal(true);
+    } else {
+      setCustomerSearch(input);
+      setShowRegistrationModal(true);
+    }
+  }, [customerSearch]);
+
+  // 기본 고객(999-9999-9999) 생성 또는 조회
+  const getOrCreateDefaultCustomer = useCallback(async (): Promise<Phonebook> => {
+    const defaultPhoneNumber = '999-9999-9999';
+    
+    try {
+      const duplicateCheck = await phonebookApiService.checkDuplicate(defaultPhoneNumber);
+      
+      if (duplicateCheck.exists) {
+        const results = await phonebookApiService.search(defaultPhoneNumber);
+        if (results.length > 0) {
+          return results[0];
+        }
+      }
+      
+      const defaultCustomer = await phonebookApiService.create({
+        name: '고객 미지정',
+        phone_number: defaultPhoneNumber,
+        memo: '고객 선택 없이 예약한 경우의 기본 고객'
+      });
+      
+      return defaultCustomer;
+    } catch (error) {
+      console.error('기본 고객 생성/조회 실패:', error);
+      throw error;
+    }
+  }, []);
 
   const handleAddTreatment = useCallback((menuDetail: TreatmentMenuDetail) => {
     const newTreatment: SelectedTreatmentItem = {
@@ -197,17 +329,43 @@ export default function EditTreatmentModal({
         return;
       }
 
-      if (!selectedStaff) {
-        Alert.alert('알림', '담당자를 선택해주세요.');
-        return;
-      }
-
       if (selectedTreatments.length === 0) {
         Alert.alert('알림', '최소 하나의 시술을 선택해주세요.');
         return;
       }
 
       setLoading(true);
+
+      // 고객이 선택되지 않은 경우 기본 고객 사용
+      let customerToUse = selectedCustomer;
+      if (!customerToUse) {
+        const shouldContinue = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            '고객 미지정',
+            '고객을 선택하지 않으셨습니다.\n"고객 미지정"으로 예약을 진행하시겠습니까?',
+            [
+              {
+                text: '취소',
+                style: 'cancel',
+                onPress: () => resolve(false)
+              },
+              {
+                text: '계속 진행',
+                onPress: () => resolve(true)
+              }
+            ]
+          );
+        });
+        
+        if (!shouldContinue) {
+          setLoading(false);
+          return;
+        }
+        
+        console.log('고객이 선택되지 않음. 기본 고객 생성/조회 중...');
+        customerToUse = await getOrCreateDefaultCustomer();
+        console.log('기본 고객 사용:', customerToUse.name, customerToUse.phone_number);
+      }
 
       // 예약 시간 생성
       const reservedAt = new Date(`${selectedDate}T${selectedTime}:00`);
@@ -222,7 +380,7 @@ export default function EditTreatmentModal({
 
       // 업데이트 데이터 준비
       const updateData: TreatmentUpdate = {
-        phonebook_id: treatment.phonebook_id,
+        phonebook_id: customerToUse.id,
         reserved_at: reservedAt.toISOString(),
         staff_user_id: selectedStaff?.user_id || null,
         memo: memo.trim(),
@@ -297,13 +455,199 @@ export default function EditTreatmentModal({
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* 고객 정보 (읽기 전용) */}
+            {/* 고객 선택 */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>고객 정보</Text>
-              <View style={styles.customerInfo}>
-                <Text style={styles.customerName}>{treatment.phonebook?.name}</Text>
-                <Text style={styles.customerPhone}>{treatment.phonebook?.phone_number}</Text>
-              </View>
+              <Text style={styles.sectionTitle}>👤 고객 선택 (선택사항)</Text>
+              <Text style={[styles.sectionSubtitle, { marginBottom: 8 }]}>
+                💡 고객을 선택하지 않으면 &apos;고객 미지정&apos;으로 수정됩니다
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="고객 이름 또는 전화번호 검색 (010-1234-5678)"
+                value={customerSearch}
+                onChangeText={(text) => {
+                  if (/^\d/.test(text.trim())) {
+                    setCustomerSearch(formatPhoneNumber(text));
+                  } else {
+                    setCustomerSearch(text);
+                  }
+                }}
+                onFocus={() => {
+                  console.log('Input 포커스, selectedCustomer:', selectedCustomer?.name);
+                  if (!customerSearch.trim()) {
+                    setShowRecentCustomers(true);
+                    loadRecentCustomers().catch(error => {
+                      console.error('포커스 시 최근 고객 로드 실패:', error);
+                    });
+                  }
+                }}
+                onBlur={() => {
+                  setTimeout(() => {
+                    if (!customerSearch.trim()) {
+                      setShowRecentCustomers(false);
+                    }
+                  }, 200);
+                }}
+                autoCapitalize="none"
+                autoCorrect={false}
+                underlineColorAndroid="transparent"
+                selectionColor="#667eea"
+                placeholderTextColor="#999"
+              />
+              
+              {selectedCustomer && (
+                <View style={styles.selectedCustomer}>
+                  <View style={styles.customerInfo}>
+                    <Text style={styles.customerName}>{selectedCustomer.name}</Text>
+                    <Text style={styles.customerPhone}>{formatPhoneNumber(selectedCustomer.phone_number)}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity 
+                      onPress={() => {
+                        setSelectedCustomer(null); // 기존 고객 선택 해제
+                        setCustomerSearch(''); // 검색어 초기화
+                        setShowRecentCustomers(true);
+                        loadRecentCustomers().catch(error => {
+                          console.error('고객 변경 시 최근 고객 로드 실패:', error);
+                        });
+                      }}
+                      style={styles.changeCustomerButton}
+                    >
+                      <Text style={styles.changeCustomerButtonText}>다른 고객 선택</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={() => {
+                        setSelectedCustomer(null);
+                        setShowRecentCustomers(false);
+                      }}
+                      style={styles.removeButton}
+                    >
+                      <Text style={styles.removeButtonText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* 고객 검색 결과 표시 */}
+              {(
+                <View>
+                  {/* 검색 중 표시 */}
+                  {isSearching && (
+                    <View style={[styles.searchResults, { alignItems: 'center', padding: 20 }]}>
+                      <ActivityIndicator size="small" color="#667eea" />
+                      <Text style={{ marginTop: 8, color: '#666' }}>검색 중...</Text>
+                    </View>
+                  )}
+
+                  {/* 검색 결과 (검색어가 있을 때) */}
+                  {!isSearching && searchResults.length > 0 && customerSearch.trim().length > 0 && (
+                    <View style={styles.searchResults}>
+                      <Text style={styles.searchResultsTitle}>검색 결과 ({searchResults.length}명)</Text>
+                      <ScrollView
+                        style={{ maxHeight: 300 }}
+                        showsVerticalScrollIndicator={true}
+                        nestedScrollEnabled={true}
+                        keyboardShouldPersistTaps="handled"
+                      >
+                        {searchResults.map((customer) => (
+                          <TouchableOpacity
+                            key={customer.id.toString()}
+                            style={styles.customerItem}
+                            onPress={() => {
+                              setSelectedCustomer(customer);
+                              setCustomerSearch('');
+                              setSearchResults([]);
+                              setShowRecentCustomers(false);
+                              Keyboard.dismiss();
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.customerItemName}>{customer.name}</Text>
+                            <Text style={styles.customerItemPhone}>{formatPhoneNumber(customer.phone_number)}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
+
+                  {/* 검색 결과가 없을 때 */}
+                  {!isSearching && searchResults.length === 0 && customerSearch.trim().length > 0 && (
+                    <View style={[styles.searchResults, { alignItems: 'center', padding: 20 }]}> 
+                      <Text style={{ color: '#666', marginBottom: 12 }}>검색 결과가 없습니다.</Text>
+                      
+                      <TouchableOpacity
+                        style={styles.addCustomerButton}
+                        onPress={() => openRegistrationModal(customerSearch)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.addCustomerButtonText}>새 고객 등록하기</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        style={[styles.addCustomerButton, { backgroundColor: '#28a745', marginTop: 8 }]}
+                        onPress={() => setShowContactSyncModal(true)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.addCustomerButtonText}>📱 연락처 동기화</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* 최근 등록된 고객들 (포커스 시 또는 검색어가 없을 때) */}
+                  {!isSearching && showRecentCustomers && recentCustomers.length > 0 && customerSearch.trim().length === 0 && (
+                    <View style={styles.searchResults}>
+                      <Text style={styles.searchResultsTitle}>💚 최근 등록된 고객 ({recentCustomers.length}명)</Text>
+                      <ScrollView
+                        style={{ maxHeight: 300 }}
+                        showsVerticalScrollIndicator={true}
+                        nestedScrollEnabled={true}
+                        keyboardShouldPersistTaps="handled"
+                      >
+                        {recentCustomers.map((customer, index) => (
+                          <TouchableOpacity
+                            key={`recent_customer_${customer.id}_${customer.created_at}_${index}`}
+                            style={styles.customerItem}
+                            onPress={() => {
+                              console.log('최근 고객 선택:', customer.name, customer.phone_number);
+                              setSelectedCustomer(customer);
+                              setCustomerSearch('');
+                              setShowRecentCustomers(false);
+                              
+                              setTimeout(() => {
+                                Keyboard.dismiss();
+                              }, 100);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <View style={styles.customerItemHeader}>
+                              <Text style={styles.customerItemName}>{customer.name}</Text>
+                              <Text style={styles.customerItemDate}>
+                                {new Date(customer.created_at).toLocaleDateString('ko-KR', {
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </Text>
+                            </View>
+                            <Text style={styles.customerItemPhone}>{formatPhoneNumber(customer.phone_number)}</Text>
+                          </TouchableOpacity>
+                        ))}
+                        
+                        <TouchableOpacity
+                          style={[styles.addCustomerButton, { 
+                            backgroundColor: '#28a745', 
+                            marginTop: 12,
+                            marginHorizontal: 8 
+                          }]}
+                          onPress={() => setShowContactSyncModal(true)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.addCustomerButtonText}>📱 연락처 동기화</Text>
+                        </TouchableOpacity>
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
 
             {/* 날짜 선택 */}
@@ -358,7 +702,7 @@ export default function EditTreatmentModal({
                     styles.staffOptionText,
                     !selectedStaff && styles.selectedStaffOptionText
                   ]}>
-                    직접 시술
+                    담당 직원 없음
                   </Text>
                 </TouchableOpacity>
                 
@@ -564,6 +908,29 @@ export default function EditTreatmentModal({
           </ScrollView>
         </View>
       </TouchableWithoutFeedback>
+      
+      {/* 고객 등록 모달 */}
+      <CustomerRegistrationModal
+        visible={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        initialPhone={customerSearch}
+        onCustomerRegistered={(customer) => {
+          setSelectedCustomer(customer);
+          setShowRegistrationModal(false);
+          setCustomerSearch('');
+          setSearchResults([]);
+        }}
+      />
+
+      {/* 연락처 동기화 모달 */}
+      <ContactSyncModal
+        visible={showContactSyncModal}
+        onClose={() => setShowContactSyncModal(false)}
+        onSyncComplete={(result) => {
+          console.log('연락처 동기화 완료:', result);
+          setShowContactSyncModal(false);
+        }}
+      />
     </Modal>
   );
 }
@@ -929,5 +1296,120 @@ const styles = StyleSheet.create({
   },
   selectedPaymentMethodText: {
     color: '#ffffff',
+  },
+  customerSection: {
+    marginBottom: 20,
+  },
+  customerSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212529',
+    marginBottom: 12,
+  },
+  selectedCustomer: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  changeCustomerButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#6c757d',
+    borderRadius: 6,
+  },
+  changeCustomerButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  searchResultsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6c757d',
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+  },
+  customerItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  customerItemDate: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginLeft: 8,
+  },
+  customerSearchContainer: {
+    marginBottom: 16,
+  },
+  customerSearch: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#212529',
+  },
+  searchResults: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    maxHeight: 200,
+    marginTop: 8,
+  },
+  customerItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f8f9fa',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  lastCustomerItem: {
+    borderBottomWidth: 0,
+  },
+  customerItemInfo: {
+    flex: 1,
+  },
+  customerItemName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#212529',
+    marginBottom: 4,
+  },
+  customerItemPhone: {
+    fontSize: 14,
+    color: '#6c757d',
+  },
+  selectCustomerButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#667eea',
+    borderRadius: 6,
+  },
+  selectCustomerButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  addCustomerButton: {
+    backgroundColor: '#28a745',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  addCustomerButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

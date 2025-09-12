@@ -4,9 +4,9 @@ import {
     TreatmentMenuDetail,
     TreatmentMenuDetailCreate,
     TreatmentMenuResponse
-} from '@/src/types/treatment-menu';
+} from '@/src/types';
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Alert,
     Keyboard,

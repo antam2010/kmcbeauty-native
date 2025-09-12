@@ -8,13 +8,6 @@ interface AuthTokenResponse {
   refresh_token?: string;
 }
 
-interface AuthData {
-  accessToken: string;
-  refreshToken: string;
-  isAuthenticated: boolean;
-  user?: any;
-}
-
 // 환경 변수에서 API URL 가져오기
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 

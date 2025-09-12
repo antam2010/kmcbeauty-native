@@ -112,6 +112,38 @@ export default function BookingForm({
     }
   }, []);
 
+  // 기본 고객(999-9999-9999) 생성 또는 조회
+  const getOrCreateDefaultCustomer = useCallback(async (): Promise<Phonebook> => {
+    const defaultPhoneNumber = '999-9999-9999';
+    
+    try {
+      // 먼저 중복 확인
+      const duplicateCheck = await phonebookApiService.checkDuplicate(defaultPhoneNumber);
+      
+      if (duplicateCheck.exists) {
+        // 이미 존재하면 검색해서 반환
+        const results = await phonebookApiService.search(defaultPhoneNumber);
+        if (results.length > 0) {
+          console.log('✅ 기본 고객 조회됨:', results[0]);
+          return results[0];
+        }
+      }
+      
+      // 존재하지 않으면 생성
+      const defaultCustomer = await phonebookApiService.create({
+        name: '고객 미지정',
+        phone_number: defaultPhoneNumber,
+        memo: '고객 선택 없이 예약한 경우의 기본 고객'
+      });
+      
+      console.log('✅ 기본 고객 생성됨:', defaultCustomer);
+      return defaultCustomer;
+    } catch (error) {
+      console.error('❌ 기본 고객 생성/조회 실패:', error);
+      throw error;
+    }
+  }, []);
+
   // 연락처 동기화 완료 핸들러
   const handleContactSyncComplete = useCallback(async (result: ContactSyncResult) => {
     console.log('🔄 연락처 동기화 완료:', result);
@@ -347,11 +379,7 @@ export default function BookingForm({
   }, [customerSearch]);
 
   const handleBooking = async () => {
-    // 유효성 검사
-    if (!selectedCustomer) {
-      Alert.alert('알림', '고객을 선택해주세요.');
-      return;
-    }
+    // 유효성 검사 - 고객 선택 제거
     if (!selectedTime) {
       Alert.alert('알림', '시간을 선택해주세요.');
       return;
@@ -368,6 +396,37 @@ export default function BookingForm({
     try {
       setIsLoading(true);
 
+      // 고객이 선택되지 않은 경우 기본 고객 사용
+      let customerToUse = selectedCustomer;
+      if (!customerToUse) {
+        const shouldContinue = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            '고객 미지정',
+            '고객을 선택하지 않으셨습니다.\n"고객 미지정"으로 예약을 진행하시겠습니까?',
+            [
+              {
+                text: '취소',
+                style: 'cancel',
+                onPress: () => resolve(false)
+              },
+              {
+                text: '계속 진행',
+                onPress: () => resolve(true)
+              }
+            ]
+          );
+        });
+        
+        if (!shouldContinue) {
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log('🔄 고객이 선택되지 않음. 기본 고객 생성/조회 중...');
+        customerToUse = await getOrCreateDefaultCustomer();
+        console.log('✅ 기본 고객 사용:', customerToUse.name, customerToUse.phone_number);
+      }
+
       // ISO 형식의 예약 시간 생성
       const reservedDateTime = `${selectedDate}T${selectedTime}:00`;
 
@@ -381,7 +440,7 @@ export default function BookingForm({
 
       // 시술 예약 생성
       const treatmentData: TreatmentCreate = {
-        phonebook_id: selectedCustomer.id,
+        phonebook_id: customerToUse.id,
         reserved_at: reservedDateTime,
         memo: memo.trim() || null,
         status: 'RESERVED',
@@ -473,7 +532,10 @@ export default function BookingForm({
 
           {/* 고객 선택 */}
           <View style={bookingFormStyles.section}>
-            <Text style={bookingFormStyles.sectionTitle}>👤 고객 선택</Text>
+            <Text style={bookingFormStyles.sectionTitle}>👤 고객 선택 (선택사항)</Text>
+            <Text style={[bookingFormStyles.sectionSubtitle, { marginBottom: 8 }]}>
+              💡 고객을 선택하지 않으면 &apos;고객 미지정&apos;으로 예약됩니다
+            </Text>
             <TextInput
               style={bookingFormStyles.searchInput}
               placeholder="고객 이름 또는 전화번호 검색 (010-1234-5678)"
@@ -789,7 +851,7 @@ export default function BookingForm({
                   bookingFormStyles.staffOptionText,
                   !selectedStaff && bookingFormStyles.selectedStaffOptionText
                 ]}>
-                  직접 시술
+                  담당 직원 없음
                 </Text>
               </TouchableOpacity>
               

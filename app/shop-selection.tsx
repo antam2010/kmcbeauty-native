@@ -1,22 +1,26 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import ShopRegistrationModal from '@/components/modals/ShopRegistrationModal';
 import { shopService } from '@/services/api/shop';
+import { useShop } from '@/stores/shopStore';
 import { Shop } from '@/types';
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Platform,
-    StyleSheet,
-    TouchableOpacity
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Platform,
+  StyleSheet,
+  TouchableOpacity
 } from 'react-native';
 
 export default function ShopSelectionScreen() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [selecting, setSelecting] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const { selectShop } = useShop(); // 상점 스토어 사용
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,
@@ -55,7 +59,7 @@ export default function ShopSelectionScreen() {
   const handleSelectShop = useCallback(async (shop: Shop) => {
     try {
       setSelecting(true);
-      await shopService.selectShop(shop.id);
+      await selectShop(shop.id); // 상점 스토어의 selectShop 사용
       Alert.alert(
         '상점 선택 완료',
         `${shop.name}이(가) 선택되었습니다.`,
@@ -79,7 +83,7 @@ export default function ShopSelectionScreen() {
     } finally {
       setSelecting(false);
     }
-  }, []);
+  }, [selectShop]);
 
   const renderShopItem = useCallback(({ item }: { item: Shop }) => (
     <TouchableOpacity
@@ -119,6 +123,14 @@ export default function ShopSelectionScreen() {
         <ThemedText style={styles.pagination}>
           총 {pagination.total}개 상점 (페이지 {pagination.page}/{pagination.pages})
         </ThemedText>
+        
+        <TouchableOpacity
+          style={styles.addShopButton}
+          onPress={() => setShowRegistrationModal(true)}
+          disabled={selecting}
+        >
+          <ThemedText style={styles.addShopButtonText}>+ 새 상점 등록</ThemedText>
+        </TouchableOpacity>
       </ThemedView>
 
       <FlatList
@@ -135,6 +147,15 @@ export default function ShopSelectionScreen() {
           <ThemedText style={styles.selectingText}>상점을 선택하는 중...</ThemedText>
         </ThemedView>
       )}
+
+      <ShopRegistrationModal
+        visible={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        onSuccess={() => {
+          // 상점 목록 새로고침
+          loadShops(1);
+        }}
+      />
     </ThemedView>
   );
 }
@@ -231,5 +252,18 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: 'white',
     fontSize: 16,
+  },
+  addShopButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  addShopButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

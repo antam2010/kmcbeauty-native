@@ -1,10 +1,11 @@
 import apiClient from '../../api/client';
 import {
-    PhonebookCreate,
-    PhonebookGroupedByGroupnameResponse,
-    PhonebookPageResponse,
-    PhonebookResponse,
-    PhonebookUpdate
+  DuplicateCheckResponse,
+  PhonebookCreate,
+  PhonebookGroupedByGroupnameResponse,
+  PhonebookPageResponse,
+  PhonebookResponse,
+  PhonebookUpdate
 } from '../../types/phonebook';
 
 export const phonebookAPI = {
@@ -47,5 +48,13 @@ export const phonebookAPI = {
   // 전화번호부 삭제
   deletePhonebook: async (phonebookId: number): Promise<void> => {
     await apiClient.delete(`/phonebooks/${phonebookId}`);
+  },
+
+  // 전화번호 중복 확인
+  checkDuplicate: async (phoneNumber: string): Promise<DuplicateCheckResponse> => {
+    const response = await apiClient.get('/phonebooks/check-duplicate', {
+      params: { phone_number: phoneNumber }
+    });
+    return response.data as DuplicateCheckResponse;
   },
 };

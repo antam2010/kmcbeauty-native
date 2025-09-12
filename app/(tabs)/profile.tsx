@@ -1,8 +1,9 @@
 import { Collapsible } from '@/components/Collapsible';
+import ShopHeader from '@/components/navigation/ShopHeader';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/stores/authContext';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 
 interface UserProfile {
@@ -13,17 +14,24 @@ interface UserProfile {
   joinDate: string;
 }
 
+interface BookingHistory {
+  id: string;
+  service: string;
+  date: string;
+  status: string;
+}
+
 export default function ProfileScreen() {
   const { logout, user } = useAuth();
-  const [profile, setProfile] = useState<UserProfile>({
+  const profile: UserProfile = {
     name: user?.name || '김관리자',
     email: user?.email || 'admin@kmcbeauty.com',
     phone: '010-1234-5678',
     role: 'admin',
     joinDate: '2024-01-15'
-  });
+  };
 
-  const [bookingHistory] = useState([
+  const [bookingHistory] = useState<BookingHistory[]>([
     { id: '1', service: '화장', date: '2024-09-01', status: '완료' },
     { id: '2', service: '눈썹', date: '2024-08-28', status: '완료' },
     { id: '3', service: '두피케어', date: '2024-09-15', status: '예정' },
@@ -77,9 +85,7 @@ export default function ProfileScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        프로필
-      </ThemedText>
+      <ShopHeader title="프로필" />
       
       <ScrollView style={styles.content}>
         <Collapsible title="내 정보">

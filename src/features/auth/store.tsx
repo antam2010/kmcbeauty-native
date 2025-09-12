@@ -1,22 +1,9 @@
+import apiClient from '@/src/api/client';
+import type { LoginCredentials, User } from '@/src/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import apiClient from '@/src/api/client';
 
-// 타입 정의
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: 'ADMIN' | 'MASTER' | 'MANAGER';
-  role_name: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface LoginCredentials {
-  email: string;
-  password: string;
-}
+// 기존 타입들은 @/src/types에서 import
 
 interface AuthState {
   isAuthenticated: boolean;

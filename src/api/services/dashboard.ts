@@ -1,4 +1,4 @@
-import type { DashboardResponse, DashboardSummaryResponse } from '../../types/dashboard';
+import type { DashboardResponse, DashboardSummaryResponse } from '../../types';
 import { BaseApiService } from './base';
 
 export interface DashboardParams {
@@ -41,6 +41,20 @@ class DashboardApiService extends BaseApiService {
   // 특정 날짜 상세 대시보드 정보 조회
   async getDateDetailedSummary(date: string): Promise<DashboardSummaryResponse> {
     return this.getDetailedSummary({ target_date: date });
+  }
+
+  // 월별 대시보드 정보 조회 (해당 월의 1일을 기준으로)
+  async getMonthlyDetailedSummary(year: number, month: number): Promise<DashboardSummaryResponse> {
+    // 월은 1-12, 날짜는 1일로 고정
+    const targetDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+    return this.getDetailedSummary({ target_date: targetDate });
+  }
+
+  // 연-월 문자열로 월별 대시보드 조회 (YYYY-MM 형식)
+  async getMonthlyDetailedSummaryByString(yearMonth: string): Promise<DashboardSummaryResponse> {
+    // YYYY-MM 형식을 YYYY-MM-01로 변환
+    const targetDate = `${yearMonth}-01`;
+    return this.getDetailedSummary({ target_date: targetDate });
   }
 }
 

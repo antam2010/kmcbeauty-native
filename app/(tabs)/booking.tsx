@@ -1,10 +1,11 @@
-﻿import Calendar from "@/components/calendar/Calendar";
+import Calendar from "@/components/calendar/Calendar";
 import BookingForm from "@/components/forms/BookingForm";
 import EditTreatmentModal from "@/components/modals/EditTreatmentModal";
 import UnifiedTreatmentModal from "@/components/modals/UnifiedTreatmentModal";
+import ShopHeader from '@/components/navigation/ShopHeader';
 import { useDashboard } from "@/contexts/DashboardContext";
-import { Treatment } from "@/src/types/treatment";
-import React, { useCallback, useRef, useState } from "react";
+import { Treatment } from "@/src/types";
+import { useCallback, useRef, useState } from "react";
 import { Alert, Animated, Modal, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -164,7 +165,8 @@ export default function BookingScreen() {
   }, []);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: 0 }]}>
+      <ShopHeader title="예약 관리" />
       {/* 그라데이션 배경 */}
       <View style={styles.backgroundGradient} />
       
@@ -177,7 +179,6 @@ export default function BookingScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>예약 관리</Text>
           <Text style={styles.headerSubtitle}>원하는 날짜를 선택해보세요</Text>
           <Text style={styles.headerDate}>
             {new Date().toLocaleDateString("ko-KR", { 

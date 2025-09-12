@@ -1,15 +1,6 @@
+import type { User } from '@/src/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: 'ADMIN' | 'MASTER' | 'MANAGER';
-  role_name: string;
-  created_at: string;
-  updated_at: string;
-}
+import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
 interface AuthState {
   isAuthenticated: boolean;

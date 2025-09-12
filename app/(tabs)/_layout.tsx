@@ -1,6 +1,5 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
+import { Redirect, Tabs } from 'expo-router';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -8,9 +7,25 @@ import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAuth } from '@/stores/authContext';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { isAuthenticated, loading } = useAuth();
+
+  // 인증 상태 로딩 중
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  // 인증되지 않은 경우 로그인 화면으로 리다이렉트
+  if (!isAuthenticated) {
+    return <Redirect href="/login" />;
+  }
 
   return (
     <DashboardProvider>
@@ -60,3 +75,12 @@ export default function TabLayout() {
     </DashboardProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+});

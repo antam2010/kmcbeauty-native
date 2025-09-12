@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 // 새로운 API 구조에서 타입과 API 가져오기
@@ -65,11 +64,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading: true,
   });
 
+  const [isProviderReady, setIsProviderReady] = useState(false);
+
   // 앱 시작시 저장된 인증 정보 로드
   useEffect(() => {
     const initializeAuth = async () => {
       try {
         console.log('🔍 저장된 인증 정보 확인 중...');
+        
+        // 약간의 지연을 통해 Android에서 초기화 순서 문제 해결
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         const storedData = await AsyncStorage.getItem('auth-storage');
         
         if (storedData) {
@@ -89,6 +94,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (error) {
         console.error('❌ 인증 정보 로드 실패:', error);
         setAuthState(prev => ({ ...prev, loading: false }));
+      } finally {
+        setIsProviderReady(true);
       }
     };
 
@@ -131,22 +138,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setAuthState(newState);
       await saveAuthToStorage(newState);
       
-      console.log('✅ 로그인 완료 - 홈 화면으로 이동');
-      
-      // 로그인 성공 후 홈 화면으로 이동
-      try {
-        if (typeof window !== 'undefined') {
-          // 웹 환경
-          setTimeout(() => {
-            router.replace('/(tabs)');
-          }, 100);
-        } else {
-          // 모바일 환경
-          router.replace('/(tabs)');
-        }
-      } catch (navError) {
-        console.error('홈 화면 이동 실패:', navError);
-      }
+      console.log('✅ 로그인 완료');
       
     } catch (error: any) {
       console.error('❌ 로그인 실패:', error);
@@ -177,9 +169,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // AsyncStorage에서 완전 삭제
       await tokenManager.removeTokens();
-      
-      // 로그인 화면으로 이동
-      router.replace('/login');
       
       console.log('✅ 로그아웃 완료');
     } catch (error) {
@@ -214,6 +203,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     clearAuth,
   }), [authState, login, logout, setUser, setLoading, clearAuth]);
 
+  // Provider가 준비되지 않았으면 로딩 화면 표시
+  if (!isProviderReady) {
+    return (
+      <AuthContext.Provider value={{
+        isAuthenticated: false,
+        accessToken: null,
+        user: null,
+        loading: true,
+        login,
+        logout,
+        setUser,
+        setLoading,
+        clearAuth,
+      }}>
+        {children}
+      </AuthContext.Provider>
+    );
+  }
+
   return (
     <AuthContext.Provider value={contextValue}>
       {children}
@@ -225,6 +233,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
+    console.error('❌ useAuth hook called outside of AuthProvider');
+    console.error('📍 Make sure AuthProvider wraps your component tree');
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

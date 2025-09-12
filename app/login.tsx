@@ -2,12 +2,27 @@ import { ThemedView } from '@/components/ThemedView';
 import LoginForm from '@/components/forms/LoginForm';
 import { LoginCredentials } from '@/src/features/auth/api';
 import { useAuth } from '@/stores/authContext';
+import { Redirect } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 
 export default React.memo(function LoginScreen() {
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isAuthenticated, loading: authLoading } = useAuth();
+
+  // 인증 상태 로딩 중
+  if (authLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  // 이미 인증된 경우 메인 화면으로 리다이렉트
+  if (isAuthenticated) {
+    return <Redirect href="/(tabs)" />;
+  }
 
   const handleLogin = async (credentials: LoginCredentials) => {
     try {
@@ -40,6 +55,12 @@ export default React.memo(function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#f8f9fa',
   },
 });

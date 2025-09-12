@@ -1,9 +1,12 @@
+import MonthlyDashboard from '@/components/dashboard/MonthlyDashboard';
+import ShopHeader from '@/components/navigation/ShopHeader';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
+  Modal,
   Platform,
   RefreshControl,
   ScrollView,
@@ -15,8 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { dashboardApiService } from '../../src/api/services/dashboard';
 import { treatmentAPI } from '../../src/features/booking/api';
-import { DashboardSummaryResponse } from '../../src/types/dashboard';
-import { Treatment } from '../../src/types/treatment';
+import { DashboardSummaryResponse, Treatment } from '../../src/types';
 
 export default function HomeScreen() {
   const [dashboardData, setDashboardData] = useState<DashboardSummaryResponse | null>(null);
@@ -24,6 +26,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [weeklyTreatments, setWeeklyTreatments] = useState<Treatment[]>([]);
+  const [showMonthlyModal, setShowMonthlyModal] = useState(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { refreshTrigger } = useDashboard();
@@ -161,7 +164,8 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: 0 }]}>
+      <ShopHeader title="홈" />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
@@ -188,13 +192,22 @@ export default function HomeScreen() {
               })}
             </Text>
           </View>
-          <TouchableOpacity 
-            style={styles.refreshButton}
-            onPress={onHeaderRefresh}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="refresh" size={24} color="#007AFF" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.monthlyButton}
+              onPress={() => setShowMonthlyModal(true)}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="calendar-month" size={24} color="#007AFF" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.refreshButton}
+              onPress={onHeaderRefresh}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="refresh" size={24} color="#007AFF" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* 간편 달력 위젯 */}
@@ -390,6 +403,28 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
+      
+      {/* 월별 대시보드 모달 */}
+      <Modal
+        visible={showMonthlyModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowMonthlyModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowMonthlyModal(false)}
+            >
+              <MaterialIcons name="close" size={24} color="#007AFF" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>월별 현황</Text>
+            <View style={styles.modalPlaceholder} />
+          </View>
+          <MonthlyDashboard onClose={() => setShowMonthlyModal(false)} />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -433,9 +468,17 @@ const styles = StyleSheet.create({
   headerContent: {
     flex: 1,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  monthlyButton: {
+    padding: 8,
+    marginRight: 8,
+  },
   refreshButton: {
     padding: 8,
-    marginLeft: 16,
+    marginLeft: 8,
   },
   headerTitle: {
     fontSize: 28,
@@ -628,5 +671,30 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modalCloseButton: {
+    padding: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  modalPlaceholder: {
+    width: 40,
   },
 });

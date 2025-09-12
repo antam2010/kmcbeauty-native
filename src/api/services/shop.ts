@@ -31,6 +31,26 @@ export interface ShopResponse {
   pages: number;
 }
 
+export interface ShopCreate {
+  name: string;
+  address: string;
+  address_detail?: string;
+  phone?: string;
+  business_number?: string;
+}
+
+export interface ShopUpdate {
+  name: string;
+  address: string;
+  address_detail?: string;
+  phone?: string;
+  business_number?: string;
+}
+
+export interface ShopSelect {
+  shop_id: number;
+}
+
 class ShopApiService extends BaseApiService {
   protected readonly basePath = '/shops';
 
@@ -43,6 +63,21 @@ class ShopApiService extends BaseApiService {
   // 선택한 샵 조회
   async getSelected(): Promise<Shop> {
     return this.get<Shop>('/selected');
+  }
+
+  // 샵 선택
+  async select(shopId: number): Promise<void> {
+    return this.post<void>('/selected', { shop_id: shopId });
+  }
+
+  // 샵 생성
+  async create(shopData: ShopCreate): Promise<Shop> {
+    return this.post<Shop>('', shopData);
+  }
+
+  // 샵 수정
+  async update(shopId: number, shopData: ShopUpdate): Promise<Shop> {
+    return this.put<Shop>(`/${shopId}`, shopData);
   }
 
   // 특정 샵의 유저 목록 조회 (직원 목록)

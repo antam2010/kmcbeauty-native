@@ -1,11 +1,11 @@
 import apiClient from '@/src/api/client';
 import {
-    Page,
-    TreatmentMenuCreate,
-    TreatmentMenuDetail,
-    TreatmentMenuDetailCreate,
-    TreatmentMenuResponse
-} from '@/src/types/treatment-menu';
+  Page,
+  TreatmentMenuCreate,
+  TreatmentMenuDetail,
+  TreatmentMenuDetailCreate,
+  TreatmentMenuResponse
+} from '@/src/types';
 
 export const treatmentMenuAPI = {
   // 시술 메뉴 목록 조회
