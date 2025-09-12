@@ -1,8 +1,10 @@
+import CustomerRegistrationModal from '@/components/modals/CustomerRegistrationModal';
 import { phonebookApiService, type Phonebook } from '@/src/api/services/phonebook';
 import { shopApiService, type ShopUser } from '@/src/api/services/shop';
 import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import type { TreatmentCreate, TreatmentItemCreate } from '@/src/types/treatment';
+import { detectInputType, extractNameAndPhone, formatPhoneNumber } from '@/src/utils/phoneFormat';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -43,6 +45,7 @@ export default function BookingForm({
   const [recentCustomers, setRecentCustomers] = useState<Phonebook[]>([]); // 최근 고객들
   const [showRecentCustomers, setShowRecentCustomers] = useState(false); // 최근 고객 표시 여부
   const [isSearching, setIsSearching] = useState(false); // 검색 중 상태
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false); // 고객 등록 모달
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedTreatments, setSelectedTreatments] = useState<SelectedTreatmentItem[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<ShopUser | null>(null);
@@ -250,6 +253,30 @@ export default function BookingForm({
     }, 0);
   }, [selectedTreatments]);
 
+  // 고객 등록 모달 핸들러
+  const handleCustomerRegistered = useCallback((customer: Phonebook) => {
+    setSelectedCustomer(customer);
+    setCustomerSearch('');
+    setShowRecentCustomers(false);
+    setShowRegistrationModal(false);
+    Keyboard.dismiss();
+  }, []);
+
+  const openRegistrationModal = useCallback((searchText?: string) => {
+    const input = searchText || customerSearch;
+    const inputType = detectInputType(input);
+    
+    // 전화번호만 있는 경우 빠른 등록 모드로 열기
+    if (inputType === 'phone') {
+      setCustomerSearch(input);
+      setShowRegistrationModal(true);
+    } else {
+      // 이름이 있거나 혼합된 경우 일반 등록 모드
+      setCustomerSearch(input);
+      setShowRegistrationModal(true);
+    }
+  }, [customerSearch]);
+
   const handleBooking = async () => {
     // 유효성 검사
     if (!selectedCustomer) {
@@ -369,9 +396,16 @@ export default function BookingForm({
             <Text style={bookingFormStyles.sectionTitle}>👤 고객 선택</Text>
             <TextInput
               style={bookingFormStyles.searchInput}
-              placeholder="고객 이름 또는 전화번호 검색"
+              placeholder="고객 이름 또는 전화번호 검색 (010-1234-5678)"
               value={customerSearch}
-              onChangeText={setCustomerSearch}
+              onChangeText={(text) => {
+                // 숫자로만 이루어진 경우 전화번호로 간주하여 포맷팅
+                if (/^\d/.test(text.trim())) {
+                  setCustomerSearch(formatPhoneNumber(text));
+                } else {
+                  setCustomerSearch(text);
+                }
+              }}
               onFocus={() => {
                 console.log('🎯 검색 입력 포커스');
                 // 포커스 시 최근 고객 표시
@@ -399,7 +433,7 @@ export default function BookingForm({
               <View style={bookingFormStyles.selectedCustomer}>
                 <View style={bookingFormStyles.customerInfo}>
                   <Text style={bookingFormStyles.customerName}>{selectedCustomer.name}</Text>
-                  <Text style={bookingFormStyles.customerPhone}>{selectedCustomer.phone_number}</Text>
+                  <Text style={bookingFormStyles.customerPhone}>{formatPhoneNumber(selectedCustomer.phone_number)}</Text>
                 </View>
                 <TouchableOpacity 
                   onPress={() => {
@@ -445,7 +479,7 @@ export default function BookingForm({
                           activeOpacity={0.7}
                         >
                           <Text style={bookingFormStyles.customerItemName}>{customer.name}</Text>
-                          <Text style={bookingFormStyles.customerItemPhone}>{customer.phone_number}</Text>
+                          <Text style={bookingFormStyles.customerItemPhone}>{formatPhoneNumber(customer.phone_number)}</Text>
                         </TouchableOpacity>
                       )}
                       scrollEnabled={false}
@@ -456,8 +490,15 @@ export default function BookingForm({
 
                 {/* 검색 결과가 없을 때 */}
                 {!isSearching && searchResults.length === 0 && customerSearch.trim().length > 0 && (
-                  <View style={[bookingFormStyles.searchResults, { alignItems: 'center', padding: 20 }]}>
-                    <Text style={{ color: '#666' }}>검색 결과가 없습니다.</Text>
+                  <View style={[bookingFormStyles.searchResults, { alignItems: 'center', padding: 20 }]}> 
+                    <Text style={{ color: '#666', marginBottom: 8 }}>검색 결과가 없습니다.</Text>
+                    <TouchableOpacity
+                      style={bookingFormStyles.addCustomerButton}
+                      onPress={() => openRegistrationModal(customerSearch)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={bookingFormStyles.addCustomerButtonText}>새 고객 등록하기</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
 
@@ -489,7 +530,7 @@ export default function BookingForm({
                               })}
                             </Text>
                           </View>
-                          <Text style={bookingFormStyles.customerItemPhone}>{customer.phone_number}</Text>
+                          <Text style={bookingFormStyles.customerItemPhone}>{formatPhoneNumber(customer.phone_number)}</Text>
                         </TouchableOpacity>
                       )}
                       scrollEnabled={false}
@@ -591,10 +632,11 @@ export default function BookingForm({
               <Text style={bookingFormStyles.sectionSubtitle}>
                 💡 회차와 가격, 시간을 조정할 수 있습니다
               </Text>
-              <View>
-                {selectedTreatments.map((item, index) => (
+              <FlatList
+                data={selectedTreatments}
+                keyExtractor={(item, index) => `treatment-${item.menuDetail.id}-${index}`}
+                renderItem={({ item, index }) => (
                   <SelectedTreatmentItemComponent
-                    key={`treatment-${item.menuDetail.id}-${index}`}
                     item={item}
                     index={index}
                     onRemove={removeTreatment}
@@ -602,9 +644,16 @@ export default function BookingForm({
                     onUpdatePrice={handlePriceTextChange}
                     onUpdateDuration={handleDurationTextChange}
                   />
-                ))}
-              </View>
-              
+                )}
+                scrollEnabled={false}
+                nestedScrollEnabled={true}
+                removeClippedSubviews={true}
+                initialNumToRender={5}
+                maxToRenderPerBatch={5}
+                windowSize={10}
+                updateCellsBatchingPeriod={50}
+                getItemLayout={(data, index) => ({ length: 200, offset: 200 * index, index })}
+              />
               <View style={bookingFormStyles.totalSummary}>
                 <Text style={bookingFormStyles.totalText}>
                   총 {totalDuration}분 • {totalPrice.toLocaleString()}원
@@ -717,6 +766,22 @@ export default function BookingForm({
         </ScrollView>
       </View>
     </TouchableWithoutFeedback>
+    
+    {/* 고객 등록 모달 */}
+    <CustomerRegistrationModal
+      visible={showRegistrationModal}
+      onClose={() => setShowRegistrationModal(false)}
+      onCustomerRegistered={handleCustomerRegistered}
+      initialPhone={(() => {
+        const { phone } = extractNameAndPhone(customerSearch);
+        return phone || customerSearch;
+      })()}
+      initialName={(() => {
+        const { name } = extractNameAndPhone(customerSearch);
+        return name;
+      })()}
+      quickMode={detectInputType(customerSearch) === 'phone'}
+    />
     </KeyboardAvoidingView>
   );
 }

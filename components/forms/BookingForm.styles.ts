@@ -573,4 +573,18 @@ export const bookingFormStyles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#ffffff',
   },
+
+  // 새 고객 등록 버튼 스타일
+  addCustomerButton: {
+    backgroundColor: '#1976d2',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  addCustomerButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
 });
