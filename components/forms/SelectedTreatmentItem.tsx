@@ -110,6 +110,15 @@ const SelectedTreatmentItemComponent = memo(({
       </View>
     </View>
   );
+}, (prevProps, nextProps) => {
+  // 성능 최적화를 위한 얕은 비교
+  return (
+    prevProps.item.menuDetail.id === nextProps.item.menuDetail.id &&
+    prevProps.item.sessionNo === nextProps.item.sessionNo &&
+    prevProps.item.customPrice === nextProps.item.customPrice &&
+    prevProps.item.customDuration === nextProps.item.customDuration &&
+    prevProps.index === nextProps.index
+  );
 });
 
 SelectedTreatmentItemComponent.displayName = 'SelectedTreatmentItem';

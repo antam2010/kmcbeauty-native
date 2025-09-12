@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  InteractionManager,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -180,19 +181,28 @@ export default function BookingForm({
       customPrice: menuDetail.base_price,
       customDuration: menuDetail.duration_min
     };
-    setSelectedTreatments(prev => [...prev, newTreatment]);
+    
+    // 상호작용이 완료된 후 상태 업데이트를 수행하여 UI 블로킹 방지
+    InteractionManager.runAfterInteractions(() => {
+      setSelectedTreatments(prev => [...prev, newTreatment]);
+    });
   }, [selectedTreatments]);
 
   const removeTreatment = useCallback((index: number) => {
-    setSelectedTreatments(prev => prev.filter((_, i) => i !== index));
+    // 상호작용이 완료된 후 상태 업데이트를 수행하여 UI 블로킹 방지
+    InteractionManager.runAfterInteractions(() => {
+      setSelectedTreatments(prev => prev.filter((_, i) => i !== index));
+    });
   }, []);
 
   const updateSessionNo = useCallback((index: number, sessionNo: number) => {
     console.log('회차 업데이트:', index, sessionNo);
+    const newSessionNo = Math.max(1, sessionNo);
+    console.log('새로운 회차:', newSessionNo);
+    
+    // 즉시 업데이트 (회차는 자주 바뀌므로 지연 없이)
     setSelectedTreatments(prev => {
       const updated = [...prev];
-      const newSessionNo = Math.max(1, sessionNo);
-      console.log('새로운 회차:', newSessionNo);
       updated[index] = { ...updated[index], sessionNo: newSessionNo };
       return updated;
     });
@@ -323,8 +333,10 @@ export default function BookingForm({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled={true}
-            removeClippedSubviews={true}
-            scrollEventThrottle={16}
+            removeClippedSubviews={false}
+            scrollEventThrottle={1}
+            decelerationRate="normal"
+            disableIntervalMomentum={true}
           >
           {/* 헤더 */}
           <View style={bookingFormStyles.header}>
@@ -542,7 +554,8 @@ export default function BookingForm({
                       ]}
                       onPress={() => !isSelected && addTreatment(detail)}
                       disabled={isSelected}
-                      activeOpacity={isSelected ? 1 : 0.7}
+                      activeOpacity={isSelected ? 1 : 0.6}
+                      delayPressIn={0}
                     >
                       <View style={bookingFormStyles.treatmentInfo}>
                         <Text style={[
@@ -578,11 +591,10 @@ export default function BookingForm({
               <Text style={bookingFormStyles.sectionSubtitle}>
                 💡 회차와 가격, 시간을 조정할 수 있습니다
               </Text>
-              <FlatList
-                data={selectedTreatments}
-                keyExtractor={(item, index) => `treatment-${item.menuDetail.id}-${index}`}
-                renderItem={({ item, index }) => (
+              <View>
+                {selectedTreatments.map((item, index) => (
                   <SelectedTreatmentItemComponent
+                    key={`treatment-${item.menuDetail.id}-${index}`}
                     item={item}
                     index={index}
                     onRemove={removeTreatment}
@@ -590,20 +602,8 @@ export default function BookingForm({
                     onUpdatePrice={handlePriceTextChange}
                     onUpdateDuration={handleDurationTextChange}
                   />
-                )}
-                scrollEnabled={false}
-                nestedScrollEnabled={true}
-                removeClippedSubviews={false}
-                getItemLayout={(data, index) => ({
-                  length: 200, // 예상 아이템 높이
-                  offset: 200 * index,
-                  index,
-                })}
-                initialNumToRender={10}
-                maxToRenderPerBatch={5}
-                windowSize={10}
-                updateCellsBatchingPeriod={100}
-              />
+                ))}
+              </View>
               
               <View style={bookingFormStyles.totalSummary}>
                 <Text style={bookingFormStyles.totalText}>
