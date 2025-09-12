@@ -122,7 +122,7 @@ export default function CustomerRegistrationModal({
       const newCustomer = await phonebookApiService.create({
         name: '신원미상',
         phone_number: unformattedPhone,
-        group_name: selectedGroup || null
+        group_name: selectedGroup || ''
       });
 
       Alert.alert('완료', '고객이 성공적으로 등록되었습니다!', [
@@ -190,7 +190,7 @@ export default function CustomerRegistrationModal({
       const newCustomer = await phonebookApiService.create({
         name: trimmedName,
         phone_number: unformattedPhone,
-        group_name: selectedGroup || null
+        group_name: selectedGroup || ''
       });
 
       Alert.alert('완료', '고객이 성공적으로 등록되었습니다!', [
