@@ -3,7 +3,7 @@ import { shopApiService, type ShopUser } from '@/src/api/services/shop';
 import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import type { TreatmentCreate, TreatmentItemCreate } from '@/src/types/treatment';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,19 +20,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingFormStyles } from './BookingForm.styles';
+import SelectedTreatmentItemComponent, { type SelectedTreatmentItem } from './SelectedTreatmentItem';
 
 interface BookingFormProps {
   selectedDate?: string;
   reservedTimes?: string[]; // 이미 예약된 시간들
   onClose: () => void;
   onBookingComplete: () => void;
-}
-
-interface SelectedTreatmentItem {
-  menuDetail: TreatmentMenuDetail;
-  sessionNo: number;
-  customPrice: number;  // 회차별 개별 가격
-  customDuration: number;  // 회차별 개별 시간
 }
 
 export default function BookingForm({ 
@@ -172,64 +166,67 @@ export default function BookingForm({
     return reservedTimes.includes(time);
   };
 
-  const addTreatment = (menuDetail: TreatmentMenuDetail) => {
+  const addTreatment = useCallback((menuDetail: TreatmentMenuDetail) => {
+    // 이미 선택된 시술인지 확인
+    const isAlreadySelected = selectedTreatments.some(item => item.menuDetail.id === menuDetail.id);
+    if (isAlreadySelected) {
+      Alert.alert('알림', '이미 선택된 시술입니다.');
+      return;
+    }
+
     const newTreatment: SelectedTreatmentItem = {
       menuDetail,
-      sessionNo: 1,
       customPrice: menuDetail.base_price,
       customDuration: menuDetail.duration_min
     };
-    setSelectedTreatments([...selectedTreatments, newTreatment]);
-  };
+    setSelectedTreatments(prev => [...prev, newTreatment]);
+  }, [selectedTreatments]);
 
-  const removeTreatment = (index: number) => {
-    const updated = selectedTreatments.filter((_, i) => i !== index);
-    setSelectedTreatments(updated);
-  };
+  const removeTreatment = useCallback((index: number) => {
+    setSelectedTreatments(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
-  const updateSessionNo = (index: number, sessionNo: number) => {
-    const updated = [...selectedTreatments];
-    updated[index].sessionNo = Math.max(1, sessionNo);
-    setSelectedTreatments(updated);
-  };
+  const updateCustomPrice = useCallback((index: number, price: number) => {
+    setSelectedTreatments(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], customPrice: Math.max(0, price) };
+      return updated;
+    });
+  }, []);
 
-  const updateCustomPrice = (index: number, price: number) => {
-    const updated = [...selectedTreatments];
-    updated[index].customPrice = Math.max(0, price);
-    setSelectedTreatments(updated);
-  };
+  const updateCustomDuration = useCallback((index: number, duration: number) => {
+    setSelectedTreatments(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], customDuration: Math.max(1, duration) };
+      return updated;
+    });
+  }, []);
 
-  const updateCustomDuration = (index: number, duration: number) => {
-    const updated = [...selectedTreatments];
-    updated[index].customDuration = Math.max(1, duration); // 최소 1분
-    setSelectedTreatments(updated);
-  };
-
-  const handlePriceTextChange = (index: number, text: string) => {
+  const handlePriceTextChange = useCallback((index: number, text: string) => {
     // 숫자만 허용하고 빈 문자열도 허용 (임시로)
     const numericText = text.replace(/[^0-9]/g, '');
     const price = numericText === '' ? 0 : parseInt(numericText);
     updateCustomPrice(index, price);
-  };
+  }, [updateCustomPrice]);
 
-  const handleDurationTextChange = (index: number, text: string) => {
+  const handleDurationTextChange = useCallback((index: number, text: string) => {
     // 숫자만 허용하고 빈 문자열도 허용 (임시로)
     const numericText = text.replace(/[^0-9]/g, '');
     const duration = numericText === '' ? 1 : parseInt(numericText);
     updateCustomDuration(index, duration);
-  };
+  }, [updateCustomDuration]);
 
-  const getTotalPrice = () => {
+  const totalPrice = useMemo(() => {
     return selectedTreatments.reduce((total, item) => {
       return total + item.customPrice;
     }, 0);
-  };
+  }, [selectedTreatments]);
 
-  const getTotalDuration = () => {
+  const totalDuration = useMemo(() => {
     return selectedTreatments.reduce((total, item) => {
       return total + item.customDuration;
     }, 0);
-  };
+  }, [selectedTreatments]);
 
   const handleBooking = async () => {
     // 유효성 검사
@@ -261,7 +258,7 @@ export default function BookingForm({
         menu_detail_id: item.menuDetail.id,
         base_price: item.customPrice,
         duration_min: item.customDuration,
-        session_no: item.sessionNo
+        session_no: 1 // 항상 1회차로 고정
       }));
 
       // 시술 예약 생성
@@ -515,26 +512,47 @@ export default function BookingForm({
           <View style={bookingFormStyles.section}>
             <Text style={bookingFormStyles.sectionTitle}>💅 시술 선택</Text>
             <Text style={bookingFormStyles.sectionSubtitle}>
-              💡 같은 시술을 여러 회차로 예약할 수 있습니다 (예: 두피마사지 2회차)
+              💡 각 시술은 한 번씩만 선택할 수 있습니다
             </Text>
             {treatmentMenus.map((menu) => (
               <View key={menu.id} style={bookingFormStyles.menuGroup}>
                 <Text style={bookingFormStyles.menuGroupTitle}>{menu.name}</Text>
-                {menu.details.map((detail) => (
-                  <TouchableOpacity
-                    key={detail.id}
-                    style={bookingFormStyles.treatmentOption}
-                    onPress={() => addTreatment(detail)}
-                  >
-                    <View style={bookingFormStyles.treatmentInfo}>
-                      <Text style={bookingFormStyles.treatmentName}>{detail.name}</Text>
-                      <Text style={bookingFormStyles.treatmentDetails}>
-                        {detail.base_price.toLocaleString()}원 • {detail.duration_min}분
+                {menu.details.map((detail) => {
+                  const isSelected = selectedTreatments.some(item => item.menuDetail.id === detail.id);
+                  return (
+                    <TouchableOpacity
+                      key={detail.id}
+                      style={[
+                        bookingFormStyles.treatmentOption,
+                        isSelected && bookingFormStyles.treatmentOptionSelected
+                      ]}
+                      onPress={() => !isSelected && addTreatment(detail)}
+                      disabled={isSelected}
+                      activeOpacity={isSelected ? 1 : 0.7}
+                    >
+                      <View style={bookingFormStyles.treatmentInfo}>
+                        <Text style={[
+                          bookingFormStyles.treatmentName,
+                          isSelected && bookingFormStyles.treatmentNameSelected
+                        ]}>
+                          {detail.name}
+                        </Text>
+                        <Text style={[
+                          bookingFormStyles.treatmentDetails,
+                          isSelected && bookingFormStyles.treatmentDetailsSelected
+                        ]}>
+                          {detail.base_price.toLocaleString()}원 • {detail.duration_min}분
+                        </Text>
+                      </View>
+                      <Text style={[
+                        bookingFormStyles.addButton,
+                        isSelected && bookingFormStyles.addButtonSelected
+                      ]}>
+                        {isSelected ? '✓' : '+'}
                       </Text>
-                    </View>
-                    <Text style={bookingFormStyles.addButton}>+</Text>
-                  </TouchableOpacity>
-                ))}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             ))}
           </View>
@@ -542,113 +560,35 @@ export default function BookingForm({
           {/* 선택된 시술들 */}
           {selectedTreatments.length > 0 && (
             <View style={bookingFormStyles.section}>
-              <Text style={bookingFormStyles.sectionTitle}>✅ 선택된 시술 (회차별)</Text>
+              <Text style={bookingFormStyles.sectionTitle}>✅ 선택된 시술</Text>
               <Text style={bookingFormStyles.sectionSubtitle}>
-                💡 각 회차별로 가격과 시간을 개별 조정할 수 있습니다 (패키지 상품 등)
+                💡 가격과 시간을 개별 조정할 수 있습니다
               </Text>
-              {selectedTreatments.map((item, index) => (
-                <View key={index} style={bookingFormStyles.selectedTreatment}>
-                  <View style={bookingFormStyles.treatmentHeader}>
-                    <View style={bookingFormStyles.treatmentBasicInfo}>
-                      <Text style={bookingFormStyles.treatmentName}>{item.menuDetail.name}</Text>
-                      <Text style={bookingFormStyles.treatmentBaseInfo}>
-                        기본: {item.menuDetail.base_price.toLocaleString()}원 • {item.menuDetail.duration_min}분
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={bookingFormStyles.removeButton}
-                      onPress={() => removeTreatment(index)}
-                    >
-                      <Text style={bookingFormStyles.removeButtonText}>✕</Text>
-                    </TouchableOpacity>
-                  </View>
-                  
-                  <View style={bookingFormStyles.sessionControls}>
-                    <Text style={bookingFormStyles.sessionLabel}>회차:</Text>
-                    <TouchableOpacity
-                      style={bookingFormStyles.sessionButton}
-                      onPress={() => updateSessionNo(index, item.sessionNo - 1)}
-                    >
-                      <Text style={bookingFormStyles.sessionButtonText}>-</Text>
-                    </TouchableOpacity>
-                    <Text style={bookingFormStyles.sessionNo}>{item.sessionNo}회차</Text>
-                    <TouchableOpacity
-                      style={bookingFormStyles.sessionButton}
-                      onPress={() => updateSessionNo(index, item.sessionNo + 1)}
-                    >
-                      <Text style={bookingFormStyles.sessionButtonText}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                  
-                  {/* 가격 및 시간 조정 */}
-                  <View style={bookingFormStyles.customControls}>
-                    <View style={bookingFormStyles.customControlRow}>
-                      <View style={bookingFormStyles.customControlItem}>
-                        <Text style={bookingFormStyles.customControlLabel}>실제 가격</Text>
-                        <View style={bookingFormStyles.customInputGroup}>
-                          <TextInput
-                            style={bookingFormStyles.customInput}
-                            value={item.customPrice.toString()}
-                            onChangeText={(text) => handlePriceTextChange(index, text)}
-                            keyboardType="numeric"
-                            placeholder="0"
-                            selectTextOnFocus={true}
-                          />
-                          <Text style={bookingFormStyles.customUnit}>원</Text>
-                        </View>
-                      </View>
-                      
-                      <View style={bookingFormStyles.customControlItem}>
-                        <Text style={bookingFormStyles.customControlLabel}>실제 시간</Text>
-                        <View style={bookingFormStyles.customInputGroup}>
-                          <TextInput
-                            style={bookingFormStyles.customInput}
-                            value={item.customDuration.toString()}
-                            onChangeText={(text) => handleDurationTextChange(index, text)}
-                            keyboardType="numeric"
-                            placeholder="1"
-                            selectTextOnFocus={true}
-                          />
-                          <Text style={bookingFormStyles.customUnit}>분</Text>
-                        </View>
-                      </View>
-                    </View>
-                    
-                    {/* 빠른 가격 설정 */}
-                    <View style={bookingFormStyles.quickActionsRow}>
-                      <TouchableOpacity
-                        style={bookingFormStyles.quickButton}
-                        onPress={() => updateCustomPrice(index, 0)}
-                      >
-                        <Text style={bookingFormStyles.quickButtonText}>무료</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={bookingFormStyles.quickButton}
-                        onPress={() => updateCustomPrice(index, item.menuDetail.base_price)}
-                      >
-                        <Text style={bookingFormStyles.quickButtonText}>기본가</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={bookingFormStyles.quickButton}
-                        onPress={() => updateCustomPrice(index, Math.round(item.menuDetail.base_price * 0.5))}
-                      >
-                        <Text style={bookingFormStyles.quickButtonText}>50%</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  
-                  {/* 현재 회차 요약 */}
-                  <View style={bookingFormStyles.itemSummary}>
-                    <Text style={bookingFormStyles.itemSummaryText}>
-                      {item.sessionNo}회차 • {item.customPrice.toLocaleString()}원 • {item.customDuration}분
-                    </Text>
-                  </View>
-                </View>
-              ))}
+              <FlatList
+                data={selectedTreatments}
+                keyExtractor={(_, index) => `treatment-${index}`}
+                renderItem={({ item, index }) => (
+                  <SelectedTreatmentItemComponent
+                    item={item}
+                    index={index}
+                    onRemove={removeTreatment}
+                    onUpdatePrice={handlePriceTextChange}
+                    onUpdateDuration={handleDurationTextChange}
+                    onQuickPrice={updateCustomPrice}
+                  />
+                )}
+                scrollEnabled={false}
+                nestedScrollEnabled={true}
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={3}
+                updateCellsBatchingPeriod={50}
+                initialNumToRender={3}
+                windowSize={5}
+              />
               
               <View style={bookingFormStyles.totalSummary}>
                 <Text style={bookingFormStyles.totalText}>
-                  총 {getTotalDuration()}분 • {getTotalPrice().toLocaleString()}원
+                  총 {selectedTreatments.length}개 시술 • {totalDuration}분 • {totalPrice.toLocaleString()}원
                 </Text>
               </View>
             </View>

@@ -5,32 +5,26 @@ import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail }
 import type { Treatment, TreatmentItemCreate, TreatmentUpdate } from '@/src/types/treatment';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Keyboard,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { type SelectedTreatmentItem } from '../forms/SelectedTreatmentItem';
 
 interface EditTreatmentModalProps {
   visible: boolean;
   treatment: Treatment;
   onClose: () => void;
   onUpdateSuccess?: () => void;
-}
-
-interface SelectedTreatmentItem {
-  menuDetail: TreatmentMenuDetail;
-  sessionNo: number;
-  customPrice: number;
-  customDuration: number;
 }
 
 export default function EditTreatmentModal({

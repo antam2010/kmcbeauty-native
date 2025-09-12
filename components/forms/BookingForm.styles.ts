@@ -272,6 +272,23 @@ export const bookingFormStyles = StyleSheet.create({
     paddingHorizontal: 8,
   },
 
+  // 선택된 시술 옵션 스타일
+  treatmentOptionSelected: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#2196f3',
+    borderWidth: 1.5,
+  },
+  treatmentNameSelected: {
+    color: '#1976d2',
+  },
+  treatmentDetailsSelected: {
+    color: '#1976d2',
+  },
+  addButtonSelected: {
+    color: '#2196f3',
+    fontSize: 18,
+  },
+
   // 선택된 시술 스타일
   selectedTreatment: {
     backgroundColor: '#ffffff',
