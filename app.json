@@ -38,6 +38,12 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "연락처 동기화를 위해 연락처 접근 권한이 필요합니다."
+        }
       ]
     ],
     "experiments": {

@@ -1,8 +1,10 @@
+import ContactSyncModal from '@/components/modals/ContactSyncModal';
 import CustomerRegistrationModal from '@/components/modals/CustomerRegistrationModal';
 import { phonebookApiService, type Phonebook } from '@/src/api/services/phonebook';
 import { shopApiService, type ShopUser } from '@/src/api/services/shop';
 import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
+import { type ContactSyncResult } from '@/src/services/contactSync';
 import type { TreatmentCreate, TreatmentItemCreate } from '@/src/types/treatment';
 import { detectInputType, extractNameAndPhone, formatPhoneNumber } from '@/src/utils/phoneFormat';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -46,6 +48,7 @@ export default function BookingForm({
   const [showRecentCustomers, setShowRecentCustomers] = useState(false); // 최근 고객 표시 여부
   const [isSearching, setIsSearching] = useState(false); // 검색 중 상태
   const [showRegistrationModal, setShowRegistrationModal] = useState(false); // 고객 등록 모달
+  const [showContactSyncModal, setShowContactSyncModal] = useState(false); // 연락처 동기화 모달
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedTreatments, setSelectedTreatments] = useState<SelectedTreatmentItem[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<ShopUser | null>(null);
@@ -73,7 +76,7 @@ export default function BookingForm({
     loadTreatmentMenus();
     loadStaffUsers();
     loadRecentCustomers(); // 최근 고객 로드 추가
-  }, []);
+  }, []); // 의존성 배열 비워두기
 
   // 최근 등록된 고객들 로드
   const loadRecentCustomers = useCallback(async () => {
@@ -108,6 +111,19 @@ export default function BookingForm({
       setRecentCustomers([]);
     }
   }, []);
+
+  // 연락처 동기화 완료 핸들러
+  const handleContactSyncComplete = useCallback(async (result: ContactSyncResult) => {
+    console.log('🔄 연락처 동기화 완료:', result);
+    try {
+      // 동기화 완료 후 최근 고객 목록 새로고침
+      await loadRecentCustomers();
+      console.log('✅ 동기화 후 고객 목록 새로고침 완료');
+    } catch (error) {
+      console.error('❌ 동기화 후 고객 목록 새로고침 실패:', error);
+    }
+    setShowContactSyncModal(false);
+  }, [loadRecentCustomers]);
 
   // 고객 검색
   useEffect(() => {
@@ -559,13 +575,22 @@ export default function BookingForm({
                 {/* 검색 결과가 없을 때 */}
                 {!isSearching && searchResults.length === 0 && customerSearch.trim().length > 0 && (
                   <View style={[bookingFormStyles.searchResults, { alignItems: 'center', padding: 20 }]}> 
-                    <Text style={{ color: '#666', marginBottom: 8 }}>검색 결과가 없습니다.</Text>
+                    <Text style={{ color: '#666', marginBottom: 12 }}>검색 결과가 없습니다.</Text>
+                    
                     <TouchableOpacity
                       style={bookingFormStyles.addCustomerButton}
                       onPress={() => openRegistrationModal(customerSearch)}
                       activeOpacity={0.7}
                     >
                       <Text style={bookingFormStyles.addCustomerButtonText}>새 고객 등록하기</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[bookingFormStyles.addCustomerButton, { backgroundColor: '#28a745', marginTop: 8 }]}
+                      onPress={() => setShowContactSyncModal(true)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={bookingFormStyles.addCustomerButtonText}>📱 연락처 동기화</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -580,10 +605,10 @@ export default function BookingForm({
                         style={bookingFormStyles.customerItem}
                         onPress={() => {
                           console.log('🎯 최근 고객 선택 시도:', customer.name, 'ID:', customer.id);
-                          console.log('🎯 현재 선택된 고객:', selectedCustomer?.name || 'none');
+                          console.log('🎯 현재 선택된 고객:', (selectedCustomer as Phonebook | null)?.name || 'none');
                           
                           // 중복 선택 방지
-                          if (selectedCustomer?.id === customer.id) {
+                          if ((selectedCustomer as Phonebook | null)?.id === customer.id) {
                             console.log('⚠️ 이미 선택된 고객입니다.');
                             return;
                           }
@@ -615,6 +640,19 @@ export default function BookingForm({
                         <Text style={bookingFormStyles.customerItemPhone}>{formatPhoneNumber(customer.phone_number)}</Text>
                       </TouchableOpacity>
                     ))}
+                    
+                    {/* 연락처 동기화 버튼 추가 */}
+                    <TouchableOpacity
+                      style={[bookingFormStyles.addCustomerButton, { 
+                        backgroundColor: '#28a745', 
+                        marginTop: 12,
+                        marginHorizontal: 8 
+                      }]}
+                      onPress={() => setShowContactSyncModal(true)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={bookingFormStyles.addCustomerButtonText}>📱 연락처 동기화</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </View>
@@ -860,6 +898,13 @@ export default function BookingForm({
         return name;
       })()}
       quickMode={detectInputType(customerSearch) === 'phone'}
+    />
+
+    {/* 연락처 동기화 모달 */}
+    <ContactSyncModal
+      visible={showContactSyncModal}
+      onClose={() => setShowContactSyncModal(false)}
+      onSyncComplete={handleContactSyncComplete}
     />
     </KeyboardAvoidingView>
   );
