@@ -5,7 +5,7 @@ import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import type { TreatmentCreate, TreatmentItemCreate } from '@/src/types/treatment';
 import { detectInputType, extractNameAndPhone, formatPhoneNumber } from '@/src/utils/phoneFormat';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -76,20 +76,38 @@ export default function BookingForm({
   }, []);
 
   // 최근 등록된 고객들 로드
-  const loadRecentCustomers = async () => {
+  const loadRecentCustomers = useCallback(async () => {
     try {
-      // 최근 등록 순서대로 5명 가져오기
-      const response = await phonebookApiService.list({ size: 5, page: 1 });
+      console.log('🔄 최근 고객 목록 로드 시작...');
+      // 최근 등록 순서대로 10명 가져오기 (더 많이 가져와서 신규 고객 포함 확인)
+      const response = await phonebookApiService.list({ size: 10, page: 1 });
+      console.log('📋 API 응답:', response.items.length, '명');
+      
       // created_at 기준으로 내림차순 정렬 (최신순)
       const sortedCustomers = response.items.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
-      setRecentCustomers(sortedCustomers);
+      
+      console.log('📋 정렬된 최근 고객 목록:', sortedCustomers.map(c => `${c.name}(${c.id})`));
+      
+      // 상태 업데이트 전에 기존 목록과 비교
+      setRecentCustomers(prev => {
+        const isSame = prev.length === sortedCustomers.length && 
+          prev.every((item, index) => item.id === sortedCustomers[index]?.id);
+        
+        if (!isSame) {
+          console.log('✅ 최근 고객 목록 업데이트됨');
+          return sortedCustomers;
+        } else {
+          console.log('🔄 최근 고객 목록 변경사항 없음');
+          return prev;
+        }
+      });
     } catch (error) {
-      console.error('최근 고객 로드 실패:', error);
+      console.error('❌ 최근 고객 로드 실패:', error);
       setRecentCustomers([]);
     }
-  };
+  }, []);
 
   // 고객 검색
   useEffect(() => {
@@ -141,6 +159,16 @@ export default function BookingForm({
       selectedCustomer: selectedCustomer?.name || 'none'
     });
   }, [isSearching, searchResults, customerSearch, showRecentCustomers, recentCustomers, selectedCustomer]);
+
+  // 디버깅용 - 최근 고객 목록 상태 변화 추적
+  useEffect(() => {
+    console.log('🔍 최근 고객 목록 상태 변경됨:', {
+      count: recentCustomers.length,
+      customers: recentCustomers.map(c => `${c.name}(${c.id})`),
+      showRecentCustomers,
+      selectedCustomer: selectedCustomer?.name || 'none'
+    });
+  }, [recentCustomers, showRecentCustomers, selectedCustomer]);
 
   const loadTreatmentMenus = async () => {
     try {
@@ -254,13 +282,38 @@ export default function BookingForm({
   }, [selectedTreatments]);
 
   // 고객 등록 모달 핸들러
-  const handleCustomerRegistered = useCallback((customer: Phonebook) => {
+  const handleCustomerRegistered = useCallback(async (customer: Phonebook) => {
+    console.log('🎉 새 고객 등록됨:', customer.name, 'ID:', customer.id);
+    
     setSelectedCustomer(customer);
     setCustomerSearch('');
     setShowRecentCustomers(false);
     setShowRegistrationModal(false);
+    
+    // 새 고객 등록 후 최근 고객 목록 다시 로드 (강제 새로고침)
+    try {
+      console.log('🔄 새 고객 등록 후 목록 새로고침 시작...');
+      
+      // 약간의 지연 후 새로고침 (서버 동기화 대기)
+      setTimeout(async () => {
+        try {
+          await loadRecentCustomers();
+          console.log('✅ 새 고객 등록 후 최근 고객 목록 업데이트 완료');
+          
+          // 추가로 상태 강제 업데이트
+          setShowRecentCustomers(false);
+          setCustomerSearch('');
+        } catch (error) {
+          console.error('❌ 최근 고객 목록 업데이트 실패:', error);
+        }
+      }, 500); // 500ms 지연으로 서버 동기화 대기
+      
+    } catch (error) {
+      console.error('❌ 최근 고객 목록 새로고침 실패:', error);
+    }
+    
     Keyboard.dismiss();
-  }, []);
+  }, [loadRecentCustomers]);
 
   const openRegistrationModal = useCallback((searchText?: string) => {
     const input = searchText || customerSearch;
@@ -335,6 +388,17 @@ export default function BookingForm({
     }
   };
 
+  // 컴포넌트 재마운트 추적을 위한 고유 ID
+  const componentId = useMemo(() => Math.random().toString(36).substring(7), []);
+  
+  useEffect(() => {
+    console.log('🔧 BookingForm 컴포넌트 마운트/재마운트됨. ID:', componentId);
+    
+    return () => {
+      console.log('🔧 BookingForm 컴포넌트 언마운트됨. ID:', componentId);
+    };
+  }, [componentId]);
+
   if (isLoadingMenus) {
     return (
       <View style={[bookingFormStyles.container, bookingFormStyles.loadingContainer, { paddingTop: insets.top }]}>
@@ -407,20 +471,24 @@ export default function BookingForm({
                 }
               }}
               onFocus={() => {
-                console.log('🎯 검색 입력 포커스');
-                // 포커스 시 최근 고객 표시
+                console.log('🎯 검색 입력 포커스 - 최근 고객 표시');
+                // 포커스 시 최근 고객 표시 (검색어가 없고 고객이 선택되지 않은 경우)
                 if (!customerSearch.trim() && !selectedCustomer) {
                   setShowRecentCustomers(true);
+                  // 최근 고객 목록 새로고침
+                  loadRecentCustomers().catch(error => {
+                    console.error('포커스 시 최근 고객 로드 실패:', error);
+                  });
                 }
               }}
               onBlur={() => {
                 console.log('🎯 검색 입력 블러');
-                // 포커스 해제 시 최근 고객 목록 숨김 (선택되지 않은 경우에만)
+                // 포커스 해제 시 최근 고객 목록 숨김 (지연 후 실행하여 터치 이벤트 처리 허용)
                 setTimeout(() => {
                   if (!selectedCustomer && !customerSearch.trim()) {
                     setShowRecentCustomers(false);
                   }
-                }, 150); // 약간의 지연으로 선택 이벤트와 겹치지 않도록
+                }, 200); // 200ms 지연으로 터치 이벤트가 먼저 처리되도록 함
               }}
               autoCapitalize="none"
               autoCorrect={false}
@@ -506,36 +574,47 @@ export default function BookingForm({
                 {!isSearching && showRecentCustomers && recentCustomers.length > 0 && customerSearch.trim().length === 0 && (
                   <View style={bookingFormStyles.searchResults}>
                     <Text style={bookingFormStyles.searchResultsTitle}>💚 최근 등록된 고객 ({recentCustomers.length}명)</Text>
-                    <FlatList
-                      data={recentCustomers.slice(0, 8)}
-                      keyExtractor={(item) => item.id.toString()}
-                      renderItem={({ item: customer }) => (
-                        <TouchableOpacity
-                          style={bookingFormStyles.customerItem}
-                          onPress={() => {
-                            console.log('최근 고객 선택:', customer.name);
-                            setSelectedCustomer(customer);
-                            setCustomerSearch('');
-                            setShowRecentCustomers(false);
+                    {recentCustomers.slice(0, 8).map((customer, index) => (
+                      <TouchableOpacity
+                        key={`recent_customer_${customer.id}_${customer.created_at}_${index}`}
+                        style={bookingFormStyles.customerItem}
+                        onPress={() => {
+                          console.log('🎯 최근 고객 선택 시도:', customer.name, 'ID:', customer.id);
+                          console.log('🎯 현재 선택된 고객:', selectedCustomer?.name || 'none');
+                          
+                          // 중복 선택 방지
+                          if (selectedCustomer?.id === customer.id) {
+                            console.log('⚠️ 이미 선택된 고객입니다.');
+                            return;
+                          }
+                          
+                          // 상태 즉시 업데이트
+                          console.log('✅ 고객 선택 처리 시작...');
+                          setSelectedCustomer(customer);
+                          setCustomerSearch('');
+                          setShowRecentCustomers(false);
+                          
+                          console.log('✅ 고객 선택 완료:', customer.name);
+                          
+                          // 키보드 숨기기
+                          setTimeout(() => {
                             Keyboard.dismiss();
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <View style={bookingFormStyles.customerItemHeader}>
-                            <Text style={bookingFormStyles.customerItemName}>{customer.name}</Text>
-                            <Text style={bookingFormStyles.customerItemDate}>
-                              {new Date(customer.created_at).toLocaleDateString('ko-KR', {
-                                month: 'short',
-                                day: 'numeric'
-                              })}
-                            </Text>
-                          </View>
-                          <Text style={bookingFormStyles.customerItemPhone}>{formatPhoneNumber(customer.phone_number)}</Text>
-                        </TouchableOpacity>
-                      )}
-                      scrollEnabled={false}
-                      nestedScrollEnabled={true}
-                    />
+                          }, 100);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <View style={bookingFormStyles.customerItemHeader}>
+                          <Text style={bookingFormStyles.customerItemName}>{customer.name}</Text>
+                          <Text style={bookingFormStyles.customerItemDate}>
+                            {new Date(customer.created_at).toLocaleDateString('ko-KR', {
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </Text>
+                        </View>
+                        <Text style={bookingFormStyles.customerItemPhone}>{formatPhoneNumber(customer.phone_number)}</Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
                 )}
               </View>
