@@ -40,6 +40,15 @@ export abstract class BaseApiService {
         timestamp: new Date().toISOString()
       });
       
+      // 401 에러 특별 처리
+      if (error.response?.status === 401) {
+        console.error('🔐 401 Unauthorized 에러 - 인증 만료:', {
+          url: fullUrl,
+          accessToken: error.config?.headers?.Authorization ? '있음' : '없음',
+          errorDetail: error.response?.data
+        });
+      }
+      
       throw error;
     }
   }
@@ -98,6 +107,16 @@ export abstract class BaseApiService {
         if (errorMessage.includes('required') || errorMessage.includes('missing')) {
           console.error('⚠️ 필수 필드 누락 의심:', errorMessage);
         }
+      }
+      
+      // 401 에러 특별 처리
+      if (error.response?.status === 401) {
+        console.error('🔐 401 Unauthorized 에러 - 인증 만료:', {
+          url: `${this.basePath}${endpoint}`,
+          accessToken: error.config?.headers?.Authorization ? '있음' : '없음',
+          errorDetail: error.response?.data,
+          requestData: data
+        });
       }
       
       throw error;

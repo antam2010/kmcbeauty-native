@@ -1,5 +1,5 @@
 import { type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
-import React, { memo } from 'react';
+import { forwardRef, memo } from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { bookingFormStyles } from './BookingForm.styles';
 
@@ -19,14 +19,14 @@ interface SelectedTreatmentItemProps {
   onUpdateDuration: (index: number, duration: string) => void;
 }
 
-const SelectedTreatmentItemComponent = memo(({
+const SelectedTreatmentItemComponent = memo(forwardRef<TextInput, SelectedTreatmentItemProps>(({
   item,
   index,
   onRemove,
   onUpdateSessionNo,
   onUpdatePrice,
   onUpdateDuration,
-}: SelectedTreatmentItemProps) => {
+}, ref) => {
   return (
     <View style={bookingFormStyles.selectedTreatment}>
       <View style={bookingFormStyles.treatmentHeader}>
@@ -74,6 +74,7 @@ const SelectedTreatmentItemComponent = memo(({
             <Text style={bookingFormStyles.customControlLabel}>실제 가격</Text>
             <View style={bookingFormStyles.customInputGroup}>
               <TextInput
+                ref={ref}
                 style={bookingFormStyles.customInput}
                 value={item.customPrice.toString()}
                 onChangeText={(text) => onUpdatePrice(index, text)}
@@ -110,16 +111,7 @@ const SelectedTreatmentItemComponent = memo(({
       </View>
     </View>
   );
-}, (prevProps, nextProps) => {
-  // 성능 최적화를 위한 얕은 비교
-  return (
-    prevProps.item.menuDetail.id === nextProps.item.menuDetail.id &&
-    prevProps.item.sessionNo === nextProps.item.sessionNo &&
-    prevProps.item.customPrice === nextProps.item.customPrice &&
-    prevProps.item.customDuration === nextProps.item.customDuration &&
-    prevProps.index === nextProps.index
-  );
-});
+}));
 
 SelectedTreatmentItemComponent.displayName = 'SelectedTreatmentItem';
 

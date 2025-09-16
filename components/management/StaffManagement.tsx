@@ -1,9 +1,11 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import InviteCodeGeneratorModal from '@/components/modals/InviteCodeGeneratorModal';
 import { Colors } from '@/constants/Colors';
-import { Staff, staffService } from '@/services/mockServices';
-import { Button, Card } from '@/src/ui/atoms';
+import { StaffUser, userApiService } from '@/src/api/services/staff';
+import { Button } from '@/src/ui/atoms';
 import { Colors as DesignColors, Spacing, Typography } from '@/src/ui/theme';
+import { useShop } from '@/stores/shopStore';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
@@ -20,69 +22,94 @@ interface StaffManagementProps {
 }
 
 export default function StaffManagement({ onGoBack }: StaffManagementProps) {
-  const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [staffList, setStaffList] = useState<StaffUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const { selectedShop } = useShop();
   const colorScheme = useColorScheme() ?? 'light';
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const loadInitialData = async () => {
+      if (!selectedShop?.id) {
+        Alert.alert('오류', '선택된 상점이 없습니다.');
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const staffData = await userApiService.getShopUsers(selectedShop.id);
+        setStaffList(staffData);
+      } catch (error) {
+        console.error('직원 데이터 로딩 중 오류:', error);
+        Alert.alert('오류', '직원 데이터를 불러오는 중 문제가 발생했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialData();
+  }, [selectedShop?.id]);
 
   const loadData = async () => {
+    if (!selectedShop?.id) {
+      Alert.alert('오류', '선택된 상점이 없습니다.');
+      return;
+    }
+
     try {
       setLoading(true);
-      const staffData = await staffService.getAllStaff();
+      const staffData = await userApiService.getShopUsers(selectedShop.id);
       setStaffList(staffData);
     } catch (error) {
-      console.error('데이터 로딩 중 오류:', error);
-      Alert.alert('오류', '데이터를 불러오는 중 문제가 발생했습니다.');
+      console.error('직원 데이터 로딩 중 오류:', error);
+      Alert.alert('오류', '직원 데이터를 불러오는 중 문제가 발생했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddStaff = () => {
-    Alert.alert('직원 추가', '새 직원을 추가하는 화면으로 이동합니다.');
+  const handleRefresh = () => {
+    loadData();
   };
 
-  const handleEditStaff = (staffId: string) => {
+  const handleAddStaff = () => {
+    setShowInviteModal(true);
+  };
+
+  const handleEditStaff = (staffId: number) => {
     Alert.alert('직원 수정', `직원 ID: ${staffId}의 정보를 수정합니다.`);
   };
 
-  const toggleStaffStatus = (staffId: string) => {
-    setStaffList(prev =>
-      prev.map(staff =>
-        staff.id === staffId
-          ? { ...staff, status: staff.status === 'active' ? 'inactive' : 'active' }
-          : staff
-      )
-    );
-  };
+  const toggleStaffStatus = async (staffId: number) => {
+    if (!selectedShop?.id) return;
 
-  const renderStaffItem = (staff: Staff) => (
-    <ThemedView key={staff.id} style={styles.card}>
-      <ThemedView style={styles.cardInfo}>
-        <ThemedText type="subtitle" style={styles.cardTitle}>{staff.name}</ThemedText>
-        <ThemedText style={styles.cardSubtitle}>{staff.position}</ThemedText>
-        <ThemedText style={styles.cardDetails}>전문분야: {staff.specialties.join(', ')}</ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.cardActions}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => handleEditStaff(staff.id)}>
-          <MaterialIcons name="edit" size={22} color={Colors[colorScheme].text} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => toggleStaffStatus(staff.id)}
-        >
-          <MaterialIcons 
-            name={staff.status === 'active' ? 'toggle-on' : 'toggle-off'} 
-            size={28} 
-            color={staff.status === 'active' ? Colors.light.tint : Colors[colorScheme].icon} 
-          />
-        </TouchableOpacity>
-      </ThemedView>
-    </ThemedView>
-  );
+    const staff = staffList.find(s => s.id === staffId);
+    if (!staff) return;
+
+    try {
+      const newStatus = staff.status === 'active' ? 'inactive' : 'active';
+      await userApiService.updateUser(selectedShop.id, staffId, { status: newStatus });
+      
+      setStaffList(prev =>
+        prev.map(s =>
+          s.id === staffId
+            ? { ...s, status: newStatus }
+            : s
+        )
+      );
+      
+      Alert.alert('완료', `직원 상태가 ${newStatus === 'active' ? '활성화' : '비활성화'}되었습니다.`);
+    } catch (error: any) {
+      console.error('직원 상태 변경 중 오류:', error);
+      
+      // 개발 중 메시지인 경우 친화적으로 표시
+      if (error.message && error.message.includes('개발 중')) {
+        Alert.alert('알림', error.message);
+      } else {
+        Alert.alert('오류', '직원 상태 변경 중 문제가 발생했습니다.');
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -108,15 +135,20 @@ export default function StaffManagement({ onGoBack }: StaffManagementProps) {
           <MaterialIcons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <ThemedText style={styles.title}>직원 관리</ThemedText>
-        <TouchableOpacity onPress={handleAddStaff} style={styles.addHeaderButton}>
-          <MaterialIcons name="add" size={24} color="#007AFF" />
-        </TouchableOpacity>
+        <ThemedView style={styles.headerActions}>
+          <TouchableOpacity onPress={handleRefresh} style={styles.headerButton}>
+            <MaterialIcons name="refresh" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleAddStaff} style={styles.headerButton}>
+            <MaterialIcons name="add" size={24} color="#007AFF" />
+          </TouchableOpacity>
+        </ThemedView>
       </ThemedView>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* 새 직원 추가 버튼 */}
+        {/* 초대 코드 생성 버튼 */}
         <Button
-          title="새 직원 추가"
+          title="직원 초대 코드 생성"
           onPress={handleAddStaff}
           variant="primary"
           size="large"
@@ -124,16 +156,59 @@ export default function StaffManagement({ onGoBack }: StaffManagementProps) {
         />
 
         {/* 직원 목록 */}
-        <Card style={styles.listContainer}>
+        <ThemedView style={styles.listContainer}>
           {staffList.length > 0 ? (
-            staffList.map(renderStaffItem)
+            staffList.map((staff, index) => (
+              <ThemedView 
+                key={staff.id} 
+                style={[
+                  styles.card,
+                  index === staffList.length - 1 ? { marginBottom: 0 } : {}
+                ]}
+              >
+                <ThemedView style={styles.cardInfo}>
+                  <ThemedText type="subtitle" style={styles.cardTitle}>{staff.name}</ThemedText>
+                  <ThemedText style={styles.cardSubtitle}>
+                    {staff.role}{staff.is_primary_owner ? ' (주 소유자)' : ''}
+                  </ThemedText>
+                  <ThemedText style={styles.cardDetails}>
+                    이메일: {staff.email}
+                  </ThemedText>
+                  {staff.phone_number && (
+                    <ThemedText style={styles.cardDetails}>
+                      전화번호: {staff.phone_number}
+                    </ThemedText>
+                  )}
+                  <ThemedText style={[styles.cardDetails, {
+                    color: staff.status === 'active' ? '#4CAF50' : '#FF9800'
+                  }]}>
+                    상태: {staff.status === 'active' ? '활성' : '비활성'}
+                  </ThemedText>
+                </ThemedView>
+                <ThemedView style={styles.cardActions}>
+                  <TouchableOpacity style={styles.iconButton} onPress={() => handleEditStaff(staff.id)}>
+                    <MaterialIcons name="edit" size={22} color={Colors[colorScheme].text} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => toggleStaffStatus(staff.id)}
+                  >
+                    <MaterialIcons 
+                      name={staff.status === 'active' ? 'toggle-on' : 'toggle-off'} 
+                      size={28} 
+                      color={staff.status === 'active' ? Colors.light.tint : Colors[colorScheme].icon} 
+                    />
+                  </TouchableOpacity>
+                </ThemedView>
+              </ThemedView>
+            ))
           ) : (
             <ThemedView style={styles.emptyContainer}>
               <MaterialIcons name="person-outline" size={64} color={Colors[colorScheme].icon} />
               <ThemedText style={styles.emptyText}>등록된 직원이 없습니다</ThemedText>
-              <ThemedText style={styles.emptySubText}>새 직원을 추가해보세요</ThemedText>
+              <ThemedText style={styles.emptySubText}>초대 코드를 생성하여 직원을 초대해보세요</ThemedText>
               <Button
-                title="첫 직원 추가"
+                title="첫 초대 코드 생성"
                 onPress={handleAddStaff}
                 variant="secondary"
                 size="medium"
@@ -141,8 +216,15 @@ export default function StaffManagement({ onGoBack }: StaffManagementProps) {
               />
             </ThemedView>
           )}
-        </Card>
+        </ThemedView>
       </ScrollView>
+
+      {/* 초대 코드 생성 모달 */}
+      <InviteCodeGeneratorModal
+        visible={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        shopId={selectedShop?.id || 0}
+      />
     </SafeAreaView>
   );
 }
@@ -193,7 +275,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   listContainer: {
-    gap: Spacing.sm,
+    backgroundColor: DesignColors.white,
+    borderRadius: Spacing.sm,
+    padding: Spacing.md,
+    shadowColor: DesignColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   card: {
     flexDirection: 'row',
@@ -207,6 +296,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: Spacing.sm, // gap 대신 marginBottom 사용
   },
   cardInfo: {
     flex: 1,
@@ -256,6 +346,14 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: DesignColors.gray[600],
     marginBottom: Spacing.xl,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  headerButton: {
+    padding: Spacing.xs,
   },
   emptyAddButton: {
     // Button 컴포넌트에서 스타일 관리

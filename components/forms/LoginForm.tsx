@@ -16,10 +16,11 @@ import {
 
 interface LoginFormProps {
   onLogin: (credentials: LoginCredentials) => Promise<void>;
+  onSwitchToSignup?: () => void;
   loading?: boolean;
 }
 
-export default function LoginForm({ onLogin, loading = false }: LoginFormProps) {
+export default function LoginForm({ onLogin, onSwitchToSignup, loading = false }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -216,6 +217,18 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
             <TouchableOpacity>
               <ThemedText style={styles.linkText}>비밀번호를 잊으셨나요?</ThemedText>
             </TouchableOpacity>
+            
+            {onSwitchToSignup && (
+              <TouchableOpacity 
+                style={styles.signupLinkContainer}
+                onPress={onSwitchToSignup}
+              >
+                <ThemedText style={styles.signupLinkText}>
+                  초대 코드가 있으신가요? 
+                  <ThemedText style={styles.signupLinkHighlight}> 회원가입</ThemedText>
+                </ThemedText>
+              </TouchableOpacity>
+            )}
           </ThemedView>
         </Card>
       </ScrollView>
@@ -317,6 +330,19 @@ const styles = StyleSheet.create({
   linkText: {
     color: Colors.primary,
     fontSize: Typography.fontSize.sm,
+  },
+  signupLinkContainer: {
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.xs,
+  },
+  signupLinkText: {
+    color: Colors.gray[600],
+    fontSize: Typography.fontSize.sm,
+    textAlign: 'center',
+  },
+  signupLinkHighlight: {
+    color: Colors.primary,
+    fontWeight: Typography.fontWeight.semibold,
   },
   checkboxContainer: {
     marginTop: Spacing.md,

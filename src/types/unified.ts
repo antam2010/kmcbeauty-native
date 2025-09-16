@@ -9,6 +9,7 @@ export * from './dashboard';
 export * from './phonebook';
 export * from './shop';
 export * from './treatment';
+export * from './user';
 
 // 하위 호환성을 위한 기존 타입들 (레거시 지원)
 export type UserRole = 'ADMIN' | 'MASTER' | 'MANAGER' | 'STAFF' | 'USER';

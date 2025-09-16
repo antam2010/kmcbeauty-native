@@ -1,5 +1,7 @@
 import { ThemedView } from '@/components/ThemedView';
+import InviteSignupForm from '@/components/forms/InviteSignupForm';
 import LoginForm from '@/components/forms/LoginForm';
+import { inviteApiService } from '@/src/api/services/invite';
 import { LoginCredentials } from '@/src/features/auth/api';
 import { Colors } from '@/src/ui/theme';
 import { useAuth } from '@/stores/authContext';
@@ -9,6 +11,7 @@ import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 
 export default React.memo(function LoginScreen() {
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
   const { login, isAuthenticated, loading: authLoading } = useAuth();
 
   // 인증 상태 로딩 중
@@ -46,9 +49,58 @@ export default React.memo(function LoginScreen() {
     }
   };
 
+  const handleSignup = async (credentials: {
+    inviteCode: string;
+    email: string;
+    password: string;
+    confirmPassword: string;
+    name: string;
+    phone: string;
+  }) => {
+    try {
+      setLoading(true);
+      console.log('🔴 LoginScreen: 초대 코드 회원가입 시작:', credentials.inviteCode);
+      
+      // 초대 코드로 회원가입
+      await inviteApiService.signupWithInviteCode({
+        invite_code: credentials.inviteCode,
+        email: credentials.email,
+        password: credentials.password,
+        name: credentials.name,
+        phone_number: credentials.phone
+      });
+
+      Alert.alert(
+        '회원가입 완료',
+        '회원가입이 완료되었습니다. 로그인해주세요.',
+        [{ 
+          text: '확인', 
+          onPress: () => setMode('login')
+        }]
+      );
+    } catch (error: any) {
+      console.error('🔴 LoginScreen: 회원가입 에러:', error);
+      throw error; // InviteSignupForm에서 처리하도록 다시 throw
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
-      <LoginForm onLogin={handleLogin} loading={loading} />
+      {mode === 'login' ? (
+        <LoginForm 
+          onLogin={handleLogin} 
+          loading={loading}
+          onSwitchToSignup={() => setMode('signup')}
+        />
+      ) : (
+        <InviteSignupForm
+          onSignup={handleSignup}
+          onBackToLogin={() => setMode('login')}
+          loading={loading}
+        />
+      )}
     </ThemedView>
   );
 });

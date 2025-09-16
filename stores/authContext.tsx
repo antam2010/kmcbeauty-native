@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 // 통합 타입 시스템에서 가져오기
@@ -209,8 +210,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       shopEventEmitter.emit('clearShop');
       
       console.log('✅ 로그아웃 완료');
+      
+      // 확실한 로그인 화면 이동
+      setTimeout(() => {
+        router.replace('/login');
+      }, 100);
+      
     } catch (error) {
       console.error('로그아웃 처리 중 오류:', error);
+      
+      // 에러가 발생해도 로그인 화면으로 이동
+      setTimeout(() => {
+        router.replace('/login');
+      }, 100);
     }
   }, []);
 

@@ -38,38 +38,43 @@ const processQueue = (error: any, token: string | null = null) => {
 // 리프레시 토큰으로 액세스 토큰 갱신
 const refreshAccessToken = async (): Promise<string | null> => {
   try {
-    const authData = await AsyncStorage.getItem('auth-storage');
-    if (!authData) {
-      throw new Error('인증 정보가 없습니다');
-    }
-
-    const { refreshToken } = JSON.parse(authData);
-    if (!refreshToken) {
-      throw new Error('리프레시 토큰이 없습니다');
-    }
-
     console.log('🔄 리프레시 토큰으로 액세스 토큰 갱신 시도');
     
-    const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-      refresh_token: refreshToken
+    // 리프레시 토큰은 HttpOnly 쿠키로 관리되므로 별도 파라미터 없이 호출
+    const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
+      withCredentials: true, // 쿠키 포함하여 요청
     });
 
     const responseData = response.data as AuthTokenResponse;
-    const { access_token, refresh_token: newRefreshToken } = responseData;
+    const { access_token } = responseData;
     
-    // 새로운 토큰들을 저장
+    // 새로운 액세스 토큰 저장
+    const authData = await AsyncStorage.getItem('auth-storage');
+    const existingData = authData ? JSON.parse(authData) : {};
+    
     const updatedAuthData = {
-      ...JSON.parse(authData),
+      ...existingData,
       accessToken: access_token,
-      refreshToken: newRefreshToken || refreshToken
+      // 리프레시 토큰은 서버가 쿠키로 관리하므로 저장하지 않음
     };
     
     await AsyncStorage.setItem('auth-storage', JSON.stringify(updatedAuthData));
     console.log('✅ 액세스 토큰 갱신 성공');
     
     return access_token;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ 리프레시 토큰 갱신 실패:', error);
+    
+    // 상세한 에러 로깅
+    if (error.response) {
+      console.error('응답 상태:', error.response.status);
+      console.error('응답 데이터:', error.response.data);
+    } else if (error.request) {
+      console.error('요청 실패:', error.request);
+    } else {
+      console.error('에러 메시지:', error.message);
+    }
+    
     return null;
   }
 };
@@ -77,6 +82,8 @@ const refreshAccessToken = async (): Promise<string | null> => {
 // 완전한 로그아웃 처리
 const performLogout = async () => {
   try {
+    console.log('🚪 강제 로그아웃 처리 시작');
+    
     // 모든 사용자 관련 데이터 삭제 (아이디 기억하기 제외)
     const allKeys = await AsyncStorage.getAllKeys();
     const keysToRemove = allKeys.filter(key => 
@@ -89,16 +96,34 @@ const performLogout = async () => {
       console.log('🚪 사용자 데이터 완전 정리 완료:', keysToRemove);
     }
     
-    // 로그인 화면으로 이동
+    // 글로벌 플래그 리셋
+    isRefreshing = false;
+    failedQueue = [];
+    
+    // 로그인 화면으로 이동 (중복 방지)
+    if (!isNavigatingToLogin) {
+      isNavigatingToLogin = true;
+      console.log('🔄 로그인 화면으로 리다이렉트');
+      
+      // 현재 라우트를 완전히 교체
+      router.replace('/login');
+      
+      // 리셋 타이머
+      setTimeout(() => {
+        isNavigatingToLogin = false;
+      }, 3000); // 3초로 증가
+    }
+  } catch (error) {
+    console.error('로그아웃 처리 실패:', error);
+    
+    // 실패해도 로그인 화면으로 이동
     if (!isNavigatingToLogin) {
       isNavigatingToLogin = true;
       router.replace('/login');
       setTimeout(() => {
         isNavigatingToLogin = false;
-      }, 2000);
+      }, 3000);
     }
-  } catch (error) {
-    console.error('로그아웃 처리 실패:', error);
   }
 };
 
@@ -182,8 +207,12 @@ apiClient.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then(token => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return apiClient(originalRequest);
+          if (token) {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          } else {
+            return Promise.reject(new Error('토큰 갱신 실패'));
+          }
         }).catch(err => Promise.reject(err));
       }
 
@@ -200,13 +229,20 @@ apiClient.interceptors.response.use(
           return apiClient(originalRequest);
         } else {
           // 리프레시 토큰도 만료됨 - 완전 로그아웃
+          console.log('🚪 리프레시 토큰 만료 - 강제 로그아웃 실행');
           throw new Error('리프레시 토큰 만료');
         }
-      } catch (refreshError) {
+      } catch (refreshError: any) {
         console.log('❌ 토큰 갱신 실패 - 로그아웃 처리');
+        console.error('갱신 에러 상세:', refreshError);
+        
         processQueue(refreshError, null);
+        
+        // 강제 로그아웃 처리
         await performLogout();
-        return Promise.reject(error);
+        
+        // 원래 에러를 반환하여 호출하는 쪽에서 적절히 처리할 수 있도록 함
+        return Promise.reject(new Error('인증이 만료되었습니다. 다시 로그인해주세요.'));
       } finally {
         isRefreshing = false;
       }

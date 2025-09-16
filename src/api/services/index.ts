@@ -3,12 +3,13 @@ import { authApiService } from './auth';
 import { dashboardApiService } from './dashboard';
 import { phonebookApiService } from './phonebook';
 import { shopApiService } from './shop';
+import { userApiService } from './staff';
 import { treatmentApiService } from './treatment';
 import { treatmentMenuApiService } from './treatmentMenu';
 
 export {
-  authApiService,
-  dashboardApiService, phonebookApiService, shopApiService, treatmentApiService, treatmentMenuApiService
+    authApiService,
+    dashboardApiService, phonebookApiService, shopApiService, treatmentApiService, treatmentMenuApiService, userApiService
 };
 
 // 편의를 위한 통합 API 객체
@@ -19,6 +20,7 @@ export const apiServices = {
   phonebook: phonebookApiService,
   treatmentMenu: treatmentMenuApiService,
   shop: shopApiService,
+  user: userApiService,
 };
 
 // 기본 export

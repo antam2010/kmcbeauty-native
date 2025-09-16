@@ -9,7 +9,7 @@ import type { TreatmentCreate, TreatmentItemCreate } from '@/src/types';
 import { Button, TextInput as CustomTextInput } from '@/src/ui/atoms';
 
 import { detectInputType, extractNameAndPhone, formatPhoneNumber } from '@/src/utils/phoneFormat';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,7 @@ import {
   Platform,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View
@@ -54,6 +55,9 @@ export default function BookingForm({
   const [selectedStaff, setSelectedStaff] = useState<ShopUser | null>(null);
   const [memo, setMemo] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'CASH' | 'UNPAID'>('CARD');
+  
+  // Ref for focusing price input after adding treatment
+  const treatmentPriceInputRefs = useRef<(TextInput | null)[]>([]);
   
   // 로딩 상태
   const [isLoading, setIsLoading] = useState(false);
@@ -264,7 +268,20 @@ export default function BookingForm({
     
     // 상호작용이 완료된 후 상태 업데이트를 수행하여 UI 블로킹 방지
     InteractionManager.runAfterInteractions(() => {
-      setSelectedTreatments(prev => [...prev, newTreatment]);
+      setSelectedTreatments(prev => {
+        const newTreatments = [...prev, newTreatment];
+        const newIndex = newTreatments.length - 1;
+        
+        // 새로 추가된 시술의 가격 입력 필드에 포커스 (키보드를 띄워서 스크롤 문제 해결)
+        setTimeout(() => {
+          if (treatmentPriceInputRefs.current[newIndex]) {
+            treatmentPriceInputRefs.current[newIndex]?.focus();
+            console.log('🎯 새로 추가된 시술의 가격 필드에 포커스:', menuDetail.name);
+          }
+        }, 300); // 약간의 지연을 주어 UI 렌더링 완료 후 포커스
+        
+        return newTreatments;
+      });
     });
   }, [selectedTreatments]);
 
@@ -875,6 +892,7 @@ export default function BookingForm({
               {selectedTreatments.map((item, index) => (
                 <SelectedTreatmentItemComponent
                   key={`treatment-${item.menuDetail.id}-${index}`}
+                  ref={(el) => { treatmentPriceInputRefs.current[index] = el; }}
                   item={item}
                   index={index}
                   onRemove={removeTreatment}

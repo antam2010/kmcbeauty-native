@@ -19,9 +19,11 @@ class AuthApiService extends BaseApiService {
     });
   }
 
-  // 토큰 갱신
+  // 토큰 갱신 (쿠키 기반)
   async refreshToken(): Promise<{ access_token: string; refresh_token?: string }> {
-    return this.post<{ access_token: string; refresh_token?: string }>('/refresh');
+    return this.post<{ access_token: string; refresh_token?: string }>('/refresh', {}, {
+      withCredentials: true, // HttpOnly 쿠키 포함
+    });
   }
 
   // 로그아웃

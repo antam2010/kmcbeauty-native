@@ -1,10 +1,27 @@
 import { Redirect } from 'expo-router';
+import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/stores/authContext';
 
+// 개발 환경에서 디버깅 유틸리티 로드
+if (__DEV__) {
+  import('@/src/utils/authDebug');
+}
+
 export default function Index() {
   const { isAuthenticated, loading } = useAuth();
+
+  // 개발 환경에서 인증 상태 로깅
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('🏠 Index 화면 - 인증 상태:', {
+        isAuthenticated,
+        loading,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, [isAuthenticated, loading]);
 
   // 인증 상태 로딩 중
   if (loading) {
