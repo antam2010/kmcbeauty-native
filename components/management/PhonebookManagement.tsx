@@ -1,5 +1,6 @@
+import { Phonebook, PhonebookCreate } from '@/src/api/services/phonebook';
 import { phonebookAPI } from '@/src/services/api/phonebook';
-import { PhonebookCreate, PhonebookResponse } from '@/src/types/phonebook';
+import { formatPhoneNumber, handlePhoneInputChange, unformatPhoneNumber } from '@/src/utils/phoneFormat';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
@@ -23,13 +24,13 @@ interface PhonebookManagementProps {
 }
 
 export default function PhonebookManagement({ onGoBack }: PhonebookManagementProps) {
-  const [phonebooks, setPhonebooks] = useState<PhonebookResponse[]>([]);
+  const [phonebooks, setPhonebooks] = useState<Phonebook[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
   // 모달 관련 상태
   const [showModal, setShowModal] = useState(false);
-  const [editingContact, setEditingContact] = useState<PhonebookResponse | null>(null);
+  const [editingContact, setEditingContact] = useState<Phonebook | null>(null);
   const [showSyncModal, setShowSyncModal] = useState(false); // 동기화 모달 상태 추가
   
   // 폼 상태
@@ -65,6 +66,12 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
     loadPhonebooks();
   };
 
+  // 전화번호 입력 처리 함수
+  const handlePhoneNumberChange = (text: string) => {
+    const { formattedValue } = handlePhoneInputChange(contactForm.phone_number, text);
+    setContactForm({ ...contactForm, phone_number: formattedValue });
+  };
+
   const handleCreateContact = () => {
     setEditingContact(null);
     setContactForm({
@@ -76,11 +83,11 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
     setShowModal(true);
   };
 
-  const handleEditContact = (contact: PhonebookResponse) => {
+  const handleEditContact = (contact: Phonebook) => {
     setEditingContact(contact);
     setContactForm({
       name: contact.name,
-      phone_number: contact.phone_number,
+      phone_number: formatPhoneNumber(contact.phone_number), // 기존 전화번호도 포맷팅
       group_name: contact.group_name || '',
       memo: contact.memo || '',
     });
@@ -94,25 +101,30 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
     }
 
     try {
+      // 전화번호에서 포맷팅 제거 (숫자만 저장)
+      const unformattedPhone = unformatPhoneNumber(contactForm.phone_number);
+      const dataToSave = {
+        ...contactForm,
+        phone_number: unformattedPhone
+      };
+
       if (editingContact) {
         // 수정
-        await phonebookAPI.updatePhonebook(editingContact.id, contactForm);
+        await phonebookAPI.updatePhonebook(editingContact.id, dataToSave);
         Alert.alert('성공', '연락처가 수정되었습니다.');
       } else {
         // 생성
-        await phonebookAPI.createPhonebook(contactForm);
+        await phonebookAPI.createPhonebook(dataToSave);
         Alert.alert('성공', '연락처가 추가되었습니다.');
       }
-      
+
       setShowModal(false);
       loadPhonebooks();
     } catch (error) {
       console.error('연락처 저장 실패:', error);
       Alert.alert('오류', '연락처 저장에 실패했습니다.');
     }
-  };
-
-  const handleDeleteContact = (contact: PhonebookResponse) => {
+  };  const handleDeleteContact = (contact: Phonebook) => {
     Alert.alert(
       '연락처 삭제',
       `"${contact.name}"을(를) 삭제하시겠습니까?`,
@@ -147,11 +159,11 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
     setShowSyncModal(true);
   };
 
-  const renderContactItem = (contact: PhonebookResponse) => (
+  const renderContactItem = (contact: Phonebook) => (
     <View key={contact.id} style={styles.contactCard}>
       <View style={styles.contactInfo}>
         <Text style={styles.contactName}>{contact.name}</Text>
-        <Text style={styles.contactPhone}>{contact.phone_number}</Text>
+        <Text style={styles.contactPhone}>{formatPhoneNumber(contact.phone_number)}</Text>
         {contact.group_name && (
           <Text style={styles.contactGroup}>그룹: {contact.group_name}</Text>
         )}
@@ -279,7 +291,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
                 <TextInput
                   style={styles.textInput}
                   value={contactForm.phone_number}
-                  onChangeText={(text) => setContactForm({ ...contactForm, phone_number: text })}
+                  onChangeText={handlePhoneNumberChange}
                   placeholder="010-1234-5678"
                   keyboardType="phone-pad"
                   returnKeyType="next"
@@ -291,7 +303,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
                 <Text style={styles.inputLabel}>그룹</Text>
                 <TextInput
                   style={styles.textInput}
-                  value={contactForm.group_name}
+                  value={contactForm.group_name || ''}
                   onChangeText={(text) => setContactForm({ ...contactForm, group_name: text })}
                   placeholder="예: 고객, VIP, 직원 등"
                   returnKeyType="next"
@@ -303,7 +315,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
                 <Text style={styles.inputLabel}>메모</Text>
                 <TextInput
                   style={[styles.textInput, styles.memoInput]}
-                  value={contactForm.memo}
+                  value={contactForm.memo || ''}
                   onChangeText={(text) => setContactForm({ ...contactForm, memo: text })}
                   placeholder="메모를 입력하세요"
                   multiline

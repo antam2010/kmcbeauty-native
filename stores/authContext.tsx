@@ -3,6 +3,7 @@ import React, { createContext, ReactNode, useCallback, useContext, useEffect, us
 
 // 새로운 API 구조에서 타입과 API 가져오기
 import { authAPI, LoginCredentials, User } from '@/src/features/auth/api';
+import { shopEventEmitter } from './shopStore';
 
 // 간단한 토큰 관리자
 const tokenManager = {
@@ -27,10 +28,42 @@ const tokenManager = {
 
   async removeTokens(): Promise<void> {
     try {
-      await AsyncStorage.multiRemove(['auth-storage', 'auth-token']);
-      console.log('✅ 토큰 삭제 완료');
+      // 인증 관련 모든 데이터 삭제
+      const keysToRemove = [
+        'auth-storage',
+        'auth-token',
+        'refresh-token',
+        'selectedShop', // 상점 정보도 삭제
+        'user-preferences' // 사용자 설정도 삭제 (필요시)
+      ];
+      
+      await AsyncStorage.multiRemove(keysToRemove);
+      console.log('✅ 모든 인증 관련 데이터 삭제 완료');
     } catch (error) {
       console.error('토큰 삭제 실패:', error);
+    }
+  },
+
+  async clearAllUserData(): Promise<void> {
+    try {
+      // 사용자 관련 모든 데이터 삭제 (아이디 기억하기 제외)
+      const allKeys = await AsyncStorage.getAllKeys();
+      const keysToRemove = allKeys.filter(key => 
+        key !== 'remembered-email' && // 아이디 기억하기는 유지
+        !key.startsWith('system-') // 시스템 설정은 유지
+      );
+      
+      // 확실하게 selectedShop도 포함
+      if (!keysToRemove.includes('selectedShop')) {
+        keysToRemove.push('selectedShop');
+      }
+      
+      if (keysToRemove.length > 0) {
+        await AsyncStorage.multiRemove(keysToRemove);
+        console.log('✅ 사용자 데이터 정리 완료:', keysToRemove);
+      }
+    } catch (error) {
+      console.error('사용자 데이터 정리 실패:', error);
     }
   }
 };
@@ -48,6 +81,8 @@ interface AuthContextType extends AuthState {
   setUser: (user: User) => void;
   setLoading: (loading: boolean) => void;
   clearAuth: () => Promise<void>;
+  refreshUserData: () => Promise<void>; // 사용자 데이터 새로고침
+  clearCachedData: () => Promise<void>; // 캐시된 데이터만 정리
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -167,8 +202,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       setAuthState(newState);
       
-      // AsyncStorage에서 완전 삭제
-      await tokenManager.removeTokens();
+      // 모든 사용자 관련 데이터 삭제 (아이디 기억하기 제외)
+      await tokenManager.clearAllUserData();
+      
+      // 상점 정보 정리 이벤트 발생
+      shopEventEmitter.emit('clearShop');
       
       console.log('✅ 로그아웃 완료');
     } catch (error) {
@@ -194,6 +232,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await logout();
   }, [logout]);
 
+  // 캐시된 데이터만 정리 (인증 정보는 유지)
+  const clearCachedData = useCallback(async () => {
+    try {
+      console.log('🧹 캐시된 데이터 정리 시작');
+      
+      const allKeys = await AsyncStorage.getAllKeys();
+      const cachedDataKeys = allKeys.filter(key => 
+        key.startsWith('cache-') || // 캐시 데이터
+        key.startsWith('temp-') || // 임시 데이터
+        key.includes('dashboard') || // 대시보드 캐시
+        key.includes('phonebook') || // 전화번호부 캐시
+        (key !== 'auth-storage' && 
+         key !== 'remembered-email' && 
+         key !== 'selectedShop' &&
+         !key.startsWith('system-'))
+      );
+      
+      if (cachedDataKeys.length > 0) {
+        await AsyncStorage.multiRemove(cachedDataKeys);
+        console.log('✅ 캐시된 데이터 정리 완료:', cachedDataKeys);
+      }
+    } catch (error) {
+      console.error('캐시된 데이터 정리 실패:', error);
+    }
+  }, []);
+
+  // 사용자 데이터 새로고침 (프로필 업데이트 후 사용)
+  const refreshUserData = useCallback(async () => {
+    try {
+      if (!authState.isAuthenticated) return;
+      
+      console.log('🔄 사용자 데이터 새로고침 시작');
+      // 여기서 서버에서 최신 사용자 정보를 가져올 수 있습니다
+      // const updatedUser = await authAPI.getCurrentUser();
+      // setUser(updatedUser);
+      
+      // 캐시된 데이터 정리
+      await clearCachedData();
+      
+      console.log('✅ 사용자 데이터 새로고침 완료');
+    } catch (error) {
+      console.error('사용자 데이터 새로고침 실패:', error);
+    }
+  }, [authState.isAuthenticated, clearCachedData]);
+
   const contextValue: AuthContextType = useMemo(() => ({
     ...authState,
     login,
@@ -201,7 +284,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser,
     setLoading,
     clearAuth,
-  }), [authState, login, logout, setUser, setLoading, clearAuth]);
+    refreshUserData,
+    clearCachedData,
+  }), [authState, login, logout, setUser, setLoading, clearAuth, refreshUserData, clearCachedData]);
 
   // Provider가 준비되지 않았으면 로딩 화면 표시
   if (!isProviderReady) {
@@ -216,6 +301,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser,
         setLoading,
         clearAuth,
+        refreshUserData,
+        clearCachedData,
       }}>
         {children}
       </AuthContext.Provider>

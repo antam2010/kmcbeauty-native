@@ -1,15 +1,16 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { LoginCredentials } from '@/types';
-import { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity
 } from 'react-native';
 
 interface LoginFormProps {
@@ -21,6 +22,36 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(false);
+
+  // 컴포넌트 마운트 시 저장된 이메일 로드
+  useEffect(() => {
+    loadSavedEmail();
+  }, []);
+
+  const loadSavedEmail = async () => {
+    try {
+      const savedEmail = await AsyncStorage.getItem('remembered-email');
+      if (savedEmail) {
+        setEmail(savedEmail);
+        setRememberEmail(true);
+      }
+    } catch (error) {
+      console.error('저장된 이메일 로드 실패:', error);
+    }
+  };
+
+  const saveEmailIfNeeded = async () => {
+    try {
+      if (rememberEmail && email.trim()) {
+        await AsyncStorage.setItem('remembered-email', email.trim());
+      } else {
+        await AsyncStorage.removeItem('remembered-email');
+      }
+    } catch (error) {
+      console.error('이메일 저장 실패:', error);
+    }
+  };
 
   const handleLogin = async () => {
     console.log('🔵 LoginForm: 로그인 버튼 클릭됨');
@@ -37,6 +68,10 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
 
     try {
       console.log('🔵 LoginForm: onLogin 호출 시작', { email: email.trim() });
+      
+      // 이메일 저장 (로그인 시도 전에)
+      await saveEmailIfNeeded();
+      
       await onLogin({ email: email.trim(), password });
       console.log('🔵 LoginForm: onLogin 완료');
     } catch (error: any) {
@@ -131,6 +166,27 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
                   </ThemedText>
                 </TouchableOpacity>
               </ThemedView>
+            </ThemedView>
+
+            {/* 아이디 기억하기 체크박스 */}
+            <ThemedView style={styles.checkboxContainer}>
+              <TouchableOpacity
+                style={styles.checkbox}
+                onPress={() => setRememberEmail(!rememberEmail)}
+                disabled={loading}
+              >
+                <ThemedView style={[
+                  styles.checkboxBox,
+                  rememberEmail && styles.checkboxBoxChecked
+                ]}>
+                  {rememberEmail && (
+                    <ThemedText style={styles.checkboxCheck}>✓</ThemedText>
+                  )}
+                </ThemedView>
+                <ThemedText style={styles.checkboxLabel}>
+                  아이디 기억하기
+                </ThemedText>
+              </TouchableOpacity>
             </ThemedView>
           </ThemedView>
 
@@ -284,5 +340,36 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#007AFF',
     fontSize: 14,
+  },
+  checkboxContainer: {
+    marginTop: 16,
+  },
+  checkbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkboxBox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    borderRadius: 4,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  checkboxBoxChecked: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  checkboxCheck: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: '#666',
   },
 });

@@ -2,8 +2,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import ShopRegistrationModal from '@/components/modals/ShopRegistrationModal';
 import { shopService } from '@/services/api/shop';
+import { Shop } from '@/src/api/services/shop';
 import { useShop } from '@/stores/shopStore';
-import { Shop } from '@/types';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -60,6 +60,10 @@ export default function ShopSelectionScreen() {
     try {
       setSelecting(true);
       await selectShop(shop.id); // 상점 스토어의 selectShop 사용
+      
+      // 상점 선택 완료 후 잠시 대기하여 상태가 완전히 업데이트되도록 함
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       Alert.alert(
         '상점 선택 완료',
         `${shop.name}이(가) 선택되었습니다.`,

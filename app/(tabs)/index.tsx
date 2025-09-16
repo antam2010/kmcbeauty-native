@@ -1,6 +1,7 @@
 import MonthlyDashboard from '@/components/dashboard/MonthlyDashboard';
 import ShopHeader from '@/components/navigation/ShopHeader';
 import { useDashboard } from '@/contexts/DashboardContext';
+import { shopEventEmitter, useShop } from '@/stores/shopStore';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -18,7 +19,37 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { dashboardApiService } from '../../src/api/services/dashboard';
 import { treatmentAPI } from '../../src/features/booking/api';
-import { DashboardSummaryResponse, Treatment } from '../../src/types';
+// 임시 타입 정의
+interface DashboardSummaryResponse {
+  target_date: string;
+  summary: any;
+  sales: any;
+  customer_insights: any[];
+  staff_summary: any;
+}
+
+interface Treatment {
+  id: number;
+  customer_name: string;
+  customer_phone: string;
+  service_name: string;
+  staff_name?: string;
+  appointment_date: string;
+  appointment_time: string;
+  reserved_at: string;
+  duration: number;
+  price: number;
+  status: string;
+  notes?: string;
+  phonebook?: {
+    name: string;
+  };
+  treatment_items?: {
+    menu_detail?: {
+      name: string;
+    };
+  }[];
+}
 
 export default function HomeScreen() {
   const [dashboardData, setDashboardData] = useState<DashboardSummaryResponse | null>(null);
@@ -30,6 +61,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { refreshTrigger } = useDashboard();
+  const { selectedShop, loading: shopLoading } = useShop();
 
   const loadWeeklyTreatments = useCallback(async () => {
     try {
@@ -42,6 +74,14 @@ export default function HomeScreen() {
   }, []);
 
   const loadDashboardData = useCallback(async (forceRefresh: boolean = false) => {
+    // 상점이 선택되지 않았으면 로딩하지 않음
+    if (!selectedShop) {
+      console.log('🏪 상점이 선택되지 않아 대시보드 데이터를 로딩하지 않습니다.');
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     try {
       const data = await dashboardApiService.getTodayDetailedSummary(forceRefresh);
       setDashboardData(data);
@@ -53,11 +93,14 @@ export default function HomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [loadWeeklyTreatments]);
+  }, [loadWeeklyTreatments, selectedShop]);
 
   useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+    // 상점 로딩이 완료되면 대시보드 데이터 로드
+    if (!shopLoading) {
+      loadDashboardData();
+    }
+  }, [loadDashboardData, shopLoading]);
 
   // Dashboard refresh trigger 감지
   useEffect(() => {
@@ -65,6 +108,20 @@ export default function HomeScreen() {
       loadDashboardData();
     }
   }, [refreshTrigger, loadDashboardData]);
+
+  // 상점 변경 이벤트 감지
+  useEffect(() => {
+    const handleShopChanged = () => {
+      console.log('🏪 상점이 변경되어 대시보드 데이터를 새로고침합니다.');
+      loadDashboardData(true);
+    };
+
+    shopEventEmitter.on('shopChanged', handleShopChanged);
+
+    return () => {
+      shopEventEmitter.off('shopChanged', handleShopChanged);
+    };
+  }, [loadDashboardData]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -332,7 +389,7 @@ export default function HomeScreen() {
         {/* 서비스 현황 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>인기 서비스</Text>
-          {dashboardData.sales.target_date.slice(0, 5).map((service, index) => (
+          {dashboardData.sales.target_date.slice(0, 5).map((service: any, index: number) => (
             <View key={service.menu_detail_id} style={styles.serviceItem}>
               <View style={styles.serviceInfo}>
                 <Text style={styles.serviceName}>{service.name}</Text>

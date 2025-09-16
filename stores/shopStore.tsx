@@ -99,7 +99,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       await shopApiService.select(shopId);
       // 선택 후 최신 정보 로드
       await loadSelectedShop();
-      // 이벤트 발생
+      // 이벤트 발생 (최신 상점 정보와 함께)
       shopEventEmitter.emit('shopChanged', selectedShop);
     } catch (error: any) {
       console.error('상점 선택 실패:', error);
@@ -114,14 +114,31 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   };
 
   const clearSelectedShop = () => {
+    console.log('🏪 상점 정보 정리 시작');
     setSelectedShop(null);
     saveToStorage(null);
     setError(null);
+    console.log('✅ 상점 정보 정리 완료');
   };
 
   // 초기 로드
   useEffect(() => {
+    // 로컬스토리지에서만 읽어오고, 서버 검증은 하지 않음
     loadFromStorage();
+  }, []);
+
+  // 로그아웃 시 상점 정보 정리 이벤트 감지
+  useEffect(() => {
+    const handleClearShop = () => {
+      console.log('🏪 로그아웃으로 인한 상점 정보 정리');
+      clearSelectedShop();
+    };
+
+    shopEventEmitter.on('clearShop', handleClearShop);
+
+    return () => {
+      shopEventEmitter.off('clearShop', handleClearShop);
+    };
   }, []);
 
   const value: ShopContextType = {

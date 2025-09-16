@@ -2,6 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { router } from 'expo-router';
 
+// 상점 이벤트 에미터 임포트
+import { shopEventEmitter } from '../../stores/shopStore';
+
 // 타입 정의
 interface AuthTokenResponse {
   access_token: string;
@@ -77,9 +80,20 @@ const refreshAccessToken = async (): Promise<string | null> => {
 // 완전한 로그아웃 처리
 const performLogout = async () => {
   try {
-    // 모든 인증 관련 데이터 삭제
-    await AsyncStorage.multiRemove(['auth-storage', 'auth-token', 'refresh-token']);
-    console.log('🚪 완전 로그아웃 처리 완료');
+    // 모든 사용자 관련 데이터 삭제 (아이디 기억하기 제외)
+    const allKeys = await AsyncStorage.getAllKeys();
+    const keysToRemove = allKeys.filter(key => 
+      key !== 'remembered-email' && // 아이디 기억하기는 유지
+      !key.startsWith('system-') // 시스템 설정은 유지
+    );
+    
+    if (keysToRemove.length > 0) {
+      await AsyncStorage.multiRemove(keysToRemove);
+      console.log('🚪 사용자 데이터 완전 정리 완료:', keysToRemove);
+    }
+    
+    // 상점 정보 정리 이벤트 발생
+    shopEventEmitter.emit('clearShop');
     
     // 로그인 화면으로 이동
     if (!isNavigatingToLogin) {
@@ -115,8 +129,18 @@ apiClient.interceptors.request.use(
           config.headers.Authorization = `Bearer ${accessToken}`;
         }
       }
+
+      // 상점 정보도 헤더에 추가
+      const shopData = await AsyncStorage.getItem('selectedShop');
+      if (shopData) {
+        const shop = JSON.parse(shopData);
+        if (shop.id) {
+          config.headers = config.headers || {};
+          config.headers['X-Shop-ID'] = shop.id.toString();
+        }
+      }
     } catch (error) {
-      console.error('토큰 로드 실패:', error);
+      console.error('토큰/상점 정보 로드 실패:', error);
     }
     
     // 요청 로깅 (개발 환경에서만)
