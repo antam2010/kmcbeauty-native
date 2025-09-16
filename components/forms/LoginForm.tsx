@@ -1,16 +1,17 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { Button, Card, TextInput as CustomTextInput } from '@/src/ui/atoms';
+import { Colors, Spacing, Typography } from '@/src/ui/theme';
 import { LoginCredentials } from '@/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity
 } from 'react-native';
 
 interface LoginFormProps {
@@ -116,7 +117,7 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <ThemedView style={styles.formContainer}>
+        <Card style={styles.formContainer}>
           {/* 로고 섹션 */}
           <ThemedView style={styles.logoSection}>
             <ThemedText style={styles.logo}>로고</ThemedText>
@@ -132,8 +133,7 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
           <ThemedView style={styles.inputSection}>
             <ThemedView style={styles.inputGroup}>
               <ThemedText style={styles.inputLabel}>이메일</ThemedText>
-              <TextInput
-                style={styles.textInput}
+              <CustomTextInput
                 value={email}
                 onChangeText={setEmail}
                 placeholder="이메일을 입력하세요"
@@ -147,7 +147,7 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
             <ThemedView style={styles.inputGroup}>
               <ThemedText style={styles.inputLabel}>비밀번호</ThemedText>
               <ThemedView style={styles.passwordContainer}>
-                <TextInput
+                <CustomTextInput
                   style={[styles.textInput, styles.passwordInput]}
                   value={password}
                   onChangeText={setPassword}
@@ -192,25 +192,23 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
 
           {/* 버튼 섹션 */}
           <ThemedView style={styles.buttonSection}>
-            <TouchableOpacity
-              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+            <Button
+              title={loading ? '로그인 중...' : '로그인'}
               onPress={handleLogin}
               disabled={loading}
-            >
-              <ThemedText style={styles.loginButtonText}>
-                {loading ? '로그인 중...' : '로그인'}
-              </ThemedText>
-            </TouchableOpacity>
+              variant="primary"
+              size="large"
+              style={styles.loginButton}
+            />
 
-            <TouchableOpacity
-              style={styles.demoButton}
+            <Button
+              title="데모 계정으로 로그인"
               onPress={handleDemoLogin}
               disabled={loading}
-            >
-              <ThemedText style={styles.demoButtonText}>
-                데모 계정으로 로그인
-              </ThemedText>
-            </TouchableOpacity>
+              variant="secondary"
+              size="large"
+              style={styles.demoButton}
+            />
           </ThemedView>
 
           {/* 하단 링크 */}
@@ -219,7 +217,7 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
               <ThemedText style={styles.linkText}>비밀번호를 잊으셨나요?</ThemedText>
             </TouchableOpacity>
           </ThemedView>
-        </ThemedView>
+        </Card>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -228,21 +226,21 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: Colors.gray[50],
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    padding: Spacing.lg,
   },
   formContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: Colors.white,
+    borderRadius: Spacing.md,
+    padding: Spacing.xl,
     ...(Platform.OS === 'web' ? {
       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
     } : {
-      shadowColor: '#000',
+      shadowColor: Colors.black,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 8,
@@ -251,40 +249,40 @@ const styles = StyleSheet.create({
   },
   logoSection: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: Spacing['3xl'],
   },
   logo: {
-    fontSize: 48,
-    marginBottom: 8,
+    fontSize: Typography.fontSize['4xl'],
+    marginBottom: Spacing.xs,
   },
   title: {
-    marginBottom: 8,
-    color: '#007AFF',
+    marginBottom: Spacing.xs,
+    color: Colors.primary,
   },
   subtitle: {
-    color: '#666',
+    color: Colors.gray[600],
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: Typography.fontSize.base,
   },
   inputSection: {
-    marginBottom: 24,
+    marginBottom: Spacing.xl,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: Spacing.md,
   },
   inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.semibold,
+    marginBottom: Spacing.xs,
+    color: Colors.gray[900],
   },
   textInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
+    borderColor: Colors.gray[300],
+    borderRadius: Spacing.xs,
+    padding: Spacing.sm,
+    fontSize: Typography.fontSize.base,
+    backgroundColor: Colors.white,
   },
   passwordContainer: {
     position: 'relative',
@@ -294,55 +292,34 @@ const styles = StyleSheet.create({
   },
   passwordToggle: {
     position: 'absolute',
-    right: 12,
-    top: 12,
-    bottom: 12,
+    right: Spacing.sm,
+    top: Spacing.sm,
+    bottom: Spacing.sm,
     justifyContent: 'center',
   },
   passwordToggleText: {
-    color: '#007AFF',
-    fontSize: 14,
-    fontWeight: '600',
+    color: Colors.primary,
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
   },
   buttonSection: {
-    marginBottom: 16,
+    marginBottom: Spacing.md,
   },
   loginButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  loginButtonDisabled: {
-    opacity: 0.6,
-  },
-  loginButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    marginBottom: Spacing.sm,
   },
   demoButton: {
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-  },
-  demoButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
+    // 스타일은 Button 컴포넌트에서 관리
   },
   linkSection: {
     alignItems: 'center',
   },
   linkText: {
-    color: '#007AFF',
-    fontSize: 14,
+    color: Colors.primary,
+    fontSize: Typography.fontSize.sm,
   },
   checkboxContainer: {
-    marginTop: 16,
+    marginTop: Spacing.md,
   },
   checkbox: {
     flexDirection: 'row',
@@ -352,24 +329,24 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderWidth: 2,
-    borderColor: '#ddd',
-    borderRadius: 4,
-    marginRight: 8,
+    borderColor: Colors.gray[300],
+    borderRadius: Spacing.xs / 2,
+    marginRight: Spacing.xs,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
   },
   checkboxBoxChecked: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   checkboxCheck: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
+    color: Colors.white,
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.bold,
   },
   checkboxLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: Typography.fontSize.sm,
+    color: Colors.gray[600],
   },
 });

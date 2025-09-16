@@ -1,4 +1,6 @@
 import { phonebookApiService, type Phonebook } from '@/src/api/services/phonebook';
+import { Button, TextInput as CustomTextInput } from '@/src/ui/atoms';
+
 import { extractNameAndPhone, formatPhoneNumber, handlePhoneInputChange, isValidKoreanPhoneNumber, unformatPhoneNumber } from '@/src/utils/phoneFormat';
 import React, { useState } from 'react';
 import {
@@ -10,7 +12,6 @@ import {
     Platform,
     ScrollView,
     Text,
-    TextInput,
     TouchableOpacity,
     TouchableWithoutFeedback,
     View
@@ -253,7 +254,7 @@ export default function CustomerRegistrationModal({
                 {/* 고객 이름 */}
                 <View style={customerRegistrationModalStyles.inputGroup}>
                   <Text style={customerRegistrationModalStyles.label}>👤 고객 이름</Text>
-                  <TextInput
+                  <CustomTextInput
                     style={customerRegistrationModalStyles.input}
                     placeholder="고객 이름을 입력하세요"
                     value={name}
@@ -270,7 +271,7 @@ export default function CustomerRegistrationModal({
                 {/* 전화번호 */}
                 <View style={customerRegistrationModalStyles.inputGroup}>
                   <Text style={customerRegistrationModalStyles.label}>📞 전화번호</Text>
-                  <TextInput
+                  <CustomTextInput
                     style={[
                       customerRegistrationModalStyles.input,
                       isValidKoreanPhoneNumber(unformatPhoneNumber(phone)) && customerRegistrationModalStyles.validInput
@@ -350,60 +351,39 @@ export default function CustomerRegistrationModal({
                 <View style={customerRegistrationModalStyles.buttonGroup}>
                   {quickMode ? (
                     /* 빠른 등록 모드: 하나의 버튼만 표시 */
-                    <TouchableOpacity
-                      style={[
-                        customerRegistrationModalStyles.quickRegisterButton,
-                        (!isValidKoreanPhoneNumber(unformatPhoneNumber(phone)) || isLoading) && customerRegistrationModalStyles.disabledButton
-                      ]}
+                    <Button
+                      title="✅ 신원미상으로 등록하기"
                       onPress={handleQuickRegister}
                       disabled={!isValidKoreanPhoneNumber(unformatPhoneNumber(phone)) || isLoading}
-                    >
-                      {isLoading ? (
-                        <ActivityIndicator color="#ffffff" size="small" />
-                      ) : (
-                        <Text style={customerRegistrationModalStyles.quickRegisterButtonText}>
-                          ✅ 신원미상으로 등록하기
-                        </Text>
-                      )}
-                    </TouchableOpacity>
+                      loading={isLoading}
+                      variant="primary"
+                      size="large"
+                      style={customerRegistrationModalStyles.quickRegisterButton}
+                    />
                   ) : (
                     /* 일반 모드: 두 옵션 모두 표시 */
                     <>
                       {/* 빠른 등록 버튼 (전화번호만 필요) */}
-                      <TouchableOpacity
-                        style={[
-                          customerRegistrationModalStyles.quickRegisterButton,
-                          (!isValidKoreanPhoneNumber(unformatPhoneNumber(phone)) || isLoading) && customerRegistrationModalStyles.disabledButton
-                        ]}
+                      <Button
+                        title="⚡ 빠른 등록 (신원미상)"
                         onPress={handleQuickRegister}
                         disabled={!isValidKoreanPhoneNumber(unformatPhoneNumber(phone)) || isLoading}
-                      >
-                        {isLoading ? (
-                          <ActivityIndicator color="#ffffff" size="small" />
-                        ) : (
-                          <Text style={customerRegistrationModalStyles.quickRegisterButtonText}>
-                            ⚡ 빠른 등록 (신원미상)
-                          </Text>
-                        )}
-                      </TouchableOpacity>
+                        loading={isLoading}
+                        variant="secondary"
+                        size="large"
+                        style={customerRegistrationModalStyles.quickRegisterButton}
+                      />
 
                       {/* 일반 등록 버튼 (이름 + 전화번호) */}
-                      <TouchableOpacity
-                        style={[
-                          customerRegistrationModalStyles.registerButton,
-                          (!isFormValid || isLoading) && customerRegistrationModalStyles.disabledButton
-                        ]}
+                      <Button
+                        title="✅ 정확한 정보로 등록하기"
                         onPress={handleRegister}
                         disabled={!isFormValid || isLoading}
-                      >
-                        {isLoading ? (
-                          <ActivityIndicator color="#ffffff" size="small" />
-                        ) : (
-                          <Text style={customerRegistrationModalStyles.registerButtonText}>
-                            ✅ 정확한 정보로 등록하기
-                          </Text>
-                        )}
-                      </TouchableOpacity>
+                        loading={isLoading}
+                        variant="primary"
+                        size="large"
+                        style={customerRegistrationModalStyles.registerButton}
+                      />
                     </>
                   )}
                 </View>

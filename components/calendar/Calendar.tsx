@@ -1,8 +1,8 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { treatmentAPI } from '@/src/features/booking/api';
-import { Treatment } from '@/src/types/treatment';
-import React, { useCallback, useEffect, useState } from 'react';
+import { Treatment } from '@/src/types';
+import { useCallback, useEffect, useState } from 'react';
 import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface CalendarDate {

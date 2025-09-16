@@ -1,10 +1,12 @@
 import { treatmentMenuAPI } from '@/src/services/api/treatment-menu';
 import {
+    TreatmentMenu,
     TreatmentMenuCreate,
     TreatmentMenuDetail,
-    TreatmentMenuDetailCreate,
-    TreatmentMenuResponse
+    TreatmentMenuDetailCreate
 } from '@/src/types';
+import { Button, TextInput as CustomTextInput } from '@/src/ui/atoms';
+import { Colors, Spacing, Typography } from '@/src/ui/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
@@ -15,7 +17,6 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     TouchableWithoutFeedback,
     View
@@ -26,15 +27,15 @@ interface TreatmentMenuManagementProps {
 }
 
 export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManagementProps) {
-  const [menus, setMenus] = useState<TreatmentMenuResponse[]>([]);
-  const [selectedMenu, setSelectedMenu] = useState<TreatmentMenuResponse | null>(null);
+  const [menus, setMenus] = useState<TreatmentMenu[]>([]);
+  const [selectedMenu, setSelectedMenu] = useState<TreatmentMenu | null>(null);
   const [menuDetails, setMenuDetails] = useState<TreatmentMenuDetail[]>([]);
   const [loading, setLoading] = useState(true);
   
   // 모달 관련 상태
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [editingMenu, setEditingMenu] = useState<TreatmentMenuResponse | null>(null);
+  const [editingMenu, setEditingMenu] = useState<TreatmentMenu | null>(null);
   const [editingDetail, setEditingDetail] = useState<TreatmentMenuDetail | null>(null);
   
   // 폼 상태
@@ -72,7 +73,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
     }
   };
 
-  const handleMenuSelect = async (menu: TreatmentMenuResponse) => {
+  const handleMenuSelect = async (menu: TreatmentMenu) => {
     setSelectedMenu(menu);
     await loadMenuDetails(menu.id);
   };
@@ -83,7 +84,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
     setShowMenuModal(true);
   };
 
-  const handleEditMenu = (menu: TreatmentMenuResponse) => {
+  const handleEditMenu = (menu: TreatmentMenu) => {
     setEditingMenu(menu);
     setMenuForm({ name: menu.name });
     setShowMenuModal(true);
@@ -114,7 +115,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
     }
   };
 
-  const handleDeleteMenu = (menu: TreatmentMenuResponse) => {
+  const handleDeleteMenu = (menu: TreatmentMenu) => {
     Alert.alert(
       '삭제 확인',
       `"${menu.name}" 메뉴를 삭제하시겠습니까?`,
@@ -369,10 +370,10 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
             <View style={styles.modalContent}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>메뉴 이름 *</Text>
-                <TextInput
+                <CustomTextInput
                   style={styles.textInput}
                   value={menuForm.name}
-                  onChangeText={(text) => setMenuForm({ ...menuForm, name: text })}
+                  onChangeText={(text: string) => setMenuForm({ ...menuForm, name: text })}
                   placeholder="예: 눈썹"
                   placeholderTextColor="#999"
                   returnKeyType="done"
@@ -381,18 +382,20 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
               </View>
 
               <View style={styles.modalActions}>
-                <TouchableOpacity
+                <Button
+                  title="취소"
                   onPress={() => setShowMenuModal(false)}
-                  style={[styles.modalButton, styles.cancelButton]}
-                >
-                  <Text style={styles.cancelButtonText}>취소</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                  variant="secondary"
+                  size="medium"
+                  style={styles.cancelButton}
+                />
+                <Button
+                  title="저장"
                   onPress={handleSaveMenu}
-                  style={[styles.modalButton, styles.saveButton]}
-                >
-                  <Text style={styles.saveButtonText}>저장</Text>
-                </TouchableOpacity>
+                  variant="primary"
+                  size="medium"
+                  style={styles.saveButton}
+                />
               </View>
             </View>
           </View>
@@ -415,10 +418,10 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
             <View style={styles.modalContent}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>상세 이름 *</Text>
-                <TextInput
+                <CustomTextInput
                   style={styles.textInput}
                   value={detailForm.name}
-                  onChangeText={(text) => setDetailForm({ ...detailForm, name: text })}
+                  onChangeText={(text: string) => setDetailForm({ ...detailForm, name: text })}
                   placeholder="예: 눈썹 문신"
                   placeholderTextColor="#999"
                   returnKeyType="next"
@@ -431,10 +434,10 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>시술 시간 (분) *</Text>
-                <TextInput
+                <CustomTextInput
                   style={styles.textInput}
                   value={detailForm.duration_min.toString()}
-                  onChangeText={(text) => 
+                  onChangeText={(text: string) => 
                     setDetailForm({ ...detailForm, duration_min: parseInt(text) || 0 })
                   }
                   placeholder="60"
@@ -450,10 +453,10 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>기본 가격 (원) *</Text>
-                <TextInput
+                <CustomTextInput
                   style={styles.textInput}
                   value={detailForm.base_price.toString()}
-                  onChangeText={(text) => 
+                  onChangeText={(text: string) => 
                     setDetailForm({ ...detailForm, base_price: parseInt(text) || 0 })
                   }
                   placeholder="50000"
@@ -465,18 +468,20 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
               </View>
 
               <View style={styles.modalActions}>
-                <TouchableOpacity
+                <Button
+                  title="취소"
                   onPress={() => setShowDetailModal(false)}
-                  style={[styles.modalButton, styles.cancelButton]}
-                >
-                  <Text style={styles.cancelButtonText}>취소</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                  variant="secondary"
+                  size="medium"
+                  style={styles.cancelButton}
+                />
+                <Button
+                  title="저장"
                   onPress={handleSaveDetail}
-                  style={[styles.modalButton, styles.saveButton]}
-                >
-                  <Text style={styles.saveButtonText}>저장</Text>
-                </TouchableOpacity>
+                  variant="primary"
+                  size="medium"
+                  style={styles.saveButton}
+                />
               </View>
             </View>
           </View>
@@ -489,17 +494,17 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: Colors.gray[50],
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: Colors.gray[200],
     ...Platform.select({
       ios: {
         paddingTop: 60,
@@ -510,12 +515,12 @@ const styles = StyleSheet.create({
     }),
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.gray[900],
   },
   closeButton: {
-    padding: 8,
+    padding: Spacing.xs,
   },
   content: {
     flex: 1,

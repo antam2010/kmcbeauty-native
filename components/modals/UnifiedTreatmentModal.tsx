@@ -1,13 +1,13 @@
-import type { Treatment } from '@/src/types/treatment';
+import type { Treatment } from '@/src/types';
 import React, { useState } from 'react';
 import {
-  Modal,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Modal,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -336,7 +336,7 @@ export default function TreatmentModal({
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>결제 방법</Text>
                 <Text style={styles.infoValue}>
-                  {paymentMethodLabels[currentTreatment.payment_method] || currentTreatment.payment_method}
+                  {currentTreatment.payment_method ? paymentMethodLabels[currentTreatment.payment_method] || currentTreatment.payment_method : '미정'}
                 </Text>
               </View>
               <View style={styles.infoRow}>

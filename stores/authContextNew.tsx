@@ -2,17 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-// 새로운 API 구조에서 타입과 API 가져오기
+// 통합 타입 시스템에서 가져오기
 import { tokenManager } from '@/src/api';
-import { authAPI, LoginCredentials, User } from '@/src/features/auth/api';
+import { authAPI, LoginCredentials } from '@/src/features/auth/api';
+import type { AuthState, User } from '@/src/types';
 
-interface AuthState {
-  isAuthenticated: boolean;
-  accessToken: string | null;
-  user: User | null;
-  loading: boolean;
-}
-
+// 로컬 AuthState 대신 통합 타입 사용 (src/types/auth.ts)
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;

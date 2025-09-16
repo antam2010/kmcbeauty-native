@@ -1,18 +1,19 @@
+import { Colors, Spacing, Typography } from '@/src/ui/theme';
 import { StyleSheet } from 'react-native';
 
 export const bookingFormStyles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: "#f8f9fa" 
+    backgroundColor: Colors.gray[50]
   },
   loadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    marginTop: Spacing.md,
+    fontSize: Typography.fontSize.base,
+    color: Colors.gray[600],
   },
   scrollView: { 
     flex: 1 
@@ -23,29 +24,29 @@ export const bookingFormStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: Colors.gray[200],
   },
   closeButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: Colors.gray[50],
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeButtonText: {
-    fontSize: 18,
-    color: '#6c757d',
-    fontWeight: '600',
+    fontSize: Typography.fontSize.lg,
+    color: Colors.gray[500],
+    fontWeight: Typography.fontWeight.semibold,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#212529',
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.gray[900],
   },
   placeholder: {
     width: 40,
@@ -53,49 +54,49 @@ export const bookingFormStyles = StyleSheet.create({
 
   // 섹션 공통 스타일
   section: {
-    marginBottom: 20,
-    paddingHorizontal: 16,
+    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.md,
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#212529',
-    marginBottom: 10,
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.gray[900],
+    marginBottom: Spacing.sm,
   },
   sectionSubtitle: {
-    fontSize: 13,
-    color: '#6c757d',
-    marginBottom: 10,
+    fontSize: Typography.fontSize.sm,
+    color: Colors.gray[500],
+    marginBottom: Spacing.sm,
     fontStyle: 'italic',
     lineHeight: 18,
   },
 
   // 날짜 카드 스타일
   dateCard: {
-    backgroundColor: '#ffffff',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
+    borderRadius: Spacing.sm,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: Colors.gray[200],
   },
   dateText: {
-    fontSize: 16,
-    color: '#495057',
+    fontSize: Typography.fontSize.base,
+    color: Colors.gray[700],
     textAlign: 'center',
   },
 
   // 고객 검색 스타일
   searchInput: {
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#e9ecef',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    marginBottom: 10,
+    borderColor: Colors.gray[200],
+    borderRadius: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    fontSize: Typography.fontSize.base,
+    marginBottom: Spacing.sm,
     elevation: 1, // 안드로이드 그림자
-    shadowColor: '#000', // iOS 그림자
+    shadowColor: Colors.black, // iOS 그림자
     shadowOffset: {
       width: 0,
       height: 1,
@@ -105,9 +106,9 @@ export const bookingFormStyles = StyleSheet.create({
     minHeight: 48, // 안드로이드 접근성을 위한 최소 높이
   },
   selectedCustomer: {
-    backgroundColor: '#e3f2fd',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: Colors.primaryLight,
+    padding: Spacing.sm,
+    borderRadius: Spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -116,26 +117,26 @@ export const bookingFormStyles = StyleSheet.create({
     flex: 1,
   },
   customerName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1976d2',
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.primary,
   },
   customerPhone: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: Typography.fontSize.sm,
+    color: Colors.gray[600],
     marginTop: 2,
   },
 
   // 검색 결과 스타일
   searchResults: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
+    backgroundColor: Colors.white,
+    borderRadius: Spacing.xs,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: Colors.gray[200],
     maxHeight: 300,
-    marginTop: 8,
+    marginTop: Spacing.xs,
     elevation: 2, // 안드로이드 그림자
-    shadowColor: '#000', // iOS 그림자
+    shadowColor: Colors.black, // iOS 그림자
     shadowOffset: {
       width: 0,
       height: 1,
@@ -144,9 +145,9 @@ export const bookingFormStyles = StyleSheet.create({
     shadowRadius: 1.41,
   },
   searchResultsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#495057',
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.gray[700],
     padding: 12,
     paddingBottom: 8,
     borderBottomWidth: 1,

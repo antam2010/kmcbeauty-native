@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-// 새로운 API 구조에서 타입과 API 가져오기
-import { authAPI, LoginCredentials, User } from '@/src/features/auth/api';
+// 통합 타입 시스템에서 가져오기
+import { authAPI, LoginCredentials } from '@/src/features/auth/api';
+import type { AuthState, User } from '@/src/types';
 import { shopEventEmitter } from './shopStore';
 
 // 간단한 토큰 관리자
@@ -68,13 +69,7 @@ const tokenManager = {
   }
 };
 
-interface AuthState {
-  isAuthenticated: boolean;
-  accessToken: string | null;
-  user: User | null;
-  loading: boolean;
-}
-
+// 로컬 AuthState 대신 통합 타입 사용 (src/types/auth.ts)
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
@@ -172,6 +167,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       setAuthState(newState);
       await saveAuthToStorage(newState);
+      
+      // 로그인 성공 후 상점 로딩 트리거
+      setTimeout(() => {
+        shopEventEmitter.emit('loginSuccess');
+      }, 100);
       
       console.log('✅ 로그인 완료');
       

@@ -1,6 +1,5 @@
 import apiClient from '@/src/api/client';
 import {
-  Page,
   TreatmentMenuCreate,
   TreatmentMenuDetail,
   TreatmentMenuDetailCreate,
@@ -13,9 +12,9 @@ export const treatmentMenuAPI = {
     search?: string;
     page?: number;
     size?: number;
-  }): Promise<Page<TreatmentMenuResponse>> => {
+  }): Promise<TreatmentMenuResponse> => {
     const response = await apiClient.get('/treatment-menus', { params });
-    return response.data as Page<TreatmentMenuResponse>;
+    return response.data as TreatmentMenuResponse;
   },
 
   // 시술 메뉴 생성

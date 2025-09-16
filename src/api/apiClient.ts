@@ -55,10 +55,14 @@ export const tokenManager = {
 
 // 요청 인터셉터
 apiClient.interceptors.request.use(
-  async (config) => {
-    const token = await tokenManager.getStoredToken();
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+  async (config: any) => {
+    try {
+      const token = await tokenManager.getStoredToken();
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.warn('토큰 로딩 실패:', error);
     }
     
     console.log(`🌐 API 요청: ${config.method?.toUpperCase()} ${config.url}`);

@@ -5,7 +5,9 @@ import { shopApiService, type ShopUser } from '@/src/api/services/shop';
 import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import { type ContactSyncResult } from '@/src/services/contactSync';
-import type { TreatmentCreate, TreatmentItemCreate } from '@/src/types/treatment';
+import type { TreatmentCreate, TreatmentItemCreate } from '@/src/types';
+import { Button, TextInput as CustomTextInput } from '@/src/ui/atoms';
+
 import { detectInputType, extractNameAndPhone, formatPhoneNumber } from '@/src/utils/phoneFormat';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -17,7 +19,6 @@ import {
   Platform,
   ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View
@@ -379,19 +380,31 @@ export default function BookingForm({
   }, [customerSearch]);
 
   const handleBooking = async () => {
+    console.log('📝 예약 생성 시작 - 유효성 검사');
+    
     // 유효성 검사 - 고객 선택 제거
     if (!selectedTime) {
+      console.error('❌ 시간 미선택');
       Alert.alert('알림', '시간을 선택해주세요.');
       return;
     }
     if (selectedTreatments.length === 0) {
+      console.error('❌ 시술 미선택');
       Alert.alert('알림', '시술을 선택해주세요.');
       return;
     }
     if (!selectedDate) {
+      console.error('❌ 날짜 미선택');
       Alert.alert('알림', '날짜가 선택되지 않았습니다.');
       return;
     }
+
+    console.log('✅ 기본 유효성 검사 통과:', {
+      selectedDate,
+      selectedTime,
+      treatmentCount: selectedTreatments.length,
+      selectedCustomer: selectedCustomer ? `${selectedCustomer.name}(${selectedCustomer.id})` : 'null'
+    });
 
     try {
       setIsLoading(true);
@@ -427,27 +440,54 @@ export default function BookingForm({
         console.log('✅ 기본 고객 사용:', customerToUse.name, customerToUse.phone_number);
       }
 
-      // ISO 형식의 예약 시간 생성
-      const reservedDateTime = `${selectedDate}T${selectedTime}:00`;
-
       // 시술 항목들 준비
       const treatmentItems: TreatmentItemCreate[] = selectedTreatments.map(item => ({
         menu_detail_id: item.menuDetail.id,
-        base_price: item.customPrice,
-        duration_min: item.customDuration,
-        session_no: item.sessionNo
+        session_no: item.sessionNo,
+        base_price: item.menuDetail.base_price,
+        duration_min: item.customDuration
       }));
+
+      // appointment_date와 appointment_time을 reserved_at으로 변환
+      const reservedAt = `${selectedDate}T${selectedTime}:00`;
 
       // 시술 예약 생성
       const treatmentData: TreatmentCreate = {
         phonebook_id: customerToUse.id,
-        reserved_at: reservedDateTime,
-        memo: memo.trim() || null,
-        status: 'RESERVED',
-        payment_method: paymentMethod,
-        staff_user_id: selectedStaff?.user_id || null,
+        reserved_at: reservedAt,
+        memo: memo.trim() || undefined,
+        status: 'RESERVED', // 기본 상태
         treatment_items: treatmentItems
       };
+
+      console.log('📝 최종 예약 데이터 검증:', {
+        phonebook_id: treatmentData.phonebook_id,
+        reserved_at: treatmentData.reserved_at,
+        status: treatmentData.status,
+        treatment_items_count: treatmentData.treatment_items.length,
+        memo: treatmentData.memo || 'null',
+        '모든_필수_필드_존재': !!(
+          treatmentData.phonebook_id && 
+          treatmentData.reserved_at && 
+          treatmentData.status && 
+          treatmentData.treatment_items.length > 0
+        )
+      });
+      
+      console.log('📝 시술 항목 상세 검증:', treatmentItems.map((item, index) => ({
+        index,
+        menu_detail_id: item.menu_detail_id,
+        session_no: item.session_no,
+        base_price: item.base_price,
+        duration_min: item.duration_min,
+        '필드_타입_검증': {
+          menu_detail_id_type: typeof item.menu_detail_id,
+          session_no_type: typeof item.session_no,
+          base_price_type: typeof item.base_price,
+          duration_min_type: typeof item.duration_min
+        },
+        '모든_필드_존재': !!(item.menu_detail_id && item.session_no && item.base_price && item.duration_min)
+      })));
 
       await treatmentApiService.create(treatmentData);
       
@@ -536,11 +576,10 @@ export default function BookingForm({
             <Text style={[bookingFormStyles.sectionSubtitle, { marginBottom: 8 }]}>
               💡 고객을 선택하지 않으면 &apos;고객 미지정&apos;으로 예약됩니다
             </Text>
-            <TextInput
-              style={bookingFormStyles.searchInput}
+            <CustomTextInput
               placeholder="고객 이름 또는 전화번호 검색 (010-1234-5678)"
               value={customerSearch}
-              onChangeText={(text) => {
+              onChangeText={(text: string) => {
                 // 숫자로만 이루어진 경우 전화번호로 간주하여 포맷팅
                 if (/^\d/.test(text.trim())) {
                   setCustomerSearch(formatPhoneNumber(text));
@@ -914,29 +953,24 @@ export default function BookingForm({
           {/* 메모 */}
           <View style={bookingFormStyles.section}>
             <Text style={bookingFormStyles.sectionTitle}>📝 메모 (선택)</Text>
-            <TextInput
-              style={bookingFormStyles.memoInput}
+            <CustomTextInput
               placeholder="특별한 요청사항이나 메모를 입력하세요"
               value={memo}
               onChangeText={setMemo}
               multiline
               numberOfLines={3}
-              textAlignVertical="top"
             />
           </View>
 
           {/* 예약하기 버튼 */}
-          <TouchableOpacity
-            style={[bookingFormStyles.bookingButton, isLoading && bookingFormStyles.disabledButton]}
+          <Button
+            title="예약하기"
+            variant="primary"
+            size="large"
             onPress={handleBooking}
+            loading={isLoading}
             disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text style={bookingFormStyles.bookingButtonText}>예약하기</Text>
-            )}
-          </TouchableOpacity>
+          />
         </ScrollView>
       </View>
     </TouchableWithoutFeedback>

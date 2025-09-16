@@ -1,15 +1,17 @@
+import { Card } from '@/src/ui/atoms';
+
 import { MaterialIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import {
-    Alert,
-    Modal,
-    Platform,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { dashboardApiService } from '../../src/api/services/dashboard';
@@ -223,31 +225,31 @@ export default function MonthlyDashboard({ onClose }: MonthlyDashboardProps) {
         {/* 요약 통계 카드들 */}
         <View style={styles.statsContainer}>
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, styles.primaryCard]}>
+            <Card style={styles.statCard}>
               <MaterialIcons name="event" size={32} color="#007AFF" />
               <Text style={styles.statNumber}>{dashboardData.summary.target_date.total_reservations}</Text>
               <Text style={styles.statLabel}>총 예약</Text>
-            </View>
+            </Card>
             
-            <View style={[styles.statCard, styles.successCard]}>
+            <Card style={styles.statCard}>
               <MaterialIcons name="check-circle" size={32} color="#28a745" />
               <Text style={styles.statNumber}>{dashboardData.summary.target_date.completed}</Text>
               <Text style={styles.statLabel}>완료</Text>
-            </View>
+            </Card>
           </View>
 
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, styles.warningCard]}>
+            <Card style={styles.statCard}>
               <MaterialIcons name="pending" size={32} color="#ff9500" />
               <Text style={styles.statNumber}>{dashboardData.summary.target_date.reserved}</Text>
               <Text style={styles.statLabel}>대기 중</Text>
-            </View>
+            </Card>
             
-            <View style={[styles.statCard, styles.dangerCard]}>
+            <Card style={styles.statCard}>
               <MaterialIcons name="cancel" size={32} color="#ff3b30" />
               <Text style={styles.statNumber}>{dashboardData.summary.target_date.canceled}</Text>
               <Text style={styles.statLabel}>취소</Text>
-            </View>
+            </Card>
           </View>
         </View>
 
@@ -301,7 +303,7 @@ export default function MonthlyDashboard({ onClose }: MonthlyDashboardProps) {
         {dashboardData.sales.month.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>🏆 인기 시술 (월간)</Text>
-            {dashboardData.sales.month.slice(0, 5).map((item, index) => (
+            {dashboardData.sales.month.slice(0, 5).map((item: any, index: number) => (
               <View key={item.menu_detail_id} style={styles.treatmentItem}>
                 <View style={styles.treatmentRank}>
                   <Text style={styles.rankNumber}>{index + 1}</Text>

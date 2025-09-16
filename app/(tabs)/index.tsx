@@ -1,6 +1,7 @@
 import MonthlyDashboard from '@/components/dashboard/MonthlyDashboard';
 import ShopHeader from '@/components/navigation/ShopHeader';
 import { useDashboard } from '@/contexts/DashboardContext';
+import type { Treatment } from '@/src/types';
 import { shopEventEmitter, useShop } from '@/stores/shopStore';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -19,6 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { dashboardApiService } from '../../src/api/services/dashboard';
 import { treatmentAPI } from '../../src/features/booking/api';
+
 // 임시 타입 정의
 interface DashboardSummaryResponse {
   target_date: string;
@@ -26,29 +28,6 @@ interface DashboardSummaryResponse {
   sales: any;
   customer_insights: any[];
   staff_summary: any;
-}
-
-interface Treatment {
-  id: number;
-  customer_name: string;
-  customer_phone: string;
-  service_name: string;
-  staff_name?: string;
-  appointment_date: string;
-  appointment_time: string;
-  reserved_at: string;
-  duration: number;
-  price: number;
-  status: string;
-  notes?: string;
-  phonebook?: {
-    name: string;
-  };
-  treatment_items?: {
-    menu_detail?: {
-      name: string;
-    };
-  }[];
 }
 
 export default function HomeScreen() {
@@ -109,19 +88,33 @@ export default function HomeScreen() {
     }
   }, [refreshTrigger, loadDashboardData]);
 
-  // 상점 변경 이벤트 감지
+  // 상점 변경 이벤트 감지 (한 번만 등록)
   useEffect(() => {
     const handleShopChanged = () => {
-      console.log('🏪 상점이 변경되어 대시보드 데이터를 새로고침합니다.');
+      console.log('🏪 홈: 상점이 변경되어 대시보드 데이터를 새로고침합니다.');
       loadDashboardData(true);
     };
 
+    const handleLoginSuccess = () => {
+      console.log('🔑 홈: 로그인 성공 이벤트 감지');
+      // 약간의 지연 후 대시보드 데이터 로드 시도
+      setTimeout(() => {
+        console.log('🏪 홈: 상점 확인 중...');
+        // 현재 선택된 상점 정보를 다시 확인
+        loadDashboardData(true);
+      }, 1000); // 1초로 증가하여 상점 로딩 완료 대기
+    };
+
+    console.log('🔧 홈: 이벤트 리스너 등록');
     shopEventEmitter.on('shopChanged', handleShopChanged);
+    shopEventEmitter.on('loginSuccess', handleLoginSuccess);
 
     return () => {
+      console.log('🔧 홈: 이벤트 리스너 해제');
       shopEventEmitter.off('shopChanged', handleShopChanged);
+      shopEventEmitter.off('loginSuccess', handleLoginSuccess);
     };
-  }, [loadDashboardData]);
+  }, [loadDashboardData]); // loadDashboardData만 의존성으로 추가
 
   const onRefresh = () => {
     setRefreshing(true);

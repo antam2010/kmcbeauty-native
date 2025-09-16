@@ -1,6 +1,7 @@
 import { ThemedView } from '@/components/ThemedView';
 import LoginForm from '@/components/forms/LoginForm';
 import { LoginCredentials } from '@/src/features/auth/api';
+import { Colors } from '@/src/ui/theme';
 import { useAuth } from '@/stores/authContext';
 import { Redirect } from 'expo-router';
 import React, { useState } from 'react';
@@ -14,7 +15,7 @@ export default React.memo(function LoginScreen() {
   if (authLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -55,12 +56,12 @@ export default React.memo(function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: Colors.gray[50],
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: Colors.gray[50],
   },
 });

@@ -2,9 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { router } from 'expo-router';
 
-// 상점 이벤트 에미터 임포트
-import { shopEventEmitter } from '../../stores/shopStore';
-
 // 타입 정의
 interface AuthTokenResponse {
   access_token: string;
@@ -91,9 +88,6 @@ const performLogout = async () => {
       await AsyncStorage.multiRemove(keysToRemove);
       console.log('🚪 사용자 데이터 완전 정리 완료:', keysToRemove);
     }
-    
-    // 상점 정보 정리 이벤트 발생
-    shopEventEmitter.emit('clearShop');
     
     // 로그인 화면으로 이동
     if (!isNavigatingToLogin) {

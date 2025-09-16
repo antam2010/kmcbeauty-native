@@ -5,21 +5,21 @@ import { phonebookApiService, type Phonebook } from '@/src/api/services/phoneboo
 import { shopApiService, type ShopUser } from '@/src/api/services/shop';
 import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
-import type { Treatment, TreatmentItemCreate, TreatmentUpdate } from '@/src/types/treatment';
+import type { Treatment, TreatmentItemCreate, TreatmentUpdate } from '@/src/types';
 import { detectInputType, formatPhoneNumber } from '@/src/utils/phoneFormat';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Keyboard,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
+    ActivityIndicator,
+    Alert,
+    Keyboard,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type SelectedTreatmentItem } from '../forms/SelectedTreatmentItem';
@@ -94,8 +94,8 @@ export default function EditTreatmentModal({
         shop_id: treatment.shop_id,
         name: treatment.phonebook.name,
         phone_number: treatment.phonebook.phone_number,
-        group_name: treatment.phonebook.group_name,
-        memo: treatment.phonebook.memo,
+        group_name: treatment.phonebook.group_name || null,
+        memo: treatment.phonebook.memo || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -114,7 +114,11 @@ export default function EditTreatmentModal({
         shop_id: treatment.shop_id,
         user_id: treatment.staff_user_id || 0,
         is_primary_owner: 0,
-        user: treatment.staff_user
+        user: {
+          name: treatment.staff_user.name,
+          email: treatment.staff_user.email,
+          role: treatment.staff_user.role
+        }
       });
     }
     
@@ -374,6 +378,7 @@ export default function EditTreatmentModal({
       const treatmentItems: TreatmentItemCreate[] = selectedTreatments.map(item => ({
         menu_detail_id: item.menuDetail.id,
         session_no: item.sessionNo,
+        custom_price: item.customPrice,
         base_price: item.customPrice,
         duration_min: item.customDuration
       }));
@@ -388,6 +393,7 @@ export default function EditTreatmentModal({
         payment_method: paymentMethod,
         treatment_items: treatmentItems.map(item => ({
           menu_detail_id: item.menu_detail_id,
+          custom_price: item.custom_price,
           base_price: item.base_price,
           duration_min: item.duration_min,
           session_no: item.session_no

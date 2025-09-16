@@ -1,19 +1,20 @@
 import { Phonebook, PhonebookCreate } from '@/src/api/services/phonebook';
 import { phonebookAPI } from '@/src/services/api/phonebook';
+import { TextInput as CustomTextInput } from '@/src/ui/atoms';
+
 import { formatPhoneNumber, handlePhoneInputChange, unformatPhoneNumber } from '@/src/utils/phoneFormat';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
-    Alert,
-    Keyboard,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  Alert,
+  Keyboard,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 
 import ContactSyncModal from '../modals/ContactSyncModal';
@@ -232,7 +233,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
 
       {/* 검색 */}
       <View style={styles.searchContainer}>
-        <TextInput
+        <CustomTextInput
           style={styles.searchInput}
           placeholder="이름 또는 전화번호로 검색"
           value={searchTerm}
@@ -276,10 +277,10 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
             <ScrollView style={styles.modalContent}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>이름 *</Text>
-                <TextInput
+                <CustomTextInput
                   style={styles.textInput}
                   value={contactForm.name}
-                  onChangeText={(text) => setContactForm({ ...contactForm, name: text })}
+                  onChangeText={(text: string) => setContactForm({ ...contactForm, name: text })}
                   placeholder="이름을 입력하세요"
                   returnKeyType="next"
                   onSubmitEditing={Keyboard.dismiss}
@@ -288,7 +289,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>전화번호 *</Text>
-                <TextInput
+                <CustomTextInput
                   style={styles.textInput}
                   value={contactForm.phone_number}
                   onChangeText={handlePhoneNumberChange}
@@ -301,10 +302,10 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>그룹</Text>
-                <TextInput
+                <CustomTextInput
                   style={styles.textInput}
                   value={contactForm.group_name || ''}
-                  onChangeText={(text) => setContactForm({ ...contactForm, group_name: text })}
+                  onChangeText={(text: string) => setContactForm({ ...contactForm, group_name: text })}
                   placeholder="예: 고객, VIP, 직원 등"
                   returnKeyType="next"
                   onSubmitEditing={Keyboard.dismiss}
@@ -313,10 +314,10 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>메모</Text>
-                <TextInput
+                <CustomTextInput
                   style={[styles.textInput, styles.memoInput]}
                   value={contactForm.memo || ''}
-                  onChangeText={(text) => setContactForm({ ...contactForm, memo: text })}
+                  onChangeText={(text: string) => setContactForm({ ...contactForm, memo: text })}
                   placeholder="메모를 입력하세요"
                   multiline
                   numberOfLines={3}

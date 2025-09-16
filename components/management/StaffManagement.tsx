@@ -2,15 +2,17 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { Staff, staffService } from '@/services/mockServices';
+import { Button, Card } from '@/src/ui/atoms';
+import { Colors as DesignColors, Spacing, Typography } from '@/src/ui/theme';
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    useColorScheme,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  useColorScheme,
 } from 'react-native';
 
 interface StaffManagementProps {
@@ -113,13 +115,16 @@ export default function StaffManagement({ onGoBack }: StaffManagementProps) {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* 새 직원 추가 버튼 */}
-        <TouchableOpacity style={styles.addButton} onPress={handleAddStaff}>
-          <MaterialIcons name="add" size={20} color="#fff" />
-          <ThemedText style={styles.addButtonText}>새 직원 추가</ThemedText>
-        </TouchableOpacity>
+        <Button
+          title="새 직원 추가"
+          onPress={handleAddStaff}
+          variant="primary"
+          size="large"
+          style={styles.addButton}
+        />
 
         {/* 직원 목록 */}
-        <ThemedView style={styles.listContainer}>
+        <Card style={styles.listContainer}>
           {staffList.length > 0 ? (
             staffList.map(renderStaffItem)
           ) : (
@@ -127,12 +132,16 @@ export default function StaffManagement({ onGoBack }: StaffManagementProps) {
               <MaterialIcons name="person-outline" size={64} color={Colors[colorScheme].icon} />
               <ThemedText style={styles.emptyText}>등록된 직원이 없습니다</ThemedText>
               <ThemedText style={styles.emptySubText}>새 직원을 추가해보세요</ThemedText>
-              <TouchableOpacity style={styles.emptyAddButton} onPress={handleAddStaff}>
-                <ThemedText style={styles.emptyAddButtonText}>첫 직원 추가</ThemedText>
-              </TouchableOpacity>
+              <Button
+                title="첫 직원 추가"
+                onPress={handleAddStaff}
+                variant="secondary"
+                size="medium"
+                style={styles.emptyAddButton}
+              />
             </ThemedView>
           )}
-        </ThemedView>
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );
@@ -141,20 +150,20 @@ export default function StaffManagement({ onGoBack }: StaffManagementProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: DesignColors.gray[50],
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    backgroundColor: DesignColors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: DesignColors.gray[200],
   },
   backButton: {
-    padding: 12,
+    padding: Spacing.sm,
     minWidth: 44,
     minHeight: 44,
     justifyContent: 'center',
@@ -162,14 +171,14 @@ const styles = StyleSheet.create({
     marginLeft: -8,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
+    color: DesignColors.gray[900],
     flex: 1,
     textAlign: 'center',
   },
   addHeaderButton: {
-    padding: 12,
+    padding: Spacing.sm,
     minWidth: 44,
     minHeight: 44,
     justifyContent: 'center',
@@ -178,37 +187,20 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: Spacing.lg,
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#007AFF',
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginBottom: 24,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    marginBottom: Spacing.xl,
   },
   listContainer: {
-    gap: 12,
+    gap: Spacing.sm,
   },
   card: {
     flexDirection: 'row',
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
+    padding: Spacing.md,
+    borderRadius: Spacing.sm,
+    backgroundColor: DesignColors.white,
+    shadowColor: DesignColors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -221,26 +213,26 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.semibold,
+    color: DesignColors.gray[900],
   },
   cardSubtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: Typography.fontSize.sm,
+    color: DesignColors.gray[600],
   },
   cardDetails: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: Typography.fontSize.xs,
+    color: DesignColors.gray[500],
     marginTop: 4,
   },
   cardActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: Spacing.md,
   },
   iconButton: {
-    padding: 8,
+    padding: Spacing.xs,
   },
   loadingContainer: {
     flex: 1,
@@ -254,26 +246,18 @@ const styles = StyleSheet.create({
     paddingTop: 100,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 16,
-    marginBottom: 8,
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
+    color: DesignColors.gray[900],
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
   },
   emptySubText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 24,
+    fontSize: Typography.fontSize.sm,
+    color: DesignColors.gray[600],
+    marginBottom: Spacing.xl,
   },
   emptyAddButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  emptyAddButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    // Button 컴포넌트에서 스타일 관리
   },
 });
