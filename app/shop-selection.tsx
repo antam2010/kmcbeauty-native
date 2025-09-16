@@ -1,8 +1,7 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import ShopRegistrationModal from '@/components/modals/ShopRegistrationModal';
-import { shopService } from '@/services/api/shop';
-import { Shop } from '@/src/api/services/shop';
+import { Shop, shopApiService } from '@/src/api/services/shop';
 import { useShop } from '@/stores/shopStore';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -31,7 +30,7 @@ export default function ShopSelectionScreen() {
   const loadShops = useCallback(async (page: number = 1) => {
     try {
       setLoading(true);
-      const response = await shopService.getShops(page, 50);
+      const response = await shopApiService.list({ page, size: 50 });
       setShops(response.items);
       setPagination({
         total: response.total,
