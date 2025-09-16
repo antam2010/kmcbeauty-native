@@ -6,7 +6,7 @@ import ShopHeader from '@/components/navigation/ShopHeader';
 import { useDashboard } from "@/contexts/DashboardContext";
 import { Treatment } from "@/src/types";
 import { useCallback, useRef, useState } from "react";
-import { Alert, Animated, Modal, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Modal, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function BookingScreen() {
@@ -144,12 +144,6 @@ export default function BookingScreen() {
     triggerRefresh();
     setCalendarRefreshTrigger(prev => prev + 1);
     
-    // 성공 메시지
-    setTimeout(() => {
-      Alert.alert("완료", "예약이 성공적으로 수정되었습니다!", [
-        { text: "확인", style: "default" }
-      ]);
-    }, 300);
   }, [triggerRefresh]);
 
   const handleCloseTreatmentModal = useCallback(() => {
