@@ -104,9 +104,6 @@ export default function BookingScreen() {
       setSelectedDate(null);
       setReservedTimes([]);
       setIsModalClosing(false);
-      Alert.alert("완료", "예약이 완료되었습니다!", [
-        { text: "확인", style: "default" }
-      ]);
     }, 500);
   }, [triggerRefresh]);
 

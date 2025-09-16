@@ -589,13 +589,22 @@ export default function BookingForm({
               }}
               onFocus={() => {
                 console.log('🎯 검색 입력 포커스 - 최근 고객 표시');
+                console.log('🎯 현재 상태:', {
+                  customerSearch: customerSearch.trim(),
+                  selectedCustomer: selectedCustomer?.name || 'null',
+                  showRecentCustomers
+                });
+                
                 // 포커스 시 최근 고객 표시 (검색어가 없고 고객이 선택되지 않은 경우)
                 if (!customerSearch.trim() && !selectedCustomer) {
+                  console.log('✅ 조건 만족 - 최근 고객 목록 표시');
                   setShowRecentCustomers(true);
                   // 최근 고객 목록 새로고침
                   loadRecentCustomers().catch(error => {
                     console.error('포커스 시 최근 고객 로드 실패:', error);
                   });
+                } else {
+                  console.log('⚠️ 조건 불만족 - 최근 고객 목록 표시 안함');
                 }
               }}
               onBlur={() => {
@@ -622,8 +631,20 @@ export default function BookingForm({
                 </View>
                 <TouchableOpacity 
                   onPress={() => {
+                    console.log('🗑️ 고객 선택 취소');
                     setSelectedCustomer(null);
                     setShowRecentCustomers(false);
+                    setCustomerSearch('');
+                    setSearchResults([]);
+                    
+                    // 포커스 상태 유지를 위해 지연 후 최근 고객 목록 다시 표시
+                    setTimeout(() => {
+                      console.log('🔄 고객 선택 취소 후 최근 고객 목록 복원');
+                      setShowRecentCustomers(true);
+                      loadRecentCustomers().catch(error => {
+                        console.error('고객 선택 취소 후 최근 고객 로드 실패:', error);
+                      });
+                    }, 100);
                   }}
                   style={bookingFormStyles.removeButton}
                 >
@@ -714,17 +735,12 @@ export default function BookingForm({
                             console.log('🎯 최근 고객 선택 시도:', customer.name, 'ID:', customer.id);
                             console.log('🎯 현재 선택된 고객:', (selectedCustomer as Phonebook | null)?.name || 'none');
                             
-                            // 중복 선택 방지
-                            if ((selectedCustomer as Phonebook | null)?.id === customer.id) {
-                              console.log('⚠️ 이미 선택된 고객입니다.');
-                              return;
-                            }
-                            
                             // 상태 즉시 업데이트
                             console.log('✅ 고객 선택 처리 시작...');
                             setSelectedCustomer(customer);
                             setCustomerSearch('');
                             setShowRecentCustomers(false);
+                            setSearchResults([]); // 검색 결과도 초기화
                             
                             console.log('✅ 고객 선택 완료:', customer.name);
                             

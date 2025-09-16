@@ -9,17 +9,17 @@ import type { Treatment, TreatmentItemCreate, TreatmentUpdate } from '@/src/type
 import { detectInputType, formatPhoneNumber } from '@/src/utils/phoneFormat';
 import { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Keyboard,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type SelectedTreatmentItem } from '../forms/SelectedTreatmentItem';
@@ -378,7 +378,6 @@ export default function EditTreatmentModal({
       const treatmentItems: TreatmentItemCreate[] = selectedTreatments.map(item => ({
         menu_detail_id: item.menuDetail.id,
         session_no: item.sessionNo,
-        custom_price: item.customPrice,
         base_price: item.customPrice,
         duration_min: item.customDuration
       }));
@@ -391,13 +390,7 @@ export default function EditTreatmentModal({
         memo: memo.trim(),
         status,
         payment_method: paymentMethod,
-        treatment_items: treatmentItems.map(item => ({
-          menu_detail_id: item.menu_detail_id,
-          custom_price: item.custom_price,
-          base_price: item.base_price,
-          duration_min: item.duration_min,
-          session_no: item.session_no
-        }))
+        treatment_items: treatmentItems
       };
 
       // API 호출
@@ -479,7 +472,13 @@ export default function EditTreatmentModal({
                   }
                 }}
                 onFocus={() => {
-                  console.log('Input 포커스, selectedCustomer:', selectedCustomer?.name);
+                  console.log('🔍 [EditTreatmentModal] Input 포커스 - 상태 확인:', {
+                    customerSearch: customerSearch,
+                    selectedCustomer: selectedCustomer?.name || 'null',
+                    showRecentCustomers: showRecentCustomers,
+                    searchResultsLength: searchResults.length
+                  });
+                  
                   if (!customerSearch.trim()) {
                     setShowRecentCustomers(true);
                     loadRecentCustomers().catch(error => {
@@ -523,8 +522,12 @@ export default function EditTreatmentModal({
                     </TouchableOpacity>
                     <TouchableOpacity 
                       onPress={() => {
+                        console.log('고객 선택 취소 - 최근 고객 목록 복원');
                         setSelectedCustomer(null);
-                        setShowRecentCustomers(false);
+                        // 잠시 후 최근 고객 목록을 다시 표시하여 재선택 가능하게 함
+                        setTimeout(() => {
+                          setShowRecentCustomers(true);
+                        }, 100);
                       }}
                       style={styles.removeButton}
                     >
@@ -617,6 +620,7 @@ export default function EditTreatmentModal({
                               console.log('최근 고객 선택:', customer.name, customer.phone_number);
                               setSelectedCustomer(customer);
                               setCustomerSearch('');
+                              setSearchResults([]); // 검색 결과 클리어
                               setShowRecentCustomers(false);
                               
                               setTimeout(() => {
