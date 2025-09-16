@@ -1,257 +1,553 @@
-import { Collapsible } from '@/components/Collapsible';
-import ShopHeader from '@/components/navigation/ShopHeader';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { useAuth } from '@/stores/authContext';
+import ShopHeader from '@/components/navigation/ShopHeader';
+import { authApiService } from '@/src/api/services/auth';
+import { useAuth } from '@/stores/authContextNew';
+import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { Alert, Dimensions, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-interface UserProfile {
-  name: string;
-  email: string;
-  phone: string;
-  role: 'admin' | 'staff' | 'customer';
-  joinDate: string;
-}
-
-interface BookingHistory {
-  id: string;
-  service: string;
-  date: string;
-  status: string;
-}
+const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
-  const { logout, user } = useAuth();
-  const profile: UserProfile = {
-    name: user?.name || '김관리자',
-    email: user?.email || 'admin@kmcbeauty.com',
-    phone: '010-1234-5678',
-    role: 'admin',
-    joinDate: '2024-01-15'
-  };
+  const { logout, user, selectedShop } = useAuth();
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  const [bookingHistory] = useState<BookingHistory[]>([
-    { id: '1', service: '화장', date: '2024-09-01', status: '완료' },
-    { id: '2', service: '눈썹', date: '2024-08-28', status: '완료' },
-    { id: '3', service: '두피케어', date: '2024-09-15', status: '예정' },
-  ]);
-
-  const handleEditProfile = () => {
-    Alert.alert('프로필 수정', '프로필 수정 화면으로 이동합니다.');
-  };
-
-  const handleChangePassword = () => {
-    Alert.alert('비밀번호 변경', '비밀번호 변경 화면으로 이동합니다.');
-  };
+  const currentShop = selectedShop;
 
   const handleLogout = () => {
     Alert.alert(
       '로그아웃',
-      '정말 로그아웃 하시겠습니까?',
+      '정말 로그아웃하시겠습니까?',
       [
         { text: '취소', style: 'cancel' },
-        { text: '로그아웃', style: 'destructive', onPress: async () => {
-          try {
-            console.log('🚪 사용자가 로그아웃 버튼을 눌렀습니다');
-            await logout();
-            console.log('✅ 로그아웃 완료 - AuthNavigator가 자동으로 로그인 화면으로 이동할 것입니다');
-          } catch (error) {
-            console.error('로그아웃 실패:', error);
-            Alert.alert('오류', '로그아웃 중 오류가 발생했습니다.');
+        { 
+          text: '로그아웃', 
+          style: 'destructive',
+          onPress: () => {
+            logout();
+            router.replace('/login');
           }
-        }}
+        },
       ]
     );
   };
 
-  const getRoleText = (role: string) => {
-    switch (role) {
-      case 'admin': return '관리자';
-      case 'staff': return '직원';
-      case 'customer': return '고객';
-      default: return '사용자';
+  const handlePasswordChange = async () => {
+    if (!newPassword || !confirmPassword) {
+      Alert.alert('오류', '새 비밀번호를 입력해주세요.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      Alert.alert('오류', '새 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      Alert.alert('오류', '새 비밀번호는 4자 이상이어야 합니다.');
+      return;
+    }
+
+    try {
+      // /users/me PUT API 사용 - 현재 비밀번호 불필요
+      await authApiService.changePassword(newPassword);
+
+      Alert.alert('성공', '비밀번호가 변경되었습니다.', [
+        { text: '확인', onPress: () => {
+          setShowPasswordModal(false);
+          setNewPassword('');
+          setConfirmPassword('');
+        }}
+      ]);
+    } catch (error: any) {
+      let errorMessage = '비밀번호 변경에 실패했습니다.';
+      
+      if (error.response?.status === 422) {
+        errorMessage = '입력한 정보가 올바르지 않습니다.';
+      } else if (error.response?.status === 401) {
+        errorMessage = '인증이 필요합니다. 다시 로그인해주세요.';
+      }
+      
+      Alert.alert('오류', errorMessage);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case '완료': return '#28a745';
-      case '예정': return '#007AFF';
-      case '취소': return '#dc3545';
-      default: return '#6c757d';
+  const handleEditProfile = () => {
+    Alert.alert('준비중', '프로필 수정 기능은 준비 중입니다.');
+  };
+
+  const handleNotificationSettings = () => {
+    Alert.alert('준비중', '알림 설정 기능은 준비 중입니다.');
+  };
+
+  const handleAppInfo = () => {
+    Alert.alert('앱 정보', 'KMC Beauty\n버전: 1.0.0');
+  };
+
+  const getRoleText = (role: string) => {
+    switch (role) {
+      case 'OWNER': return '사장';
+      case 'MANAGER': return '매니저';
+      case 'STAFF': return '직원';
+      default: return role;
     }
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ShopHeader title="프로필" />
-      
-      <ScrollView style={styles.content}>
-        <Collapsible title="내 정보">
-          <ThemedView style={styles.profileSection}>
-            <ThemedView style={styles.profileItem}>
-              <ThemedText type="defaultSemiBold">이름</ThemedText>
-              <ThemedText>{profile.name}</ThemedText>
-            </ThemedView>
-            <ThemedView style={styles.profileItem}>
-              <ThemedText type="defaultSemiBold">이메일</ThemedText>
-              <ThemedText>{profile.email}</ThemedText>
-            </ThemedView>
-            <ThemedView style={styles.profileItem}>
-              <ThemedText type="defaultSemiBold">전화번호</ThemedText>
-              <ThemedText>{profile.phone}</ThemedText>
-            </ThemedView>
-            <ThemedView style={styles.profileItem}>
-              <ThemedText type="defaultSemiBold">권한</ThemedText>
-              <ThemedText>{getRoleText(profile.role)}</ThemedText>
-            </ThemedView>
-            <ThemedView style={styles.profileItem}>
-              <ThemedText type="defaultSemiBold">가입일</ThemedText>
-              <ThemedText>{profile.joinDate}</ThemedText>
-            </ThemedView>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ThemedView style={styles.innerContainer}>
+        <ShopHeader />
+        
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+        {/* 내 정보 섹션 */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>내 정보</ThemedText>
+          </View>
+          <View style={styles.card}>
+            <View style={styles.profileHeader}>
+              <View style={styles.avatarContainer}>
+                <ThemedText style={styles.avatarText}>
+                  {user?.name?.charAt(0) || 'U'}
+                </ThemedText>
+              </View>
+              <View style={styles.profileInfo}>
+                <ThemedText type="defaultSemiBold" style={styles.userName}>
+                  {user?.name || '사용자'}
+                </ThemedText>
+                <ThemedText style={styles.userRole}>
+                  {getRoleText(user?.role || 'MANAGER')}
+                </ThemedText>
+              </View>
+              <TouchableOpacity style={styles.editIconButton} onPress={handleEditProfile}>
+                <ThemedText style={styles.editIcon}>✏️</ThemedText>
+              </TouchableOpacity>
+            </View>
             
-            <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
-              <ThemedText style={styles.editButtonText}>프로필 수정</ThemedText>
-            </TouchableOpacity>
-          </ThemedView>
-        </Collapsible>
+            <View style={styles.infoList}>
+              <View style={styles.infoItem}>
+                <ThemedText style={styles.infoLabel}>이메일</ThemedText>
+                <ThemedText style={styles.infoValue}>
+                  {user?.email || '이메일 정보 없음'}
+                </ThemedText>
+              </View>
+              <View style={styles.infoItem}>
+                <ThemedText style={styles.infoLabel}>권한</ThemedText>
+                <ThemedText style={styles.infoValue}>
+                  {user?.role_name || getRoleText(user?.role || 'MANAGER')}
+                </ThemedText>
+              </View>
+              <View style={styles.infoItem}>
+                <ThemedText style={styles.infoLabel}>가입일</ThemedText>
+                <ThemedText style={styles.infoValue}>
+                  {user?.created_at ? new Date(user.created_at).toLocaleDateString('ko-KR') : '정보 없음'}
+                </ThemedText>
+              </View>
+            </View>
+          </View>
+        </View>
 
-        <Collapsible title="예약 내역">
-          <ThemedView style={styles.historySection}>
-            {bookingHistory.map((booking) => (
-              <ThemedView key={booking.id} style={styles.historyItem}>
-                <ThemedView style={styles.historyInfo}>
-                  <ThemedText type="defaultSemiBold">{booking.service}</ThemedText>
-                  <ThemedText>{booking.date}</ThemedText>
-                </ThemedView>
-                <ThemedView 
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: getStatusColor(booking.status) }
-                  ]}
-                >
-                  <ThemedText style={styles.statusText}>{booking.status}</ThemedText>
-                </ThemedView>
-              </ThemedView>
-            ))}
-          </ThemedView>
-        </Collapsible>
+        {/* 상점 정보 섹션 */}
+        {currentShop && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <ThemedText type="subtitle" style={styles.sectionTitle}>현재 상점</ThemedText>
+            </View>
+            <View style={styles.card}>
+              <View style={styles.shopInfo}>
+                <View style={styles.shopIconContainer}>
+                  <ThemedText style={styles.shopIcon}>🏪</ThemedText>
+                </View>
+                <View style={styles.shopDetails}>
+                  <ThemedText type="defaultSemiBold" style={styles.shopName}>
+                    {currentShop.name}
+                  </ThemedText>
+                  <ThemedText style={styles.shopAddress}>
+                    {currentShop.address || '주소 정보 없음'}
+                  </ThemedText>
+                  <ThemedText style={styles.shopPhone}>
+                    {currentShop.phone || '전화번호 정보 없음'}
+                  </ThemedText>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
 
-        <Collapsible title="설정">
-          <ThemedView style={styles.settingsSection}>
+        {/* 설정 섹션 */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>설정</ThemedText>
+          </View>
+          <View style={styles.card}>
             <TouchableOpacity 
               style={styles.settingItem} 
-              onPress={handleChangePassword}
+              onPress={() => setShowPasswordModal(true)}
             >
-              <ThemedText>비밀번호 변경</ThemedText>
+              <View style={styles.settingItemLeft}>
+                <ThemedText style={styles.settingIcon}>🔒</ThemedText>
+                <ThemedText style={styles.settingText}>비밀번호 변경</ThemedText>
+              </View>
               <ThemedText style={styles.arrow}>›</ThemedText>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.settingItem}>
-              <ThemedText>알림 설정</ThemedText>
+            <TouchableOpacity style={styles.settingItem} onPress={handleNotificationSettings}>
+              <View style={styles.settingItemLeft}>
+                <ThemedText style={styles.settingIcon}>🔔</ThemedText>
+                <ThemedText style={styles.settingText}>알림 설정</ThemedText>
+              </View>
               <ThemedText style={styles.arrow}>›</ThemedText>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.settingItem}>
-              <ThemedText>앱 정보</ThemedText>
+            <TouchableOpacity style={styles.settingItem} onPress={handleAppInfo}>
+              <View style={styles.settingItemLeft}>
+                <ThemedText style={styles.settingIcon}>ℹ️</ThemedText>
+                <ThemedText style={styles.settingText}>앱 정보</ThemedText>
+              </View>
               <ThemedText style={styles.arrow}>›</ThemedText>
             </TouchableOpacity>
-          </ThemedView>
-        </Collapsible>
+          </View>
+        </View>
 
+        {/* 로그아웃 버튼 */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <ThemedText style={styles.logoutButtonText}>로그아웃</ThemedText>
         </TouchableOpacity>
       </ScrollView>
-    </ThemedView>
+
+      {/* 비밀번호 변경 모달 */}
+      <Modal
+        visible={showPasswordModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPasswordModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <ThemedText type="subtitle" style={styles.modalTitle}>비밀번호 변경</ThemedText>
+              <TouchableOpacity 
+                onPress={() => setShowPasswordModal(false)}
+                style={styles.closeButton}
+              >
+                <ThemedText style={styles.closeButtonText}>✕</ThemedText>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.modalContent}>
+              <View style={styles.inputGroup}>
+                <ThemedText style={styles.inputLabel}>새 비밀번호</ThemedText>
+                <TextInput
+                  style={styles.input}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry
+                  placeholder="새 비밀번호를 입력하세요 (4자 이상)"
+                  placeholderTextColor="#999"
+                />
+              </View>
+              
+              <View style={styles.inputGroup}>
+                <ThemedText style={styles.inputLabel}>새 비밀번호 확인</ThemedText>
+                <TextInput
+                  style={styles.input}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  placeholder="새 비밀번호를 다시 입력하세요"
+                  placeholderTextColor="#999"
+                />
+              </View>
+            </View>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.cancelButton} 
+                onPress={() => setShowPasswordModal(false)}
+              >
+                <ThemedText style={styles.cancelButtonText}>취소</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.confirmButton} 
+                onPress={handlePasswordChange}
+              >
+                <ThemedText style={styles.confirmButtonText}>변경</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      </ThemedView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
   },
-  title: {
-    marginBottom: 20,
-    textAlign: 'center',
+  innerContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
   },
   content: {
     flex: 1,
+    padding: 16,
   },
-  profileSection: {
-    gap: 15,
+  scrollContent: {
+    paddingBottom: 50, // 하단 여백 추가
   },
-  profileItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  section: {
+    marginBottom: 24,
   },
-  editButton: {
-    backgroundColor: '#007AFF',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 10,
+  sectionHeader: {
+    marginBottom: 12,
   },
-  editButtonText: {
-    color: 'white',
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: '600',
+    color: '#333',
   },
-  historySection: {
-    gap: 10,
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  historyItem: {
+  
+  // 프로필 정보 스타일
+  profileHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    marginBottom: 20,
   },
-  historyInfo: {
+  avatarContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  avatarText: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  profileInfo: {
     flex: 1,
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+  userName: {
+    fontSize: 20,
+    marginBottom: 4,
+    color: '#333',
   },
-  statusText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
+  userRole: {
+    fontSize: 14,
+    color: '#666',
   },
-  settingsSection: {
-    gap: 5,
+  editIconButton: {
+    padding: 8,
   },
+  editIcon: {
+    fontSize: 20,
+  },
+  infoList: {
+    gap: 12,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'right',
+    flex: 2,
+  },
+  
+  // 상점 정보 스타일
+  shopInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  shopIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  shopIcon: {
+    fontSize: 24,
+  },
+  shopDetails: {
+    flex: 1,
+  },
+  shopName: {
+    fontSize: 16,
+    marginBottom: 4,
+    color: '#333',
+  },
+  shopAddress: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 2,
+  },
+  shopPhone: {
+    fontSize: 13,
+    color: '#666',
+  },
+  
+  // 설정 항목 스타일
   settingItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 5,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#f0f0f0',
+  },
+  settingItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  settingText: {
+    fontSize: 16,
+    color: '#333',
   },
   arrow: {
     fontSize: 18,
-    color: '#999',
+    color: '#ccc',
   },
+  
+  // 로그아웃 버튼
   logoutButton: {
     backgroundColor: '#dc3545',
-    padding: 15,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 30,
-    marginBottom: 20,
+    marginTop: 20,
+    marginBottom: 60, // 하단 여백을 더 늘림
   },
   logoutButtonText: {
     color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // 모달 스타일
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    width: width - 40,
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  closeButtonText: {
+    fontSize: 18,
+    color: '#666',
+  },
+  modalContent: {
+    padding: 20,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    padding: 20,
+    paddingTop: 0,
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  confirmButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: '600',
   },
 });

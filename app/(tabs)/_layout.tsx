@@ -7,14 +7,14 @@ import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useAuth } from '@/stores/authContext';
+import { useAuth } from '@/stores/authContextNew';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
   // 인증 상태 로딩 중
-  if (loading) {
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />

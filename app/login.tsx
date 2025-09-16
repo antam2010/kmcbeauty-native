@@ -4,7 +4,7 @@ import LoginForm from '@/components/forms/LoginForm';
 import { inviteApiService } from '@/src/api/services/invite';
 import { LoginCredentials } from '@/src/features/auth/api';
 import { Colors } from '@/src/ui/theme';
-import { useAuth } from '@/stores/authContext';
+import { useAuth } from '@/stores/authContextNew';
 import { Redirect } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
@@ -12,7 +12,7 @@ import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 export default React.memo(function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const { login, isAuthenticated, loading: authLoading } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
 
   // 인증 상태 로딩 중
   if (authLoading) {

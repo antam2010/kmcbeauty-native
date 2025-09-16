@@ -140,17 +140,15 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config: any) => {
     try {
-      const authData = await AsyncStorage.getItem('auth-storage');
-      if (authData) {
-        const { accessToken } = JSON.parse(authData);
-        if (accessToken) {
-          config.headers = config.headers || {};
-          config.headers.Authorization = `Bearer ${accessToken}`;
-        }
+      // 새로운 토큰 저장 방식에서 토큰 가져오기
+      const accessToken = await AsyncStorage.getItem('auth_token');
+      if (accessToken) {
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${accessToken}`;
       }
 
-      // 상점 정보도 헤더에 추가
-      const shopData = await AsyncStorage.getItem('selectedShop');
+      // 상점 정보도 헤더에 추가 (새로운 저장 방식)
+      const shopData = await AsyncStorage.getItem('selected_shop');
       if (shopData) {
         const shop = JSON.parse(shopData);
         if (shop.id) {

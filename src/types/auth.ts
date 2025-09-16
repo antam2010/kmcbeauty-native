@@ -8,10 +8,9 @@ export interface User {
   email: string;
   role: 'ADMIN' | 'MASTER' | 'MANAGER' | 'STAFF';
   role_name: string;
-  shop_id?: number;
-  phone?: string;
   created_at: string;
   updated_at: string;
+  // 참고: 실제 API에는 phone, shop_id 필드가 없음
 }
 
 export interface LoginCredentials {

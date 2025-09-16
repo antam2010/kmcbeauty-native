@@ -1,16 +1,16 @@
 import LoginScreen from '@/app/login';
-import { useAuth } from '@/stores/authContext';
+import { useAuth } from '@/stores/authContextNew';
 import { Stack } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 const AuthNavigator: React.FC = React.memo(() => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  console.log('🔐 AuthNavigator - isAuthenticated:', isAuthenticated, 'loading:', loading);
+  console.log('🔐 AuthNavigator - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
 
   // 로딩 중일 때 로딩 화면 표시
-  if (loading) {
+  if (isLoading) {
     console.log('⏳ AuthNavigator - 로딩 중');
     return (
       <View style={styles.loadingContainer}>

@@ -33,7 +33,25 @@ class AuthApiService extends BaseApiService {
 
   // 현재 사용자 정보 조회
   async getMe(): Promise<User> {
-    return this.get<User>('/me');
+    // 실제 API는 /users/me 엔드포인트를 사용
+    return this.client.get<User>('/users/me').then(response => response.data);
+  }
+
+  // 사용자 정보 수정 (비밀번호 변경 포함)
+  async updateUser(data: { name?: string; email?: string; role?: string; password?: string }): Promise<User> {
+    return this.client.put<User>('/users/me', data).then(response => response.data);
+  }
+
+  // 비밀번호 변경 (현재 비밀번호 불필요)
+  async changePassword(newPassword: string): Promise<User> {
+    // /users/me PUT API 사용 - 현재 사용자 정보 필요
+    const currentUser = await this.getMe();
+    return this.updateUser({
+      name: currentUser.name,
+      email: currentUser.email,
+      role: currentUser.role,
+      password: newPassword,
+    });
   }
 }
 

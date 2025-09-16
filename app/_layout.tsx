@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { AuthProvider } from '@/stores/authContext';
+import { AuthProvider } from '@/stores/authContextNew';
 import { ShopProvider } from '@/stores/shopStore';
 
 export default React.memo(function RootLayout() {
