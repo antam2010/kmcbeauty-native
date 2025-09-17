@@ -1,3 +1,4 @@
+import BookingListScreen from "@/components/booking/BookingListScreen";
 import { ImprovedCalendar } from "@/components/calendar/ImprovedCalendar";
 import BookingForm from "@/components/forms/BookingForm";
 import EditTreatmentModal from "@/components/modals/EditTreatmentModal";
@@ -21,6 +22,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function BookingScreen() {
+  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [isModalClosing, setIsModalClosing] = useState(false);
@@ -171,101 +173,185 @@ export default function BookingScreen() {
     <View style={styles.container}>
       <ShopHeader title="예약 관리" />
       
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: Platform.OS === "ios" ? insets.bottom + 100 : 80 }
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 헤더 섹션 */}
-        <View style={styles.headerSection}>
-          <Text style={styles.welcomeText}>오늘도 좋은 하루 되세요! ✨</Text>
-          <Text style={styles.dateText}>
-            {formatTodayKorean()}
-          </Text>
-        </View>
-
-        {/* 빠른 액션 버튼들 */}
-        <View style={styles.quickActionsSection}>
-          <Text style={styles.sectionTitle}>빠른 예약</Text>
-          <View style={styles.quickButtonsRow}>
-            <TouchableOpacity 
-              style={styles.quickButton}
-              onPress={() => handleNewBookingRequest()}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.quickButtonIcon, { backgroundColor: Colors.primary + '20' }]}>
-                <Text style={styles.quickButtonEmoji}>➕</Text>
-              </View>
-              <Text style={styles.quickButtonText}>새 예약</Text>
-            </TouchableOpacity>
+      {viewMode === 'list' ? (
+        // 리스트 모드일 때는 ScrollView 없이 직접 렌더링
+        <View style={styles.listModeContainer}>
+          {/* 뷰 모드 탭만 표시 */}
+          <View style={styles.listModeHeader}>
+            <View style={styles.calendarHeader}>
+              <Text style={styles.sectionTitle}>예약 관리</Text>
+              <Text style={styles.sectionSubtitle}>달력 또는 리스트로 예약을 관리하세요</Text>
+            </View>
             
-            <TouchableOpacity 
-              style={styles.quickButton}
-              onPress={() => handleNewBookingRequest(new Date().toISOString().split('T')[0])}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.quickButtonIcon, { backgroundColor: Colors.success + '20' }]}>
-                <Text style={styles.quickButtonEmoji}>📅</Text>
-              </View>
-              <Text style={styles.quickButtonText}>오늘 예약</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.quickButton}
-              onPress={() => {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                handleNewBookingRequest(tomorrow.toISOString().split('T')[0]);
-              }}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.quickButtonIcon, { backgroundColor: Colors.warning + '20' }]}>
-                <Text style={styles.quickButtonEmoji}>⏰</Text>
-              </View>
-              <Text style={styles.quickButtonText}>내일 예약</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* 달력 섹션 */}
-        <View style={styles.calendarSection}>
-          <View style={styles.calendarHeader}>
-            <Text style={styles.sectionTitle}>예약 달력</Text>
-            <Text style={styles.sectionSubtitle}>날짜를 터치하여 예약을 관리하세요</Text>
+            <View style={styles.viewModeSelector}>
+              <TouchableOpacity
+                style={[
+                  styles.viewModeTab,
+                  viewMode === 'calendar' && styles.viewModeTabActive
+                ]}
+                onPress={() => setViewMode('calendar')}
+              >
+                <Text style={[
+                  styles.viewModeTabText,
+                  viewMode === 'calendar' && styles.viewModeTabTextActive
+                ]}>
+                  📅 달력
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.viewModeTab,
+                  viewMode === 'list' && styles.viewModeTabActive
+                ]}
+                onPress={() => setViewMode('list')}
+              >
+                <Text style={[
+                  styles.viewModeTabText,
+                  viewMode === 'list' && styles.viewModeTabTextActive
+                ]}>
+                  📋 리스트
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
           
-          <Animated.View style={[styles.calendarContainer, { transform: [{ scale: scaleAnim }] }]}>
-            <ImprovedCalendar 
-              selectedDate={selectedDate || undefined}
-              onDateSelect={handleDateSelect}
-              onNewBookingRequest={handleNewBookingRequest}
-              onTreatmentPress={handleTreatmentPress}
-              onShowTreatmentsList={handleShowTreatmentsList}
-              refreshTrigger={calendarRefreshTrigger}
-            />
-          </Animated.View>
+          {/* 리스트 화면 */}
+          <BookingListScreen
+            onBookingPress={handleTreatmentPress}
+            onNewBooking={() => handleNewBookingRequest()}
+          />
         </View>
-
-        {/* 선택된 날짜 정보 */}
-        {selectedDate && (
-          <View style={styles.selectedDateSection}>
-            <Text style={styles.selectedDateTitle}>선택된 날짜</Text>
-            <Text style={styles.selectedDateValue}>
-              {formatKoreanDate(selectedDate)}
+      ) : (
+        // 달력 모드일 때는 기존 ScrollView 사용
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: Platform.OS === "ios" ? insets.bottom + 100 : 80 }
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* 헤더 섹션 */}
+          <View style={styles.headerSection}>
+            <Text style={styles.welcomeText}>오늘도 좋은 하루 되세요! ✨</Text>
+            <Text style={styles.dateText}>
+              {formatTodayKorean()}
             </Text>
-            <TouchableOpacity 
-              style={styles.bookingButton}
-              onPress={() => handleNewBookingRequest(selectedDate)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.bookingButtonText}>이 날짜에 예약하기</Text>
-            </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
+
+          {/* 빠른 액션 버튼들 */}
+          <View style={styles.quickActionsSection}>
+            <Text style={styles.sectionTitle}>빠른 예약</Text>
+            <View style={styles.quickButtonsRow}>
+              <TouchableOpacity 
+                style={styles.quickButton}
+                onPress={() => handleNewBookingRequest()}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.quickButtonIcon, { backgroundColor: Colors.primary + '20' }]}>
+                  <Text style={styles.quickButtonEmoji}>➕</Text>
+                </View>
+                <Text style={styles.quickButtonText}>새 예약</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.quickButton}
+                onPress={() => handleNewBookingRequest(new Date().toISOString().split('T')[0])}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.quickButtonIcon, { backgroundColor: Colors.success + '20' }]}>
+                  <Text style={styles.quickButtonEmoji}>📅</Text>
+                </View>
+                <Text style={styles.quickButtonText}>오늘 예약</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.quickButton}
+                onPress={() => {
+                  const tomorrow = new Date();
+                  tomorrow.setDate(tomorrow.getDate() + 1);
+                  handleNewBookingRequest(tomorrow.toISOString().split('T')[0]);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.quickButtonIcon, { backgroundColor: Colors.warning + '20' }]}>
+                  <Text style={styles.quickButtonEmoji}>⏰</Text>
+                </View>
+                <Text style={styles.quickButtonText}>내일 예약</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* 달력/리스트 전환 섹션 */}
+          <View style={styles.calendarSection}>
+            <View style={styles.calendarHeader}>
+              <Text style={styles.sectionTitle}>예약 관리</Text>
+              <Text style={styles.sectionSubtitle}>달력 또는 리스트로 예약을 관리하세요</Text>
+            </View>
+            
+            {/* 뷰 모드 탭 */}
+            <View style={styles.viewModeSelector}>
+              <TouchableOpacity
+                style={[
+                  styles.viewModeTab,
+                  viewMode === 'calendar' && styles.viewModeTabActive
+                ]}
+                onPress={() => setViewMode('calendar')}
+              >
+                <Text style={[
+                  styles.viewModeTabText,
+                  viewMode === 'calendar' && styles.viewModeTabTextActive
+                ]}>
+                  📅 달력
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.viewModeTab,
+                  viewMode === 'list' && styles.viewModeTabActive
+                ]}
+                onPress={() => setViewMode('list')}
+              >
+                <Text style={[
+                  styles.viewModeTabText,
+                  viewMode === 'list' && styles.viewModeTabTextActive
+                ]}>
+                  📋 리스트
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* 달력 표시 */}
+            <Animated.View style={[styles.calendarContainer, { transform: [{ scale: scaleAnim }] }]}>
+              <ImprovedCalendar 
+                selectedDate={selectedDate || undefined}
+                onDateSelect={handleDateSelect}
+                onNewBookingRequest={handleNewBookingRequest}
+                onTreatmentPress={handleTreatmentPress}
+                onShowTreatmentsList={handleShowTreatmentsList}
+                refreshTrigger={calendarRefreshTrigger}
+              />
+            </Animated.View>
+          </View>
+
+          {/* 선택된 날짜 정보 */}
+          {selectedDate && (
+            <View style={styles.selectedDateSection}>
+              <Text style={styles.selectedDateTitle}>선택된 날짜</Text>
+              <Text style={styles.selectedDateValue}>
+                {selectedDate ? formatKoreanDate(selectedDate) : ''}
+              </Text>
+              <TouchableOpacity 
+                style={styles.bookingButton}
+                onPress={() => handleNewBookingRequest(selectedDate)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.bookingButtonText}>이 날짜에 예약하기</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+      )}
 
       {/* 모달들 */}
       <Modal 
@@ -458,5 +544,63 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.white,
     textAlign: 'center',
+  },
+  
+  // 뷰 모드 선택기 스타일
+  viewModeSelector: {
+    flexDirection: 'row',
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.lg,
+    padding: 4,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border.light,
+  },
+  
+  viewModeTab: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+  },
+  
+  viewModeTabActive: {
+    backgroundColor: Colors.primary,
+    ...Shadow.sm,
+  },
+  
+  viewModeTabText: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.medium,
+    color: Colors.text.secondary,
+  },
+  
+  viewModeTabTextActive: {
+    color: Colors.white,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  
+  // 리스트 컨테이너
+  listContainer: {
+    flex: 1,
+    minHeight: 400,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    overflow: 'hidden',
+    ...Shadow.sm,
+  },
+  
+  // 리스트 모드 스타일
+  listModeContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  
+  listModeHeader: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
+    backgroundColor: Colors.background,
   },
 });

@@ -247,7 +247,7 @@ export default function MonthlyDashboard({ onClose }: MonthlyDashboardProps) {
             
             <Card style={styles.statCard}>
               <MaterialIcons name="cancel" size={32} color="#ff3b30" />
-              <Text style={styles.statNumber}>{dashboardData.summary.target_date.canceled}</Text>
+              <Text style={styles.statNumber}>{dashboardData.summary.target_date.cancelled}</Text>
               <Text style={styles.statLabel}>취소</Text>
             </Card>
           </View>

@@ -43,7 +43,7 @@ export interface DashboardSummaryResponse {
       completed: number;
       reserved: number;
       visited: number;
-      canceled: number;
+      cancelled: number;
       no_show: number;
       expected_sales: number;
       actual_sales: number;
@@ -54,7 +54,7 @@ export interface DashboardSummaryResponse {
       completed: number;
       reserved: number;
       visited: number;
-      canceled: number;
+      cancelled: number;
       no_show: number;
       expected_sales: number;
       actual_sales: number;

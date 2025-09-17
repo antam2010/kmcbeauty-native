@@ -22,7 +22,7 @@ const statusLabels: Record<string, string> = {
   'RESERVED': '예약됨',
   'VISITED': '방문함',
   'COMPLETED': '완료',
-  'CANCELED': '취소됨',
+  'CANCELLED': '취소됨',
   'NO_SHOW': '노쇼'
 };
 
@@ -30,7 +30,7 @@ const statusColors: Record<string, string> = {
   'RESERVED': '#667eea',
   'VISITED': '#f093fb',
   'COMPLETED': '#4facfe',
-  'CANCELED': '#ff6b6b',
+  'CANCELLED': '#ff6b6b',
   'NO_SHOW': '#feca57'
 };
 

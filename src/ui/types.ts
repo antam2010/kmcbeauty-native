@@ -89,7 +89,7 @@ export interface ListItemProps extends BaseComponentProps {
 }
 
 // 상태 배지 타입
-export type StatusType = 'RESERVED' | 'VISITED' | 'COMPLETED' | 'CANCELED' | 'NO_SHOW';
+export type StatusType = 'RESERVED' | 'VISITED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
 export interface StatusBadgeProps {
   status: StatusType;

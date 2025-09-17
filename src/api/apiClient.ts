@@ -91,18 +91,37 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // 네트워크 오류 처리
+    // 공통 에러 로깅
     if (!error.response) {
+      // 네트워크 오류
       console.error('🌐 네트워크 오류:', error.message);
       error.message = '네트워크 연결을 확인해주세요';
     } else {
-      // 서버 오류 로깅
-      console.error('🔴 API 오류:', {
+      // HTTP 에러 상세 로깅
+      const errorInfo = {
         status: error.response.status,
-        message: error.response.data?.message || error.message,
+        statusText: error.response.statusText,
         url: error.config?.url,
-        data: error.response.data,
-      });
+        method: error.config?.method?.toUpperCase(),
+        params: error.config?.params,
+        requestData: error.config?.data,
+        responseData: error.response.data,
+        headers: error.response.headers
+      };
+
+      console.error(`🔴 API 오류 [${errorInfo.status}]:`, errorInfo);
+
+      // 422 유효성 검사 오류 상세 출력
+      if (error.response.status === 422) {
+        console.error('🔍 422 Validation Error Details:', {
+          message: error.response.data?.message,
+          detail: error.response.data?.detail,
+          errors: error.response.data?.errors,
+          requestUrl: `${error.config?.method?.toUpperCase()} ${error.config?.url}`,
+          requestParams: error.config?.params,
+          requestBody: error.config?.data
+        });
+      }
     }
 
     return Promise.reject(error);

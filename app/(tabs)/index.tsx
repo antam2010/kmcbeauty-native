@@ -362,7 +362,7 @@ export default function HomeScreen() {
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>
-                {dashboardData.summary.target_date.canceled}
+                {dashboardData.summary.target_date.cancelled}
               </Text>
               <Text style={styles.statLabel}>취소</Text>
             </View>
