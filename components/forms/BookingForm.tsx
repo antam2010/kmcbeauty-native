@@ -6,7 +6,7 @@ import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import { type ContactSyncResult } from '@/src/services/contactSync';
 import type { TreatmentCreate, TreatmentItemCreate } from '@/src/types';
-import { Button, TextInput as CustomTextInput } from '@/src/ui/atoms';
+import { Button, TextInput as CustomTextInput, DatePicker } from '@/src/ui/atoms';
 
 import { formatKoreanDate } from '@/src/utils/dateUtils';
 import { detectInputType, extractNameAndPhone, formatPhoneNumber } from '@/src/utils/phoneFormat';
@@ -46,6 +46,7 @@ export default function BookingForm({
 }: BookingFormProps) {
   // 상태 관리
   const [currentDate, setCurrentDate] = useState(selectedDate || new Date().toISOString().split('T')[0]);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Phonebook | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
   const [searchResults, setSearchResults] = useState<Phonebook[]>([]);
@@ -70,12 +71,6 @@ export default function BookingForm({
   const [isLoadingMenus, setIsLoadingMenus] = useState(true);
   
   const insets = useSafeAreaInsets();
-
-  // 날짜 선택 핸들러
-  const handleDateChange = useCallback((dateString: string) => {
-    setCurrentDate(dateString);
-    onDateChange?.(dateString);
-  }, [onDateChange]);
 
   // 시간 슬롯 (30분 간격)
   const timeSlots = [
@@ -583,24 +578,59 @@ export default function BookingForm({
           {/* 날짜 선택 */}
           <View style={bookingFormStyles.section}>
             <Text style={bookingFormStyles.sectionTitle}>📅 예약 날짜</Text>
-            <View style={bookingFormStyles.dateInputContainer}>
-              <TextInput
-                style={bookingFormStyles.dateTextInput}
-                value={currentDate}
-                onChangeText={(text) => {
-                  setCurrentDate(text);
-                  handleDateChange(text);
-                }}
-                placeholder="YYYY-MM-DD (예: 2025-09-17)"
-                maxLength={10}
-                keyboardType="numeric"
-              />
-              <View style={bookingFormStyles.dateDisplay}>
-                <Text style={bookingFormStyles.dateDisplayText}>
+            <TouchableOpacity 
+              style={bookingFormStyles.dateCard}
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.7}
+            >
+              <View style={bookingFormStyles.dateContent}>
+                <Text style={bookingFormStyles.dateText}>
                   {formatKoreanDate(currentDate)}
                 </Text>
+                <Text style={bookingFormStyles.dateChangeText}>터치해서 날짜 변경</Text>
               </View>
-            </View>
+              <Text style={bookingFormStyles.dateChangeIcon}>📅</Text>
+            </TouchableOpacity>
+            
+            {/* 날짜 선택 모달 */}
+            {showDatePicker && (
+              <View style={bookingFormStyles.datePickerModal}>
+                <View style={bookingFormStyles.datePickerModalContent}>
+                  <View style={bookingFormStyles.datePickerHeader}>
+                    <Text style={bookingFormStyles.datePickerTitle}>날짜 선택</Text>
+                    <TouchableOpacity 
+                      onPress={() => setShowDatePicker(false)}
+                      style={bookingFormStyles.datePickerCloseButton}
+                    >
+                      <Text style={bookingFormStyles.datePickerCloseText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DatePicker
+                    value={(() => {
+                      // currentDate 문자열을 안전하게 Date 객체로 변환
+                      const [year, month, day] = currentDate.split('-').map(num => parseInt(num, 10));
+                      const date = new Date(year, month - 1, day, 12, 0, 0); // month는 0-based
+                      console.log('DatePicker value 전달:', { currentDate, year, month, day, dateObject: date });
+                      return date;
+                    })()}
+                    onChange={(date) => {
+                      console.log('BookingForm DatePicker onChange 호출됨:', date);
+                      // 안전한 날짜 처리를 위해 UTC 메서드 사용
+                      const year = date.getFullYear();
+                      const month = date.getMonth() + 1; // 1-based로 변환
+                      const day = date.getDate();
+                      const formattedDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                      console.log('BookingForm 포맷된 날짜:', formattedDate);
+                      setCurrentDate(formattedDate);
+                      setShowDatePicker(false);
+                      onDateChange?.(formattedDate);
+                    }}
+                    mode="date"
+                    locale="ko"
+                  />
+                </View>
+              </View>
+            )}
           </View>
 
           {/* 고객 선택 */}

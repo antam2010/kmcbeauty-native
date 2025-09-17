@@ -6,6 +6,7 @@ import { shopApiService, type ShopUser } from '@/src/api/services/shop';
 import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import type { Treatment, TreatmentItemCreate, TreatmentUpdate } from '@/src/types';
+import { DatePicker } from '@/src/ui/atoms';
 import { formatKoreanDate } from '@/src/utils/dateUtils';
 import { detectInputType, formatPhoneNumber } from '@/src/utils/phoneFormat';
 import { useCallback, useEffect, useState } from 'react';
@@ -49,7 +50,8 @@ export default function EditTreatmentModal({
   const [selectedStaff, setSelectedStaff] = useState<ShopUser | null>(null);
   const [selectedTreatments, setSelectedTreatments] = useState<SelectedTreatmentItem[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   
   // 고객 선택 관련 상태
   const [selectedCustomer, setSelectedCustomer] = useState<Phonebook | null>(null);
@@ -663,23 +665,62 @@ export default function EditTreatmentModal({
 
             {/* 날짜 선택 */}
             <View style={styles.section}>
-            <Text style={styles.sectionTitle}>예약 날짜</Text>
-            <View style={styles.dateInputContainer}>
-              <TextInput
-                style={styles.dateTextInput}
-                value={selectedDate}
-                onChangeText={setSelectedDate}
-                placeholder="YYYY-MM-DD (예: 2025-09-17)"
-                maxLength={10}
-                keyboardType="numeric"
-              />
-              <View style={styles.dateDisplay}>
-                <Text style={styles.dateDisplayText}>
-                  {formatKoreanDate(selectedDate)}
-                </Text>
-              </View>
+              <Text style={styles.sectionTitle}>예약 날짜</Text>
+              <TouchableOpacity 
+                style={styles.dateCard}
+                onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.dateContent}>
+                  <Text style={styles.dateText}>
+                    {formatKoreanDate(selectedDate)}
+                  </Text>
+                  <Text style={styles.dateChangeText}>터치해서 날짜 변경</Text>
+                </View>
+                <Text style={styles.dateChangeIcon}>📅</Text>
+              </TouchableOpacity>
+              
+              {/* 날짜 선택 모달 */}
+              {showDatePicker && (
+                <View style={styles.datePickerModal}>
+                  <View style={styles.datePickerModalContent}>
+                    <View style={styles.datePickerHeader}>
+                      <Text style={styles.datePickerTitle}>날짜 선택</Text>
+                      <TouchableOpacity 
+                        onPress={() => setShowDatePicker(false)}
+                        style={styles.datePickerCloseButton}
+                      >
+                        <Text style={styles.datePickerCloseText}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DatePicker
+                      value={(() => {
+                        // selectedDate 문자열을 안전하게 Date 객체로 변환
+                        const [year, month, day] = selectedDate.split('-').map(num => parseInt(num, 10));
+                        const date = new Date(year, month - 1, day, 12, 0, 0); // month는 0-based
+                        console.log('EditTreatmentModal DatePicker value 전달:', { selectedDate, year, month, day, dateObject: date });
+                        return date;
+                      })()}
+                      onChange={(date) => {
+                        console.log('EditTreatmentModal DatePicker onChange 호출됨:', date);
+                        // 안전한 날짜 처리를 위해 로컬 메서드 사용
+                        const year = date.getFullYear();
+                        const month = date.getMonth() + 1; // 1-based로 변환
+                        const day = date.getDate();
+                        const formattedDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                        console.log('EditTreatmentModal 포맷된 날짜:', formattedDate);
+                        setSelectedDate(formattedDate);
+                        setShowDatePicker(false);
+                      }}
+                      mode="date"
+                      locale="ko"
+                    />
+                  </View>
+                </View>
+              )}
             </View>
-            </View>            {/* 시간 선택 */}
+
+            {/* 시간 선택 */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>예약 시간</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -1483,5 +1524,127 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6c757d',
     textAlign: 'center',
+  },
+
+  // 모달 스타일
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 24,
+    margin: 24,
+    width: '80%',
+    maxWidth: 300,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#212529',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6c757d',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#f8f9fa',
+  },
+  confirmButton: {
+    backgroundColor: '#667eea',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: '#6c757d',
+    fontWeight: '500',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '500',
+  },
+
+  // 날짜 선택 모달 스타일
+  datePickerModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  datePickerModalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    margin: 24,
+    maxWidth: 400,
+    width: '90%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  datePickerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  datePickerCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f9fafb',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  datePickerCloseText: {
+    fontSize: 18,
+    color: '#6b7280',
+    fontWeight: '600',
   },
 });
