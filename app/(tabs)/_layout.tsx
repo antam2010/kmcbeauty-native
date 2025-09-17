@@ -7,11 +7,11 @@ import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useAuth } from '@/stores/authContextNew';
+import { useAuthStore } from '@/src/stores/authStore';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuthStore();
 
   // 인증 상태 로딩 중
   if (isLoading) {

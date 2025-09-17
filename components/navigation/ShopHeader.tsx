@@ -1,13 +1,13 @@
-import { shopEventEmitter, useShop } from '@/stores/shopStore';
+import { useShopStore } from '@/src/stores/shopStore';
 import { router } from 'expo-router';
 import { useCallback, useEffect } from 'react';
 import {
-    Alert,
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface ShopHeaderProps {
@@ -15,25 +15,13 @@ interface ShopHeaderProps {
 }
 
 export default function ShopHeader({ title }: ShopHeaderProps) {
-  const { selectedShop, loading, loadSelectedShop } = useShop();
+  const { selectedShop, loading, loadSelectedShop } = useShopStore();
 
   useEffect(() => {
     // 컴포넌트 마운트 시 한 번만 로드
     if (!selectedShop) {
       loadSelectedShop();
     }
-
-    // 상점 변경 이벤트 리스닝
-    const handleShopChanged = () => {
-      console.log('상점이 변경되었습니다 - UI 업데이트');
-      // 추가 UI 업데이트 로직이 필요한 경우 여기에 추가
-    };
-
-    shopEventEmitter.on('shopChanged', handleShopChanged);
-
-    return () => {
-      shopEventEmitter.off('shopChanged', handleShopChanged);
-    };
   }, [selectedShop, loadSelectedShop]);
 
   const handleShopPress = useCallback(() => {

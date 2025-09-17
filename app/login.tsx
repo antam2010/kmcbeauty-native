@@ -3,8 +3,9 @@ import InviteSignupForm from '@/components/forms/InviteSignupForm';
 import LoginForm from '@/components/forms/LoginForm';
 import { inviteApiService } from '@/src/api/services/invite';
 import { LoginCredentials } from '@/src/features/auth/api';
+import { useAuthStore } from '@/src/stores/authStore';
+import { useShopStore } from '@/src/stores/shopStore';
 import { Colors } from '@/src/ui/theme';
-import { useAuth } from '@/stores/authContextNew';
 import { Redirect } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
@@ -12,7 +13,8 @@ import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 export default React.memo(function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuthStore();
+  const { loadSelectedShop } = useShopStore();
 
   // 인증 상태 로딩 중
   if (authLoading) {
@@ -32,10 +34,13 @@ export default React.memo(function LoginScreen() {
     try {
       console.log('🔴 LoginScreen.handleLogin 호출됨 - 시작:', credentials.email);
       setLoading(true);
-      console.log('🔴 LoginScreen: AuthContext.login 호출 직전');
-      await login(credentials);
-      console.log('🔴 LoginScreen: AuthContext.login 완료');
-      // 로그인 성공 시 AuthContext에서 자동으로 네비게이션 처리
+      console.log('🔴 LoginScreen: Zustand login 호출 직전');
+      await login(credentials.email, credentials.password);
+      console.log('🔴 LoginScreen: Zustand login 완료');
+      
+      // 로그인 성공 후 상점 정보 로드
+      await loadSelectedShop();
+      console.log('✅ 로그인 성공');
     } catch (error) {
       console.error('🔴 LoginScreen: 로그인 에러:', error);
       Alert.alert(

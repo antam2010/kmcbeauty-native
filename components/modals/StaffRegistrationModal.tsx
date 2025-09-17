@@ -1,7 +1,7 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { StaffUserCreate, userApiService } from '@/src/api/services/staff';
-import { useShop } from '@/stores/shopStore';
+import { useShopStore } from '@/src/stores/shopStore';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
@@ -33,7 +33,7 @@ export default function StaffRegistrationModal({
     phone_number: ''
   });
   const [loading, setLoading] = useState(false);
-  const { selectedShop } = useShop();
+  const { selectedShop } = useShopStore();
 
   const roles = [
     { value: 'ADMIN', label: '관리자' },

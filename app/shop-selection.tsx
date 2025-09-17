@@ -2,7 +2,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import ShopRegistrationModal from '@/components/modals/ShopRegistrationModal';
 import { Shop, shopApiService } from '@/src/api/services/shop';
-import { useShop } from '@/stores/shopStore';
+import { useShopStore } from '@/src/stores/shopStore';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -19,7 +19,7 @@ export default function ShopSelectionScreen() {
   const [loading, setLoading] = useState(true);
   const [selecting, setSelecting] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
-  const { selectShop } = useShop(); // 상점 스토어 사용
+  const { selectShop } = useShopStore(); // 상점 스토어 사용
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,

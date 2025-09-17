@@ -2,7 +2,7 @@ import { Redirect } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { useAuth } from '@/stores/authContextNew';
+import { useAuthStore } from '@/src/stores/authStore';
 
 // 개발 환경에서 디버깅 유틸리티 로드
 if (__DEV__) {
@@ -10,7 +10,7 @@ if (__DEV__) {
 }
 
 export default function Index() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuthStore();
 
   // 개발 환경에서 인증 상태 로깅
   useEffect(() => {

@@ -1,9 +1,9 @@
-import { useShop } from '@/stores/shopStore';
+import { useShopStore } from '@/src/stores/shopStore';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 
 export function useShopRefreshOnFocus() {
-  const { selectedShop, loadSelectedShop } = useShop();
+  const { selectedShop, loadSelectedShop } = useShopStore();
 
   useFocusEffect(
     useCallback(() => {

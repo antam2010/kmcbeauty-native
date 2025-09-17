@@ -1,8 +1,8 @@
 import MonthlyDashboard from '@/components/dashboard/MonthlyDashboard';
 import ShopHeader from '@/components/navigation/ShopHeader';
 import { useDashboard } from '@/contexts/DashboardContext';
+import { useShopStore } from '@/src/stores/shopStore';
 import type { Treatment } from '@/src/types';
-import { shopEventEmitter, useShop } from '@/stores/shopStore';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -40,7 +40,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { refreshTrigger } = useDashboard();
-  const { selectedShop, loading: shopLoading } = useShop();
+  const { selectedShop, loading: shopLoading } = useShopStore();
 
   const loadWeeklyTreatments = useCallback(async () => {
     try {
@@ -104,33 +104,13 @@ export default function HomeScreen() {
     }
   }, [refreshTrigger, loadDashboardData]);
 
-  // 상점 변경 이벤트 감지 (한 번만 등록)
+  // 상점 변경 감지 및 대시보드 데이터 로드
   useEffect(() => {
-    const handleShopChanged = () => {
-      console.log('🏪 홈: 상점이 변경되어 대시보드 데이터를 새로고침합니다.');
-      loadDashboardData(true);
-    };
-
-    const handleLoginSuccess = () => {
-      console.log('🔑 홈: 로그인 성공 이벤트 감지');
-      // 약간의 지연 후 대시보드 데이터 로드 시도
-      setTimeout(() => {
-        console.log('🏪 홈: 상점 확인 중...');
-        // 현재 선택된 상점 정보를 다시 확인
-        loadDashboardData(true);
-      }, 1000); // 1초로 증가하여 상점 로딩 완료 대기
-    };
-
-    console.log('🔧 홈: 이벤트 리스너 등록');
-    shopEventEmitter.on('shopChanged', handleShopChanged);
-    shopEventEmitter.on('loginSuccess', handleLoginSuccess);
-
-    return () => {
-      console.log('🔧 홈: 이벤트 리스너 해제');
-      shopEventEmitter.off('shopChanged', handleShopChanged);
-      shopEventEmitter.off('loginSuccess', handleLoginSuccess);
-    };
-  }, [loadDashboardData]); // loadDashboardData만 의존성으로 추가
+    if (!shopLoading) {
+      console.log('🏪 상점 로딩 완료, 대시보드 데이터 로드');
+      loadDashboardData();
+    }
+  }, [shopLoading, selectedShop, loadDashboardData]);
 
   const onRefresh = () => {
     setRefreshing(true);

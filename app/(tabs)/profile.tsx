@@ -2,7 +2,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import ShopHeader from '@/components/navigation/ShopHeader';
 import { authApiService } from '@/src/api/services/auth';
-import { useAuth } from '@/stores/authContextNew';
+import { useAuthStore } from '@/src/stores/authStore';
+import { useShopStore } from '@/src/stores/shopStore';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Dimensions, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
@@ -11,7 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
-  const { logout, user, selectedShop } = useAuth();
+  const { logout, user } = useAuthStore();
+  const { selectedShop } = useShopStore();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

@@ -29,6 +29,10 @@ kmcbeauty-native/
 │     └─ profile.tsx                     # 프로필
 │
 ├─ src/                                  # 핵심 소스코드
+│  ├─ stores/                           # Zustand 상태 관리
+│  │  ├─ authStore.ts                   # 인증 상태 (로그인, 사용자 정보)
+│  │  └─ shopStore.ts                   # 상점 선택 및 관리
+│  │
 │  ├─ api/                              # API 레이어
 │  │  ├─ client.ts                      # axios 인스턴스 + 인터셉터
 │  │  ├─ services/                      # API 서비스들
@@ -71,9 +75,8 @@ kmcbeauty-native/
 │  ├─ navigation/                     # 네비게이션 관련
 │  └─ ui/                            # 공통 UI 컴포넌트
 │
-├─ stores/                            # 상태 관리 (Context API)
-│  ├─ authContext.tsx                 # 인증 상태
-│  └─ shopStore.tsx                   # 상점 상태
+├─ stores/                            # 상태 관리 (백업 파일들)
+│  └─ backup/                         # 이전 Context API 파일들 (참고용)
 │
 ├─ contexts/                          # React Context
 │  └─ DashboardContext.tsx
@@ -126,8 +129,8 @@ kmcbeauty-native/
 - **Expo Router** (~6.0.4) - File-based routing
 
 ### 상태 관리
-- **React Context API** (현재)
-- **AsyncStorage** (영구 저장)
+- **Zustand** (~4.x) + persist 미들웨어 - 현재 주 상태 관리
+- **AsyncStorage** (영구 저장) - Zustand persist 백엔드
 
 ### API & 통신
 - **Axios** (^1.11.0) - HTTP 클라이언트
@@ -166,7 +169,8 @@ import { View } from 'react-native'
 
 // 2. 내부 절대 경로 (@/ alias)
 import { ThemedText } from '@/components/ThemedText'
-import { useAuth } from '@/stores/authContext'
+import { useAuthStore } from '@/src/stores/authStore'
+import { useShopStore } from '@/src/stores/shopStore'
 
 // 3. 상대 경로
 import './styles.css'
@@ -181,9 +185,12 @@ class AuthApiService extends BaseApiService {
   }
 }
 
-// 2. 컴포넌트에서 사용
-const { login } = useAuth()
+// 2. 컴포넌트에서 사용 (Zustand)
+const { login, isLoading } = useAuthStore()
 await login(credentials)
+
+// 3. 상점 관리
+const { selectedShop, selectShop } = useShopStore()
 ```
 
 ## ✅ 품질 관리
@@ -229,11 +236,12 @@ npx expo run:android --clear
 
 ## 🎯 주요 개발 포인트
 
-### 🔄 상태 관리 개선 (권장사항)
-현재 Context API + AsyncStorage → **Zustand** 마이그레이션 고려
-- 더 간단한 상태 관리
-- 로컬스토리지 동기화 문제 해결
-- 메모리 기반 상태로 앱 종료시 자동 초기화
+### 🔄 상태 관리 (완료)
+✅ **Zustand 마이그레이션 완료**
+- 간단하고 효율적인 상태 관리 구현
+- AsyncStorage persist 미들웨어로 자동 지속성
+- Context Provider 중첩 문제 해결
+- 메모리 기반 상태로 성능 최적화
 
 ### 🏪 멀티 상점 지원
 - 로그인 후 상점 선택 필수

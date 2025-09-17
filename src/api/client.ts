@@ -98,6 +98,19 @@ const performLogout = async () => {
   try {
     console.log('🚪 강제 로그아웃 처리 시작');
     
+    // Zustand 스토어 정리 (동적 import로 순환 참조 방지)
+    try {
+      const { useAuthStore } = await import('../stores/authStore');
+      const { useShopStore } = await import('../stores/shopStore');
+      
+      // 상태 정리
+      useAuthStore.getState().clearAuth();
+      useShopStore.getState().clearSelectedShop();
+      console.log('✅ Zustand 스토어 정리 완료');
+    } catch (storeError) {
+      console.error('⚠️ 스토어 정리 중 에러:', storeError);
+    }
+    
     // 모든 사용자 관련 데이터 삭제 (아이디 기억하기 제외)
     const allKeys = await AsyncStorage.getAllKeys();
     const keysToRemove = allKeys.filter(key => 
