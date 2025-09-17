@@ -1,5 +1,5 @@
-import { LoginCredentials } from '@/types';
-import { apiClient } from '../api';
+import { LoginCredentials } from '@/src/types';
+import apiClient from '../../api';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 

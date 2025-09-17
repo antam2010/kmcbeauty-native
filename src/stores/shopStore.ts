@@ -45,14 +45,36 @@ export const useShopStore = create<ShopState>()(
           setError(null);
           
           console.log('🔄 상점 정보 서버 조회 시작');
+          
+          // 토큰 상태 확인 (디버깅용)
+          if (__DEV__) {
+            const authData = await AsyncStorage.getItem('auth-storage');
+            const { useAuthStore } = await import('./authStore');
+            const authState = useAuthStore.getState();
+            
+            console.log('🔍 토큰 상태 체크:', {
+              hasAsyncStorageToken: !!authData && !!JSON.parse(authData)?.accessToken,
+              isAuthenticated: authState.isAuthenticated,
+              hasUser: !!authState.user
+            });
+          }
+          
           const shop = await shopApiService.getSelected();
           
           setSelectedShop(shop);
           console.log('✅ 상점 정보 조회 성공:', shop?.name);
         } catch (error: any) {
-          console.log('⚠️ 선택된 상점이 없음:', error.message);
-          setSelectedShop(null);
-          setError(error.message);
+          // SHOP_NOT_SELECTED 에러의 경우 더 구체적인 처리
+          if (error.message.includes('상점이 선택되지 않았습니다') || 
+              error.message.includes('상점을 선택해주세요')) {
+            console.log('🏪 상점이 선택되지 않음 - 상점 선택이 필요함');
+            setSelectedShop(null);
+            setError('상점을 선택해주세요.');
+          } else {
+            console.log('⚠️ 상점 정보 조회 실패:', error.message);
+            setSelectedShop(null);
+            setError(error.message);
+          }
         } finally {
           setLoading(false);
         }

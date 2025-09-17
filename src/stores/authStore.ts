@@ -10,11 +10,13 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  accessToken: string | null;
 
   // 액션
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setAccessToken: (token: string | null) => void;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
@@ -29,6 +31,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      accessToken: null,
 
       // 상태 설정 액션
       setUser: (user) => {
@@ -43,9 +46,11 @@ export const useAuthStore = create<AuthState>()(
 
       setError: (error) => set({ error }),
 
+      setAccessToken: (accessToken) => set({ accessToken }),
+
       // 로그인
       login: async (email: string, password: string) => {
-        const { setLoading, setUser, setError } = get();
+        const { setLoading, setUser, setError, setAccessToken } = get();
         
         try {
           setLoading(true);
@@ -54,11 +59,32 @@ export const useAuthStore = create<AuthState>()(
           // API 로그인 호출
           const loginResponse = await authApiService.login({ email, password });
           
-          // 토큰 저장 (AsyncStorage)
-          await AsyncStorage.setItem('auth-storage', JSON.stringify({
+          // 즉시 사용 가능하도록 임시 토큰 설정
+          const { setTemporaryToken } = await import('../api/client');
+          setTemporaryToken(loginResponse.access_token);
+          
+          // Zustand 스토어에 토큰 저장 (persist로 AsyncStorage에 자동 저장됨)
+          setAccessToken(loginResponse.access_token);
+          
+          // 토큰 저장 (AsyncStorage) - 백그라운드에서 진행 (호환성용)
+          AsyncStorage.setItem('auth-storage', JSON.stringify({
             accessToken: loginResponse.access_token,
             tokenType: loginResponse.token_type,
-          }));
+          })).then(() => {
+            console.log('✅ 토큰 AsyncStorage 저장 완료');
+            // 추가 지연 후 임시 토큰 제거 (상점 정보 조회 완료 후)
+            setTimeout(() => {
+              setTemporaryToken(null);
+              console.log('🔑 임시 토큰 지연 제거 완료');
+            }, 2000); // 2초 지연
+          }).catch((error) => {
+            console.error('❌ 토큰 AsyncStorage 저장 실패:', error);
+            // 실패해도 일정 시간 후 임시 토큰 제거
+            setTimeout(() => {
+              setTemporaryToken(null);
+              console.log('🔑 임시 토큰 에러 후 제거');
+            }, 5000); // 5초 지연
+          });
 
           // 사용자 정보 조회
           const user = await authApiService.getMe();
@@ -132,16 +158,18 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isLoading: false,
           error: null,
+          accessToken: null,
         });
       },
     }),
     {
       name: 'auth-storage', // AsyncStorage 키
       storage: createJSONStorage(() => AsyncStorage),
-      // 민감한 정보는 제외하고 저장
+      // 필요한 인증 정보만 저장 (accessToken 포함)
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
+        accessToken: state.accessToken,
       }),
     }
   )

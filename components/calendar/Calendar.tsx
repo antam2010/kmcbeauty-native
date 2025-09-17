@@ -1,6 +1,6 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { treatmentAPI } from '@/src/features/booking/api';
+import { treatmentApiService } from '@/src/api/services/treatment';
 import { Treatment } from '@/src/types';
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -46,7 +46,7 @@ export default function Calendar({
   // 월별 시술 예약 데이터 로드
   const loadMonthlyTreatments = useCallback(async (year: number, month: number) => {
     try {
-      const monthlyTreatments = await treatmentAPI.getMonthlyTreatments(year, month);
+      const monthlyTreatments = await treatmentApiService.getMonthlyTreatments(year, month);
       setTreatments(monthlyTreatments);
       onTreatmentsLoad?.(monthlyTreatments);
     } catch (error) {

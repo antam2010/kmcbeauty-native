@@ -1,4 +1,4 @@
-import { SelectedShop, ShopsResponse } from '@/types';
+import { SelectedShop, ShopsResponse } from '@/src/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 

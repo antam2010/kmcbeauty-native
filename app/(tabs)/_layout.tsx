@@ -4,10 +4,10 @@ import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore } from '@/src/stores/authStore';
+import { ThemeColors as Colors } from '@/src/ui/theme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();

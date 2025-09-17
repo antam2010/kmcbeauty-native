@@ -1,8 +1,8 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { LoginCredentials } from '@/src/types';
 import { Button, Card, TextInput as CustomTextInput } from '@/src/ui/atoms';
 import { Colors, Spacing, Typography } from '@/src/ui/theme';
-import { LoginCredentials } from '@/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import {

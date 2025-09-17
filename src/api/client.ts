@@ -23,6 +23,84 @@ let isNavigatingToShopSelection = false;
 let isRefreshing = false;
 let failedQueue: { resolve: Function; reject: Function }[] = [];
 
+// 임시 토큰 저장소 (AsyncStorage 저장이 지연될 때 사용)
+let temporaryAccessToken: string | null = null;
+
+// 토큰 설정 함수 (즉시 사용 가능)
+export const setTemporaryToken = (token: string | null) => {
+  temporaryAccessToken = token;
+  console.log('🔑 임시 토큰 설정:', token ? '설정됨' : '제거됨');
+};
+
+// 토큰 가져오기 함수 (여러 소스에서 확인)
+const getAccessToken = async (): Promise<string | null> => {
+  // 1. Zustand 스토어에서 토큰 확인 (persist로 저장된 토큰)
+  try {
+    const { useAuthStore } = await import('../stores/authStore');
+    const accessToken = useAuthStore.getState().accessToken;
+    if (accessToken) {
+      console.log('🔑 Zustand 스토어 토큰 사용');
+      return accessToken;
+    }
+  } catch (error) {
+    console.error('🔑 Zustand 스토어 토큰 조회 실패:', error);
+  }
+
+  // 2. 수동 저장된 auth-storage에서 토큰 확인 (호환성용)
+  try {
+    const authData = await AsyncStorage.getItem('auth-storage');
+    if (__DEV__) {
+      console.log('🔍 AsyncStorage 조회 결과:', {
+        hasData: !!authData,
+        dataLength: authData?.length || 0,
+        dataPreview: authData ? authData.substring(0, 100) + '...' : 'NULL'
+      });
+    }
+    
+    if (authData) {
+      const parsedData = JSON.parse(authData);
+      if (__DEV__) {
+        console.log('🔍 파싱된 auth 데이터:', {
+          keys: Object.keys(parsedData),
+          hasAccessToken: !!parsedData.accessToken,
+          tokenLength: parsedData.accessToken?.length || 0
+        });
+      }
+      
+      const { accessToken } = parsedData;
+      if (accessToken) {
+        console.log('🔑 AsyncStorage(수동) 토큰 사용');
+        return accessToken;
+      }
+    }
+  } catch (error) {
+    console.error('🔑 AsyncStorage(수동) 토큰 조회 실패:', error);
+  }
+  
+  // 3. 기타 토큰 저장소에서 확인 (다른 키일 수 있음)
+  try {
+    const tokenData = await AsyncStorage.getItem('token-storage');
+    if (tokenData) {
+      const { accessToken } = JSON.parse(tokenData);
+      if (accessToken) {
+        console.log('🔑 AsyncStorage(token-storage) 토큰 사용');
+        return accessToken;
+      }
+    }
+  } catch (error) {
+    console.error('🔑 token-storage 조회 실패:', error);
+  }
+  
+  // 4. 임시 토큰이 있으면 사용
+  if (temporaryAccessToken) {
+    console.log('🔑 임시 토큰 사용 (다른 저장소 없음)');
+    return temporaryAccessToken;
+  }
+  
+  console.warn('⚠️ 사용 가능한 토큰이 없음');
+  return null;
+};
+
 // 실패한 요청들을 큐에서 처리
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach(({ resolve, reject }) => {
@@ -54,17 +132,27 @@ const refreshAccessToken = async (): Promise<string | null> => {
     }
     
     // 새로운 액세스 토큰 저장
-    const authData = await AsyncStorage.getItem('auth-storage');
-    const existingData = authData ? JSON.parse(authData) : {};
-    
-    const updatedAuthData = {
-      ...existingData,
-      accessToken: access_token,
-      // 리프레시 토큰은 서버가 쿠키로 관리하므로 저장하지 않음
-    };
-    
-    await AsyncStorage.setItem('auth-storage', JSON.stringify(updatedAuthData));
-    console.log('✅ 액세스 토큰 갱신 성공');
+    try {
+      // Zustand 스토어에 토큰 저장
+      const { useAuthStore } = await import('../stores/authStore');
+      useAuthStore.getState().setAccessToken(access_token);
+      
+      // AsyncStorage에도 저장 (호환성용)
+      const authData = await AsyncStorage.getItem('auth-storage');
+      const existingData = authData ? JSON.parse(authData) : {};
+      
+      const updatedAuthData = {
+        ...existingData,
+        accessToken: access_token,
+        // 리프레시 토큰은 서버가 쿠키로 관리하므로 저장하지 않음
+      };
+      
+      await AsyncStorage.setItem('auth-storage', JSON.stringify(updatedAuthData));
+      console.log('✅ 액세스 토큰 갱신 성공');
+    } catch (storeError) {
+      console.error('⚠️ 토큰 저장 중 에러:', storeError);
+      // 저장 실패해도 토큰은 반환
+    }
     
     return access_token;
   } catch (error: any) {
@@ -182,32 +270,59 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config: any) => {
     try {
-      // auth-storage에서 토큰 가져오기
-      const authData = await AsyncStorage.getItem('auth-storage');
-      if (authData) {
-        const { accessToken } = JSON.parse(authData);
-        if (accessToken) {
-          config.headers = config.headers || {};
-          config.headers.Authorization = `Bearer ${accessToken}`;
+      // 토큰 가져오기 (임시 토큰 또는 AsyncStorage)
+      const accessToken = await getAccessToken();
+      let hasToken = false;
+      
+      if (accessToken) {
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${accessToken}`;
+        hasToken = true;
+        
+        // 토큰 상세 로깅 (민감한 정보는 마스킹)
+        if (__DEV__) {
+          console.log('🔑 토큰 정보:', {
+            hasToken: true,
+            tokenLength: accessToken.length,
+            tokenPrefix: accessToken.substring(0, 10) + '...',
+            tokenSuffix: '...' + accessToken.substring(accessToken.length - 10),
+            source: temporaryAccessToken ? 'temporary' : 'asyncStorage'
+          });
         }
+      } else {
+        console.warn('⚠️ 사용 가능한 토큰이 없음');
       }
 
       // 상점 정보도 헤더에 추가
+      let hasShopId = false;
       const shopData = await AsyncStorage.getItem('selectedShop');
       if (shopData) {
         const shop = JSON.parse(shopData);
         if (shop.id) {
           config.headers = config.headers || {};
           config.headers['X-Shop-ID'] = shop.id.toString();
+          hasShopId = true;
         }
       }
+      
+      // 상세한 요청 로깅 (개발 환경에서만)
+      if (__DEV__) {
+        console.log(`🚀 API 요청 상세:`, {
+          method: config.method?.toUpperCase(),
+          url: config.url,
+          fullUrl: `${config.baseURL}${config.url}`,
+          hasAuthToken: hasToken,
+          hasShopId: hasShopId,
+          headers: {
+            Authorization: config.headers?.Authorization ? `Bearer ${config.headers.Authorization.substring(7, 17)}...` : 'NONE',
+            'X-Shop-ID': config.headers?.['X-Shop-ID'] || 'NONE',
+            'Content-Type': config.headers?.['Content-Type'] || 'default'
+          }
+        });
+      }
+      
     } catch (error) {
-      console.error('토큰/상점 정보 로드 실패:', error);
-    }
-    
-    // 요청 로깅 (개발 환경에서만)
-    if (__DEV__) {
-      console.log(`🚀 API 요청: ${config.method?.toUpperCase()} ${config.url}`);
+      console.error('💥 토큰/상점 정보 로드 실패:', error);
     }
     
     return config;
@@ -227,6 +342,62 @@ apiClient.interceptors.response.use(
   async (error: any) => {
     const originalRequest = error.config;
     
+    // 에러 상세 로깅 (개발 환경에서만)
+    if (__DEV__) {
+      console.log(`❌ API 에러 상세:`, {
+        method: originalRequest?.method?.toUpperCase(),
+        url: originalRequest?.url,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        errorCode: error.response?.data?.detail?.code,
+        errorDetail: error.response?.data?.detail?.detail,
+        errorHint: error.response?.data?.detail?.hint,
+        requestHeaders: {
+          Authorization: originalRequest?.headers?.Authorization ? 
+            `Bearer ${originalRequest.headers.Authorization.substring(7, 17)}...` : 'NONE',
+          'X-Shop-ID': originalRequest?.headers?.['X-Shop-ID'] || 'NONE'
+        }
+      });
+    }
+    
+    // 🏪 SHOP_NOT_SELECTED 에러 처리 - 최우선 처리 (401/403보다 먼저)
+    // 로그인은 성공했지만 상점이 선택되지 않은 상태
+    if (error.response?.data?.detail?.code === 'SHOP_NOT_SELECTED') {
+      console.log('🏪 상점이 선택되지 않음 - 상점 선택 화면으로 이동');
+      console.log('🏪 에러 상세:', error.response.data);
+      console.log('🏪 HTTP 상태:', error.response?.status); // 401이어도 SHOP_NOT_SELECTED가 우선
+      
+      if (!isNavigatingToShopSelection) {
+        isNavigatingToShopSelection = true;
+        
+        try {
+          // 상점 선택 화면으로 이동
+          router.replace('/shop-selection');
+          console.log('✅ 상점 선택 화면으로 이동 완료');
+        } catch (routerError) {
+          console.error('❌ 상점 선택 화면 이동 실패:', routerError);
+          // 대안으로 push 시도
+          try {
+            router.push('/shop-selection');
+            console.log('✅ 상점 선택 화면으로 push 완료');
+          } catch (pushError) {
+            console.error('❌ push도 실패:', pushError);
+          }
+        }
+        
+        // 플래그 리셋
+        setTimeout(() => {
+          isNavigatingToShopSelection = false;
+          console.log('🔄 상점 선택 네비게이션 플래그 리셋');
+        }, 2000);
+      } else {
+        console.log('⚠️ 이미 상점 선택 화면으로 이동 중입니다.');
+      }
+      
+      // SHOP_NOT_SELECTED 에러의 경우 명확한 에러 메시지로 reject
+      return Promise.reject(new Error('상점이 선택되지 않았습니다. 상점을 선택해주세요.'));
+    }
+    
     // 403 Forbidden 에러 처리 - 무조건 로그인 페이지로 이동
     if (error.response?.status === 403) {
       console.log('🚫 403 에러 발생 - 권한 없음, 강제 로그아웃 처리');
@@ -238,21 +409,8 @@ apiClient.interceptors.response.use(
       return Promise.reject(new Error('권한이 없습니다. 다시 로그인해주세요.'));
     }
     
-    // SHOP_NOT_SELECTED 에러 처리
-    if (error.response?.data?.detail?.code === 'SHOP_NOT_SELECTED') {
-      console.log('🏪 상점이 선택되지 않음 - 상점 선택 화면으로 이동');
-      
-      if (!isNavigatingToShopSelection) {
-        isNavigatingToShopSelection = true;
-        router.push('/shop-selection');
-        setTimeout(() => {
-          isNavigatingToShopSelection = false;
-        }, 1000);
-      }
-      return Promise.reject(error);
-    }
-    
     // 401 Unauthorized 에러 처리 - 리프레시 토큰으로 갱신 시도
+    // 단, SHOP_NOT_SELECTED 에러가 아닌 경우에만 처리
     if (error.response?.status === 401 && !originalRequest._retry) {
       console.log('🔐 401 에러 발생 - 토큰 갱신 시도');
       
@@ -355,17 +513,46 @@ export const authDebugUtils = {
   // 현재 토큰 상태 확인
   async checkTokenStatus() {
     try {
+      console.log('🔍 AsyncStorage 전체 토큰 상태 확인 시작');
+      
+      // 모든 키 확인
+      const allKeys = await AsyncStorage.getAllKeys();
+      console.log('📦 AsyncStorage 모든 키:', allKeys);
+      
+      // auth-storage 확인
       const authData = await AsyncStorage.getItem('auth-storage');
       if (authData) {
-        const { accessToken } = JSON.parse(authData);
-        console.log('🔑 현재 토큰 상태:', accessToken ? '존재' : '없음');
-        if (accessToken) {
-          console.log('🔑 토큰 길이:', accessToken.length);
-          console.log('🔑 토큰 앞부분:', accessToken.substring(0, 20) + '...');
-        }
+        const parsedAuthData = JSON.parse(authData);
+        console.log('🔑 auth-storage 내용:', {
+          keys: Object.keys(parsedAuthData),
+          hasAccessToken: !!parsedAuthData.accessToken,
+          hasRefreshToken: !!parsedAuthData.refreshToken,
+          tokenLength: parsedAuthData.accessToken?.length || 0,
+          tokenPrefix: parsedAuthData.accessToken?.substring(0, 20) + '...' || 'NONE',
+          tokenSuffix: parsedAuthData.accessToken ? '...' + parsedAuthData.accessToken.substring(parsedAuthData.accessToken.length - 10) : 'NONE'
+        });
       } else {
-        console.log('🔑 저장된 인증 정보 없음');
+        console.log('🔑 auth-storage가 null 또는 존재하지 않음');
       }
+      
+      // shop-storage 확인
+      const shopData = await AsyncStorage.getItem('shop-storage');
+      if (shopData) {
+        const parsedShopData = JSON.parse(shopData);
+        console.log('🏪 shop-storage 내용:', parsedShopData);
+      } else {
+        console.log('🏪 shop-storage가 null 또는 존재하지 않음');
+      }
+      
+      // selectedShop 확인 (별도 키)
+      const selectedShopData = await AsyncStorage.getItem('selectedShop');
+      if (selectedShopData) {
+        const parsedSelectedShop = JSON.parse(selectedShopData);
+        console.log('🏪 selectedShop 내용:', parsedSelectedShop);
+      } else {
+        console.log('🏪 selectedShop이 null 또는 존재하지 않음');
+      }
+      
     } catch (error) {
       console.error('🔑 토큰 상태 확인 실패:', error);
     }
@@ -400,6 +587,29 @@ export const authDebugUtils = {
     } catch (error: any) {
       console.log('❌ 대시보드 API 에러:', error.message);
       console.log('🔍 에러 상세:', error.response?.status, error.response?.data);
+    }
+  },
+
+  // shops/selected API 테스트 (토큰 확인용)
+  async testShopsSelectedAPI() {
+    try {
+      console.log('🏪 shops/selected API 테스트 시작');
+      
+      // 먼저 토큰 상태 확인
+      await this.checkTokenStatus();
+      
+      // API 호출
+      const response = await apiClient.get('/shops/selected');
+      console.log('✅ shops/selected API 성공:', response.status, response.data);
+    } catch (error: any) {
+      console.log('❌ shops/selected API 에러:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        errorCode: error.response?.data?.detail?.code,
+        errorDetail: error.response?.data?.detail?.detail,
+        errorHint: error.response?.data?.detail?.hint
+      });
     }
   },
 

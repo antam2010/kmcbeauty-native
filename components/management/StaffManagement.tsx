@@ -1,11 +1,10 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import InviteCodeGeneratorModal from '@/components/modals/InviteCodeGeneratorModal';
-import { Colors } from '@/constants/Colors';
 import { StaffUser, userApiService } from '@/src/api/services/staff';
 import { useShopStore } from '@/src/stores/shopStore';
 import { Button } from '@/src/ui/atoms';
-import { Colors as DesignColors, Spacing, Typography } from '@/src/ui/theme';
+import { ThemeColors as Colors, Colors as DesignColors, Spacing, Typography } from '@/src/ui/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {

@@ -138,7 +138,7 @@ export interface AnimatedProps {
 }
 
 // 테마 관련 타입
-export interface ThemeColors {
+export interface ThemeColorSchema {
   primary: string;
   secondary: string;
   success: string;

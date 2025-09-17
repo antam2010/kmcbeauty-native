@@ -1,4 +1,4 @@
-import { treatmentAPI } from '@/src/features/booking/api';
+import { treatmentApiService } from '@/src/api/services/treatment';
 import { Treatment } from '@/src/types';
 import { BorderRadius, Colors, Shadow, Spacing, Typography } from '@/src/ui/theme';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -50,7 +50,7 @@ export const ImprovedCalendar: React.FC<ImprovedCalendarProps> = ({
   // 월별 시술 예약 데이터 로드
   const loadMonthlyTreatments = useCallback(async (year: number, month: number) => {
     try {
-      const monthlyTreatments = await treatmentAPI.getMonthlyTreatments(year, month);
+      const monthlyTreatments = await treatmentApiService.getMonthlyTreatments(year, month);
       setTreatments(monthlyTreatments);
       onTreatmentsLoad?.(monthlyTreatments);
     } catch (error) {

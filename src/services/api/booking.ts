@@ -1,5 +1,5 @@
-import { Booking, BookingSlot, CreateBookingRequest } from '@/types';
-import { apiClient } from '../api';
+import { Booking, BookingSlot, CreateBookingRequest } from '@/src/types';
+import apiClient from '../../api';
 
 export const bookingService = {
   // 모든 예약 조회

@@ -4,7 +4,7 @@ import TreatmentMenuManagement from '@/components/management/TreatmentMenuManage
 import ShopHeader from '@/components/navigation/ShopHeader';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { Colors } from '@/constants/Colors';
+import { ThemeColors as Colors } from '@/src/ui/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';

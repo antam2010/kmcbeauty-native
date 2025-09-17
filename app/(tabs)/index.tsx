@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { dashboardApiService } from '../../src/api/services/dashboard';
-import { treatmentAPI } from '../../src/features/booking/api';
+import { treatmentApiService } from '../../src/api/services/treatment';
 
 // 임시 타입 정의
 interface DashboardSummaryResponse {
@@ -45,7 +45,7 @@ export default function HomeScreen() {
   const loadWeeklyTreatments = useCallback(async () => {
     try {
       // 새로운 주간 API 사용
-      const weeklyData = await treatmentAPI.getWeeklyTreatments();
+      const weeklyData = await treatmentApiService.getWeeklyTreatments();
       setWeeklyTreatments(weeklyData);
     } catch (error: any) {
       console.error('주간 시술 데이터 로딩 실패:', error);
