@@ -6,6 +6,7 @@ import { shopApiService, type ShopUser } from '@/src/api/services/shop';
 import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import type { Treatment, TreatmentItemCreate, TreatmentUpdate } from '@/src/types';
+import { formatKoreanDate } from '@/src/utils/dateUtils';
 import { detectInputType, formatPhoneNumber } from '@/src/utils/phoneFormat';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -662,16 +663,23 @@ export default function EditTreatmentModal({
 
             {/* 날짜 선택 */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>예약 날짜</Text>
+            <Text style={styles.sectionTitle}>예약 날짜</Text>
+            <View style={styles.dateInputContainer}>
               <TextInput
-                style={styles.input}
+                style={styles.dateTextInput}
                 value={selectedDate}
                 onChangeText={setSelectedDate}
-                placeholder="YYYY-MM-DD"
+                placeholder="YYYY-MM-DD (예: 2025-09-17)"
+                maxLength={10}
+                keyboardType="numeric"
               />
+              <View style={styles.dateDisplay}>
+                <Text style={styles.dateDisplayText}>
+                  {formatKoreanDate(selectedDate)}
+                </Text>
+              </View>
             </View>
-
-            {/* 시간 선택 */}
+            </View>            {/* 시간 선택 */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>예약 시간</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -1421,5 +1429,59 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+
+  // 날짜 관련 스타일
+  dateCard: {
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateContent: {
+    flex: 1,
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#212529',
+    fontWeight: '500',
+  },
+  dateChangeText: {
+    fontSize: 14,
+    color: '#667eea',
+    marginTop: 2,
+  },
+  dateChangeIcon: {
+    fontSize: 24,
+    marginLeft: 12,
+  },
+
+  // 간단한 날짜 입력 스타일
+  dateInputContainer: {
+    marginBottom: 16,
+  },
+  dateTextInput: {
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#212529',
+    backgroundColor: '#ffffff',
+    marginBottom: 8,
+  },
+  dateDisplay: {
+    backgroundColor: '#f8f9fa',
+    padding: 8,
+    borderRadius: 6,
+  },
+  dateDisplayText: {
+    fontSize: 14,
+    color: '#6c757d',
+    textAlign: 'center',
   },
 });

@@ -1,13 +1,13 @@
 import type { Treatment } from '@/src/types';
 import React, { useState } from 'react';
 import {
-    Modal,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Modal,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -76,23 +76,24 @@ export default function TreatmentModal({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      weekday: 'long'
-    });
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const weekdays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+    const weekday = weekdays[date.getDay()];
+    return `${year}년 ${month}월 ${day}일 ${weekday}`;
   };
 
   const formatDateTime = (dateTime: string) => {
     const date = new Date(dateTime);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const weekdays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+    const weekday = weekdays[date.getDay()];
+    
     return {
-      date: date.toLocaleDateString('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        weekday: 'long'
-      }),
+      date: `${year}년 ${month}월 ${day}일 ${weekday}`,
       time: date.toLocaleTimeString('ko-KR', {
         hour: '2-digit',
         minute: '2-digit',

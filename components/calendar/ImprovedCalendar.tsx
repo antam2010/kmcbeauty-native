@@ -9,8 +9,8 @@ import {
     View,
 } from 'react-native';
 
-// 최소 셀 크기 설정
-const MIN_CELL_SIZE = 52;
+// 최소 셀 크기 설정 - 터치하기 편하도록 더 크게
+const MIN_CELL_SIZE = 68;
 
 interface CalendarDate {
   date: string;
@@ -159,6 +159,21 @@ export const ImprovedCalendar: React.FC<ImprovedCalendarProps> = ({
   // 날짜 선택 핸들러
   const handleDateSelect = (dateData: CalendarDate) => {
     if (!dateData.isCurrentMonth) return;
+    
+    // 예약이 있는 날짜인 경우 예약 리스트 표시
+    if (dateData.hasBookings && dateData.bookingCount > 0) {
+      const dateTreatments = treatments.filter(treatment => {
+        const treatmentDate = treatment.reserved_at.split('T')[0];
+        return treatmentDate === dateData.date;
+      });
+      
+      if (dateTreatments.length > 0) {
+        onShowTreatmentsList?.(dateTreatments, dateData.date);
+        return;
+      }
+    }
+    
+    // 예약이 없는 날짜인 경우 새 예약 요청
     onDateSelect(dateData.date);
   };
 
@@ -171,6 +186,7 @@ export const ImprovedCalendar: React.FC<ImprovedCalendarProps> = ({
       dateData.isToday && styles.todayCell,
       dateData.isSelected && styles.selectedCell,
       !dateData.isCurrentMonth && styles.inactiveCell,
+      dateData.hasBookings && styles.hasBookingsCell, // 예약이 있는 날짜 스타일 추가
     ];
 
     const textStyle = [
@@ -178,6 +194,7 @@ export const ImprovedCalendar: React.FC<ImprovedCalendarProps> = ({
       dateData.isToday && styles.todayText,
       dateData.isSelected && styles.selectedText,
       !dateData.isCurrentMonth && styles.inactiveText,
+      dateData.hasBookings && styles.hasBookingsText, // 예약이 있는 날짜 텍스트 스타일
     ];
 
     return (
@@ -192,6 +209,12 @@ export const ImprovedCalendar: React.FC<ImprovedCalendarProps> = ({
         {dateData.hasBookings && (
           <View style={styles.bookingIndicator}>
             <Text style={styles.bookingCount}>{dateData.bookingCount}</Text>
+          </View>
+        )}
+        {/* 예약이 있는 날짜에 리스트 아이콘 추가 */}
+        {dateData.hasBookings && (
+          <View style={styles.listIndicator}>
+            <Text style={styles.listIcon}>📋</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -241,6 +264,16 @@ export const ImprovedCalendar: React.FC<ImprovedCalendarProps> = ({
       {/* 캘린더 그리드 */}
       <View style={styles.calendarGrid}>
         {calendarDates.map((dateData, index) => renderDateCell(dateData, index))}
+      </View>
+
+      {/* 사용법 안내 */}
+      <View style={styles.usageGuide}>
+        <Text style={styles.usageText}>
+          💡 <Text style={styles.usageHighlight}>예약이 있는 날짜</Text>를 터치하면 예약 목록을 확인할 수 있어요
+        </Text>
+        <Text style={styles.usageText}>
+          📅 <Text style={styles.usageHighlight}>빈 날짜</Text>를 터치하면 새 예약을 등록할 수 있어요
+        </Text>
       </View>
 
       {/* 선택된 날짜 정보 */}
@@ -337,9 +370,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: BorderRadius.md,
-    marginBottom: 2,
+    marginBottom: 4,
     position: 'relative',
     minHeight: MIN_CELL_SIZE,
+    // 터치 영역을 더 크게 만들기 위한 패딩
+    paddingVertical: 6,
   },
 
   todayCell: {
@@ -353,13 +388,19 @@ const styles = StyleSheet.create({
     ...Shadow.sm,
   },
 
+  hasBookingsCell: {
+    backgroundColor: Colors.success + '10',
+    borderWidth: 1,
+    borderColor: Colors.success + '40',
+  },
+
   inactiveCell: {
     opacity: 0.3,
   },
 
   // 날짜 텍스트
   dateText: {
-    fontSize: Typography.fontSize.base,
+    fontSize: Typography.fontSize.lg, // base에서 lg로 변경 (더 크게)
     fontWeight: Typography.fontWeight.medium,
     color: Colors.text.primary,
   },
@@ -371,6 +412,11 @@ const styles = StyleSheet.create({
 
   selectedText: {
     color: Colors.white,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+
+  hasBookingsText: {
+    color: Colors.success,
     fontWeight: Typography.fontWeight.semibold,
   },
 
@@ -395,6 +441,40 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.white,
+  },
+
+  // 리스트 인디케이터 (예약이 있는 날짜에 표시)
+  listIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    left: 2,
+  },
+
+  listIcon: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
+
+  // 사용법 안내
+  usageGuide: {
+    marginTop: Spacing.lg,
+    padding: Spacing.md,
+    backgroundColor: Colors.primary + '10',
+    borderRadius: BorderRadius.md,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
+  },
+
+  usageText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.text.secondary,
+    marginBottom: Spacing.xs,
+    lineHeight: 20,
+  },
+
+  usageHighlight: {
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.primary,
   },
 
   // 선택된 날짜 정보

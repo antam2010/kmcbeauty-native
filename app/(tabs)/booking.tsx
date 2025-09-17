@@ -5,8 +5,19 @@ import UnifiedTreatmentModal from "@/components/modals/UnifiedTreatmentModal";
 import ShopHeader from '@/components/navigation/ShopHeader';
 import { useDashboard } from "@/contexts/DashboardContext";
 import { Treatment } from "@/src/types";
+import { BorderRadius, Colors, Shadow, Spacing, Typography } from "@/src/ui/theme";
+import { formatKoreanDate, formatTodayKorean } from "@/src/utils/dateUtils";
 import { useCallback, useRef, useState } from "react";
-import { Animated, Modal, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Animated,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function BookingScreen() {
@@ -45,6 +56,7 @@ export default function BookingScreen() {
       }),
     ]).start();
 
+    // 예약이 없는 날짜를 선택한 경우에만 새 예약 폼 열기
     setSelectedDate(dateString);
     setReservedTimes([]); // 새로운 날짜 선택 시 예약된 시간 초기화
     setTimeout(() => {
@@ -156,60 +168,120 @@ export default function BookingScreen() {
   }, []);
 
   return (
-    <View style={[styles.container, { paddingTop: 0 }]}>
+    <View style={styles.container}>
       <ShopHeader title="예약 관리" />
-      {/* 그라데이션 배경 */}
-      <View style={styles.backgroundGradient} />
       
       <ScrollView 
-        style={styles.scrollView} 
+        style={styles.scrollView}
         contentContainerStyle={[
-          styles.scrollContent, 
+          styles.scrollContent,
           { paddingBottom: Platform.OS === "ios" ? insets.bottom + 100 : 80 }
-        ]} 
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.headerSubtitle}>원하는 날짜를 선택해보세요</Text>
-          <Text style={styles.headerDate}>
-            {new Date().toLocaleDateString("ko-KR", { 
-              year: "numeric", 
-              month: "long", 
-              day: "numeric", 
-              weekday: "long" 
-            })}
+        {/* 헤더 섹션 */}
+        <View style={styles.headerSection}>
+          <Text style={styles.welcomeText}>오늘도 좋은 하루 되세요! ✨</Text>
+          <Text style={styles.dateText}>
+            {formatTodayKorean()}
           </Text>
         </View>
-        
-        <Animated.View style={[styles.calendarContainer, { transform: [{ scale: scaleAnim }] }]}>
-          <View style={styles.calendarHeader}>
-            <View style={styles.iconContainer}>
-              <Text style={styles.calendarIcon}>📅</Text>
-            </View>
-            <Text style={styles.sectionTitle}>예약 달력</Text>
+
+        {/* 빠른 액션 버튼들 */}
+        <View style={styles.quickActionsSection}>
+          <Text style={styles.sectionTitle}>빠른 예약</Text>
+          <View style={styles.quickButtonsRow}>
+            <TouchableOpacity 
+              style={styles.quickButton}
+              onPress={() => handleNewBookingRequest()}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.quickButtonIcon, { backgroundColor: Colors.primary + '20' }]}>
+                <Text style={styles.quickButtonEmoji}>➕</Text>
+              </View>
+              <Text style={styles.quickButtonText}>새 예약</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickButton}
+              onPress={() => handleNewBookingRequest(new Date().toISOString().split('T')[0])}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.quickButtonIcon, { backgroundColor: Colors.success + '20' }]}>
+                <Text style={styles.quickButtonEmoji}>📅</Text>
+              </View>
+              <Text style={styles.quickButtonText}>오늘 예약</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickButton}
+              onPress={() => {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                handleNewBookingRequest(tomorrow.toISOString().split('T')[0]);
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.quickButtonIcon, { backgroundColor: Colors.warning + '20' }]}>
+                <Text style={styles.quickButtonEmoji}>⏰</Text>
+              </View>
+              <Text style={styles.quickButtonText}>내일 예약</Text>
+            </TouchableOpacity>
           </View>
-          <ImprovedCalendar 
-            selectedDate={selectedDate || undefined} 
-            onDateSelect={handleDateSelect}
-            onNewBookingRequest={handleNewBookingRequest}
-            onTreatmentPress={handleTreatmentPress}
-            onShowTreatmentsList={handleShowTreatmentsList}
-            refreshTrigger={calendarRefreshTrigger}
-          />
-        </Animated.View>
+        </View>
+
+        {/* 달력 섹션 */}
+        <View style={styles.calendarSection}>
+          <View style={styles.calendarHeader}>
+            <Text style={styles.sectionTitle}>예약 달력</Text>
+            <Text style={styles.sectionSubtitle}>날짜를 터치하여 예약을 관리하세요</Text>
+          </View>
+          
+          <Animated.View style={[styles.calendarContainer, { transform: [{ scale: scaleAnim }] }]}>
+            <ImprovedCalendar 
+              selectedDate={selectedDate || undefined}
+              onDateSelect={handleDateSelect}
+              onNewBookingRequest={handleNewBookingRequest}
+              onTreatmentPress={handleTreatmentPress}
+              onShowTreatmentsList={handleShowTreatmentsList}
+              refreshTrigger={calendarRefreshTrigger}
+            />
+          </Animated.View>
+        </View>
+
+        {/* 선택된 날짜 정보 */}
+        {selectedDate && (
+          <View style={styles.selectedDateSection}>
+            <Text style={styles.selectedDateTitle}>선택된 날짜</Text>
+            <Text style={styles.selectedDateValue}>
+              {formatKoreanDate(selectedDate)}
+            </Text>
+            <TouchableOpacity 
+              style={styles.bookingButton}
+              onPress={() => handleNewBookingRequest(selectedDate)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.bookingButtonText}>이 날짜에 예약하기</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
-      
+
+      {/* 모달들 */}
       <Modal 
-        visible={showBookingForm && !isModalClosing} 
-        animationType="slide" 
+        visible={showBookingForm && !isModalClosing}
+        animationType="slide"
         presentationStyle="fullScreen"
         onRequestClose={handleCloseBookingForm}
       >
         <BookingForm 
           selectedDate={selectedDate || undefined}
           reservedTimes={reservedTimes}
-          onClose={handleCloseBookingForm} 
-          onBookingComplete={handleBookingComplete} 
+          onClose={handleCloseBookingForm}
+          onBookingComplete={handleBookingComplete}
+          onDateChange={(newDate: string) => {
+            setSelectedDate(newDate);
+          }}
         />
       </Modal>
 
@@ -221,25 +293,19 @@ export default function BookingScreen() {
         onClose={handleCloseTreatmentModal}
         onEditRequest={handleEditRequest}
         onNewBooking={() => {
-          console.log('새 예약 버튼 클릭됨', { treatmentsDate, showTreatmentModal });
-          // 트리트먼트 모달을 닫고 새 예약 폼 열기
           handleCloseTreatmentModal();
           setTimeout(() => {
-            // treatmentsDate가 있으면 그 날짜로, 없으면 오늘 날짜로
             const targetDate = treatmentsDate || new Date().toISOString().split('T')[0];
-            console.log('새 예약 요청:', targetDate);
             handleNewBookingRequest(targetDate);
           }, 300);
         }}
       />
 
-      {/* 수정 모달 */}
       {treatmentToEdit && (
         <EditTreatmentModal
           visible={showEditModal}
           treatment={treatmentToEdit}
           onClose={() => {
-            console.log('EditTreatmentModal 닫기');
             setShowEditModal(false);
             setTreatmentToEdit(null);
           }}
@@ -251,107 +317,146 @@ export default function BookingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: "#f0f4f8" 
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
   },
-  backgroundGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 200,
-    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    ...Platform.select({
-      ios: {
-        backgroundColor: '#667eea',
-      },
-      android: {
-        backgroundColor: '#667eea',
-      }
-    })
+  
+  scrollView: {
+    flex: 1,
   },
-  scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20 },
-  header: { 
-    paddingVertical: 30, 
-    paddingHorizontal: 4,
+  
+  scrollContent: {
+    paddingHorizontal: Spacing.lg,
+  },
+
+  // 헤더 섹션
+  headerSection: {
+    paddingVertical: Spacing.xl,
     alignItems: 'center',
-    zIndex: 1,
   },
-  headerTitle: { 
-    fontSize: 32, 
-    fontWeight: "bold", 
-    color: "#ffffff", 
-    marginBottom: 8,
+  
+  welcomeText: {
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.text.primary,
     textAlign: 'center',
-    ...Platform.select({
-      ios: {
-        fontFamily: 'System',
-        shadowColor: 'rgba(0,0,0,0.3)',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 4,
-      }
-    })
+    marginBottom: Spacing.sm,
   },
-  headerSubtitle: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.9)",
-    marginBottom: 12,
+  
+  dateText: {
+    fontSize: Typography.fontSize.base,
+    color: Colors.text.secondary,
     textAlign: 'center',
-    fontWeight: '500',
   },
-  headerDate: { 
-    fontSize: 14, 
-    color: "rgba(255,255,255,0.8)",
-    textAlign: 'center',
-    fontWeight: '400',
+
+  // 빠른 액션 섹션
+  quickActionsSection: {
+    marginBottom: Spacing.xl,
   },
-  calendarContainer: {
-    backgroundColor: "#ffffff", 
-    borderRadius: 20, 
-    padding: 20, 
-    marginBottom: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000", 
-        shadowOffset: { width: 0, height: 8 }, 
-        shadowOpacity: 0.15, 
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      }
-    })
+  
+  sectionTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.text.primary,
+    marginBottom: Spacing.md,
   },
-  calendarHeader: {
+  
+  sectionSubtitle: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.text.secondary,
+    marginBottom: Spacing.lg,
+  },
+  
+  quickButtonsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
   },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f8f9ff',
+  
+  quickButton: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    ...Shadow.sm,
+  },
+  
+  quickButtonIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.full,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginBottom: Spacing.sm,
   },
-  calendarIcon: {
-    fontSize: 20,
+  
+  quickButtonEmoji: {
+    fontSize: 24,
   },
-  sectionTitle: { 
-    fontSize: 20, 
-    fontWeight: "600", 
-    color: "#1a1a1a",
-    flex: 1,
-  }
+  
+  quickButtonText: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.medium,
+    color: Colors.text.primary,
+    textAlign: 'center',
+  },
+
+  // 달력 섹션
+  calendarSection: {
+    marginBottom: Spacing.xl,
+  },
+  
+  calendarHeader: {
+    marginBottom: Spacing.lg,
+  },
+  
+  calendarContainer: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    ...Shadow.md,
+  },
+
+  // 선택된 날짜 섹션
+  selectedDateSection: {
+    backgroundColor: Colors.primary + '10',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.primary + '20',
+  },
+  
+  selectedDateTitle: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.medium,
+    color: Colors.text.secondary,
+    marginBottom: Spacing.xs,
+  },
+  
+  selectedDateValue: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.text.primary,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+  },
+  
+  bookingButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    ...Shadow.sm,
+  },
+  
+  bookingButtonText: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.white,
+    textAlign: 'center',
+  },
 });

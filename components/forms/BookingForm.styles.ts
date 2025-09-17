@@ -78,11 +78,26 @@ export const bookingFormStyles = StyleSheet.create({
     borderRadius: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.gray[200],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateContent: {
+    flex: 1,
   },
   dateText: {
     fontSize: Typography.fontSize.base,
     color: Colors.gray[700],
-    textAlign: 'center',
+    fontWeight: Typography.fontWeight.medium,
+  },
+  dateChangeText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.primary,
+    marginTop: 2,
+  },
+  dateChangeIcon: {
+    fontSize: 24,
+    marginLeft: Spacing.sm,
   },
 
   // 고객 검색 스타일
@@ -587,5 +602,30 @@ export const bookingFormStyles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 15,
+  },
+
+  // 간단한 날짜 입력 스타일
+  dateInputContainer: {
+    marginBottom: Spacing.md,
+  },
+  dateTextInput: {
+    borderWidth: 1,
+    borderColor: Colors.gray[300],
+    borderRadius: 8,
+    padding: Spacing.md,
+    fontSize: Typography.fontSize.base,
+    color: Colors.gray[900],
+    backgroundColor: Colors.white,
+    marginBottom: Spacing.sm,
+  },
+  dateDisplay: {
+    backgroundColor: Colors.gray[50],
+    padding: Spacing.sm,
+    borderRadius: 6,
+  },
+  dateDisplayText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.gray[600],
+    textAlign: 'center',
   },
 });

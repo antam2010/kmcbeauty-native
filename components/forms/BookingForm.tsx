@@ -8,6 +8,7 @@ import { type ContactSyncResult } from '@/src/services/contactSync';
 import type { TreatmentCreate, TreatmentItemCreate } from '@/src/types';
 import { Button, TextInput as CustomTextInput } from '@/src/ui/atoms';
 
+import { formatKoreanDate } from '@/src/utils/dateUtils';
 import { detectInputType, extractNameAndPhone, formatPhoneNumber } from '@/src/utils/phoneFormat';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -33,15 +34,18 @@ interface BookingFormProps {
   reservedTimes?: string[]; // 이미 예약된 시간들
   onClose: () => void;
   onBookingComplete: () => void;
+  onDateChange?: (date: string) => void; // 날짜 변경 콜백 추가
 }
 
 export default function BookingForm({ 
   selectedDate, 
   reservedTimes = [],
   onClose, 
-  onBookingComplete 
+  onBookingComplete,
+  onDateChange
 }: BookingFormProps) {
   // 상태 관리
+  const [currentDate, setCurrentDate] = useState(selectedDate || new Date().toISOString().split('T')[0]);
   const [selectedCustomer, setSelectedCustomer] = useState<Phonebook | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
   const [searchResults, setSearchResults] = useState<Phonebook[]>([]);
@@ -66,6 +70,12 @@ export default function BookingForm({
   const [isLoadingMenus, setIsLoadingMenus] = useState(true);
   
   const insets = useSafeAreaInsets();
+
+  // 날짜 선택 핸들러
+  const handleDateChange = useCallback((dateString: string) => {
+    setCurrentDate(dateString);
+    onDateChange?.(dateString);
+  }, [onDateChange]);
 
   // 시간 슬롯 (30분 간격)
   const timeSlots = [
@@ -410,14 +420,14 @@ export default function BookingForm({
       Alert.alert('알림', '시술을 선택해주세요.');
       return;
     }
-    if (!selectedDate) {
+    if (!currentDate) {
       console.error('❌ 날짜 미선택');
       Alert.alert('알림', '날짜가 선택되지 않았습니다.');
       return;
     }
 
     console.log('✅ 기본 유효성 검사 통과:', {
-      selectedDate,
+      selectedDate: currentDate,
       selectedTime,
       treatmentCount: selectedTreatments.length,
       selectedCustomer: selectedCustomer ? `${selectedCustomer.name}(${selectedCustomer.id})` : 'null'
@@ -466,7 +476,7 @@ export default function BookingForm({
       }));
 
       // appointment_date와 appointment_time을 reserved_at으로 변환
-      const reservedAt = `${selectedDate}T${selectedTime}:00`;
+      const reservedAt = `${currentDate}T${selectedTime}:00`;
 
       // 시술 예약 생성
       const treatmentData: TreatmentCreate = {
@@ -570,22 +580,28 @@ export default function BookingForm({
             <View style={bookingFormStyles.placeholder} />
           </View>
 
-          {/* 선택한 날짜 */}
-          {selectedDate && (
-            <View style={bookingFormStyles.section}>
-              <Text style={bookingFormStyles.sectionTitle}>📅 선택한 날짜</Text>
-              <View style={bookingFormStyles.dateCard}>
-                <Text style={bookingFormStyles.dateText}>
-                  {new Date(selectedDate).toLocaleDateString('ko-KR', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    weekday: 'long'
-                  })}
+          {/* 날짜 선택 */}
+          <View style={bookingFormStyles.section}>
+            <Text style={bookingFormStyles.sectionTitle}>📅 예약 날짜</Text>
+            <View style={bookingFormStyles.dateInputContainer}>
+              <TextInput
+                style={bookingFormStyles.dateTextInput}
+                value={currentDate}
+                onChangeText={(text) => {
+                  setCurrentDate(text);
+                  handleDateChange(text);
+                }}
+                placeholder="YYYY-MM-DD (예: 2025-09-17)"
+                maxLength={10}
+                keyboardType="numeric"
+              />
+              <View style={bookingFormStyles.dateDisplay}>
+                <Text style={bookingFormStyles.dateDisplayText}>
+                  {formatKoreanDate(currentDate)}
                 </Text>
               </View>
             </View>
-          )}
+          </View>
 
           {/* 고객 선택 */}
           <View style={bookingFormStyles.section}>
