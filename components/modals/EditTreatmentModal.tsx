@@ -681,8 +681,16 @@ export default function EditTreatmentModal({
               </TouchableOpacity>
               
               {/* 날짜 선택 모달 */}
-              {showDatePicker && (
+              <Modal
+                visible={showDatePicker}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowDatePicker(false)}
+              >
                 <View style={styles.datePickerModal}>
+                  <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
+                    <View style={styles.datePickerBackdrop} />
+                  </TouchableWithoutFeedback>
                   <View style={styles.datePickerModalContent}>
                     <View style={styles.datePickerHeader}>
                       <Text style={styles.datePickerTitle}>날짜 선택</Text>
@@ -717,7 +725,7 @@ export default function EditTreatmentModal({
                     />
                   </View>
                 </View>
-              )}
+              </Modal>
             </View>
 
             {/* 시간 선택 */}
@@ -1598,10 +1606,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+  },
+  datePickerBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   datePickerModalContent: {
     backgroundColor: '#ffffff',

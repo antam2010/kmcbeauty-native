@@ -636,10 +636,17 @@ export const bookingFormStyles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+  },
+  datePickerBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   datePickerModalContent: {
     backgroundColor: Colors.white,
@@ -655,6 +662,8 @@ export const bookingFormStyles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 20,
     elevation: 20,
+    // 터치 이벤트 처리 개선
+    pointerEvents: 'auto',
   },
   datePickerHeader: {
     flexDirection: 'row',

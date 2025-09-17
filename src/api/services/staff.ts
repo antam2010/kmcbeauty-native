@@ -76,7 +76,6 @@ export class UserApiService extends BaseApiService {
     }));
     
     console.log('✅ API 응답: GET /shops/' + shopId + '/users - ' + staffUsers.length + '명');
-    console.log('📋 직원 목록:', staffUsers);
     
     return staffUsers;
   }

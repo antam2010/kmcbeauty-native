@@ -17,6 +17,7 @@ import {
   InteractionManager,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   Text,
@@ -593,8 +594,16 @@ export default function BookingForm({
             </TouchableOpacity>
             
             {/* 날짜 선택 모달 */}
-            {showDatePicker && (
+            <Modal
+              visible={showDatePicker}
+              transparent={true}
+              animationType="fade"
+              onRequestClose={() => setShowDatePicker(false)}
+            >
               <View style={bookingFormStyles.datePickerModal}>
+                <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
+                  <View style={bookingFormStyles.datePickerBackdrop} />
+                </TouchableWithoutFeedback>
                 <View style={bookingFormStyles.datePickerModalContent}>
                   <View style={bookingFormStyles.datePickerHeader}>
                     <Text style={bookingFormStyles.datePickerTitle}>날짜 선택</Text>
@@ -630,7 +639,7 @@ export default function BookingForm({
                   />
                 </View>
               </View>
-            )}
+            </Modal>
           </View>
 
           {/* 고객 선택 */}
