@@ -1,4 +1,4 @@
-import Calendar from "@/components/calendar/Calendar";
+import { ImprovedCalendar } from "@/components/calendar/ImprovedCalendar";
 import BookingForm from "@/components/forms/BookingForm";
 import EditTreatmentModal from "@/components/modals/EditTreatmentModal";
 import UnifiedTreatmentModal from "@/components/modals/UnifiedTreatmentModal";
@@ -188,7 +188,7 @@ export default function BookingScreen() {
             </View>
             <Text style={styles.sectionTitle}>예약 달력</Text>
           </View>
-          <Calendar 
+          <ImprovedCalendar 
             selectedDate={selectedDate || undefined} 
             onDateSelect={handleDateSelect}
             onNewBookingRequest={handleNewBookingRequest}

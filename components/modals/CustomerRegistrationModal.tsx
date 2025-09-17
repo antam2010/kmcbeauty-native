@@ -4,17 +4,17 @@ import { Button, TextInput as CustomTextInput } from '@/src/ui/atoms';
 import { extractNameAndPhone, formatPhoneNumber, handlePhoneInputChange, isValidKoreanPhoneNumber, unformatPhoneNumber } from '@/src/utils/phoneFormat';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { customerRegistrationModalStyles } from './CustomerRegistrationModal.styles';
