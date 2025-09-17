@@ -64,12 +64,19 @@ export default function ProfileScreen() {
         }}
       ]);
     } catch (error: any) {
+      console.error('비밀번호 변경 실패:', error);
+      
+      // 인증 관련 에러는 인터셉터가 처리하도록 함
+      if (error.message?.includes('인증이 만료') || error.message?.includes('권한이 없습니다')) {
+        console.log('🔐 비밀번호 변경 중 인증 에러 감지 - 인터셉터가 로그인 페이지로 이동 처리');
+        return; // 인터셉터가 처리하므로 여기서는 UI만 정리
+      }
+      
+      // 일반 에러 처리
       let errorMessage = '비밀번호 변경에 실패했습니다.';
       
       if (error.response?.status === 422) {
         errorMessage = '입력한 정보가 올바르지 않습니다.';
-      } else if (error.response?.status === 401) {
-        errorMessage = '인증이 필요합니다. 다시 로그인해주세요.';
       }
       
       Alert.alert('오류', errorMessage);

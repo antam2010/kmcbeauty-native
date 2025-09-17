@@ -47,8 +47,15 @@ export default function HomeScreen() {
       // 새로운 주간 API 사용
       const weeklyData = await treatmentAPI.getWeeklyTreatments();
       setWeeklyTreatments(weeklyData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('주간 시술 데이터 로딩 실패:', error);
+      
+      // 인증 관련 에러는 상위로 전파 (인터셉터가 처리하도록)
+      if (error.message?.includes('인증이 만료') || error.message?.includes('권한이 없습니다')) {
+        throw error; // 인터셉터가 처리하도록 재throw
+      }
+      
+      // 그 외 에러는 여기서 처리 (UI 상태만 업데이트)
     }
   }, []);
 
@@ -65,9 +72,18 @@ export default function HomeScreen() {
       const data = await dashboardApiService.getTodayDetailedSummary(forceRefresh);
       setDashboardData(data);
       await loadWeeklyTreatments();
-    } catch (error) {
+    } catch (error: any) {
       console.error('대시보드 데이터 로딩 실패:', error);
-      Alert.alert('오류', '대시보드 데이터를 불러올 수 없습니다.');
+      
+      // 인증 관련 에러는 상위로 전파 (API 인터셉터가 자동으로 로그인 페이지 이동 처리)
+      if (error.message?.includes('인증이 만료') || error.message?.includes('권한이 없습니다')) {
+        console.log('🔐 인증 에러 감지 - 인터셉터가 로그인 페이지로 이동 처리');
+        // 에러를 재throw하지 않고 단순히 로딩 상태만 정리
+        // 인터셉터에서 이미 로그인 페이지로 이동 처리됨
+      } else {
+        // 일반 에러는 사용자에게 알림
+        Alert.alert('오류', '대시보드 데이터를 불러올 수 없습니다.');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

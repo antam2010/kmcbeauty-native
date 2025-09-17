@@ -48,6 +48,11 @@ const refreshAccessToken = async (): Promise<string | null> => {
     const responseData = response.data as AuthTokenResponse;
     const { access_token } = responseData;
     
+    if (!access_token) {
+      console.error('❌ 서버에서 새로운 액세스 토큰을 반환하지 않음');
+      return null;
+    }
+    
     // 새로운 액세스 토큰 저장
     const authData = await AsyncStorage.getItem('auth-storage');
     const existingData = authData ? JSON.parse(authData) : {};
@@ -65,12 +70,21 @@ const refreshAccessToken = async (): Promise<string | null> => {
   } catch (error: any) {
     console.error('❌ 리프레시 토큰 갱신 실패:', error);
     
-    // 상세한 에러 로깅
+    // 상세한 에러 로깅과 분류
     if (error.response) {
-      console.error('응답 상태:', error.response.status);
+      const status = error.response.status;
+      console.error('응답 상태:', status);
       console.error('응답 데이터:', error.response.data);
+      
+      // 401/403 에러는 리프레시 토큰이 만료되었거나 유효하지 않음을 의미
+      if (status === 401 || status === 403) {
+        console.log('🚪 리프레시 토큰 만료 또는 유효하지 않음 - 완전 로그아웃 필요');
+      } else {
+        console.log('🔄 일시적인 서버 에러 가능성 - 네트워크 확인 필요');
+      }
     } else if (error.request) {
-      console.error('요청 실패:', error.request);
+      console.error('네트워크 요청 실패:', error.request);
+      console.log('🌐 네트워크 연결 상태를 확인해주세요');
     } else {
       console.error('에러 메시지:', error.message);
     }
@@ -103,15 +117,30 @@ const performLogout = async () => {
     // 로그인 화면으로 이동 (중복 방지)
     if (!isNavigatingToLogin) {
       isNavigatingToLogin = true;
-      console.log('🔄 로그인 화면으로 리다이렉트');
+      console.log('🔄 로그인 화면으로 리다이렉트 시작');
       
-      // 현재 라우트를 완전히 교체
-      router.replace('/login');
+      try {
+        // 현재 라우트를 완전히 교체
+        router.replace('/login');
+        console.log('✅ 로그인 페이지로 리다이렉트 완료');
+      } catch (routerError) {
+        console.error('❌ 라우터 에러:', routerError);
+        // 대안으로 push 시도
+        try {
+          router.push('/login');
+          console.log('✅ 로그인 페이지로 push 완료');
+        } catch (pushError) {
+          console.error('❌ push도 실패:', pushError);
+        }
+      }
       
       // 리셋 타이머
       setTimeout(() => {
         isNavigatingToLogin = false;
+        console.log('🔄 네비게이션 플래그 리셋');
       }, 3000); // 3초로 증가
+    } else {
+      console.log('⚠️ 이미 로그인 페이지로 이동 중입니다.');
     }
   } catch (error) {
     console.error('로그아웃 처리 실패:', error);
@@ -185,6 +214,17 @@ apiClient.interceptors.response.use(
   async (error: any) => {
     const originalRequest = error.config;
     
+    // 403 Forbidden 에러 처리 - 무조건 로그인 페이지로 이동
+    if (error.response?.status === 403) {
+      console.log('🚫 403 에러 발생 - 권한 없음, 강제 로그아웃 처리');
+      try {
+        await performLogout();
+      } catch (logoutError) {
+        console.error('로그아웃 처리 중 에러:', logoutError);
+      }
+      return Promise.reject(new Error('권한이 없습니다. 다시 로그인해주세요.'));
+    }
+    
     // SHOP_NOT_SELECTED 에러 처리
     if (error.response?.data?.detail?.code === 'SHOP_NOT_SELECTED') {
       console.log('🏪 상점이 선택되지 않음 - 상점 선택 화면으로 이동');
@@ -199,7 +239,7 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
     
-    // 401 Unauthorized 에러 처리
+    // 401 Unauthorized 에러 처리 - 리프레시 토큰으로 갱신 시도
     if (error.response?.status === 401 && !originalRequest._retry) {
       console.log('🔐 401 에러 발생 - 토큰 갱신 시도');
       
@@ -221,28 +261,41 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        // 현재 저장된 토큰이 있는지 확인
+        const authData = await AsyncStorage.getItem('auth-storage');
+        if (!authData) {
+          console.log('🚪 저장된 인증 정보가 없음 - 로그아웃 처리');
+          throw new Error('인증 정보 없음');
+        }
+
         const newAccessToken = await refreshAccessToken();
         
         if (newAccessToken) {
           // 갱신 성공 - 대기 중인 요청들 처리
+          console.log('✅ 토큰 갱신 성공 - 원래 요청 재시도');
           processQueue(null, newAccessToken);
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return apiClient(originalRequest);
         } else {
-          // 리프레시 토큰도 만료됨 - 완전 로그아웃
-          console.log('🚪 리프레시 토큰 만료 - 강제 로그아웃 실행');
+          // 리프레시 토큰도 만료되거나 없음 - 완전 로그아웃
+          console.log('🚪 리프레시 토큰 만료/없음 - 강제 로그아웃 실행');
           throw new Error('리프레시 토큰 만료');
         }
       } catch (refreshError: any) {
         console.log('❌ 토큰 갱신 실패 - 로그아웃 처리');
-        console.error('갱신 에러 상세:', refreshError);
+        console.error('갱신 에러 상세:', refreshError.message);
         
+        // 실패한 모든 요청 큐 처리
         processQueue(refreshError, null);
         
-        // 강제 로그아웃 처리
-        await performLogout();
+        // 강제 로그아웃 처리 (에러 처리 포함)
+        try {
+          await performLogout();
+        } catch (logoutError) {
+          console.error('로그아웃 처리 중 에러:', logoutError);
+        }
         
-        // 원래 에러를 반환하여 호출하는 쪽에서 적절히 처리할 수 있도록 함
+        // 명확한 에러 메시지로 반환
         return Promise.reject(new Error('인증이 만료되었습니다. 다시 로그인해주세요.'));
       } finally {
         isRefreshing = false;
@@ -257,6 +310,103 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// 개발 환경에서 에러 처리 로직 테스트를 위한 디버깅 유틸리티
+export const authDebugUtils = {
+  // 401 에러 시뮬레이션 (토큰 갱신 테스트)
+  async test401Error() {
+    try {
+      console.log('🧪 401 에러 시뮬레이션 시작');
+      // 잘못된 토큰으로 요청하여 401 에러 유발
+      const response = await axios.get(`${API_BASE_URL}/users/me`, {
+        headers: { Authorization: 'Bearer invalid_token' }
+      });
+      console.log('❌ 401 에러가 발생하지 않음:', response.status);
+    } catch (error: any) {
+      console.log('✅ 401 에러 처리 완료:', error.message);
+    }
+  },
+
+  // 403 에러 시뮬레이션
+  async test403Error() {
+    try {
+      console.log('🧪 403 에러 시뮬레이션 시작');
+      // 권한이 없는 엔드포인트 호출로 403 에러 유발 (실제로는 존재하지 않을 수 있음)
+      const response = await apiClient.get('/admin/forbidden');
+      console.log('❌ 403 에러가 발생하지 않음:', response.status);
+    } catch (error: any) {
+      console.log('✅ 403 에러 처리 완료:', error.message);
+    }
+  },
+
+  // 현재 토큰 상태 확인
+  async checkTokenStatus() {
+    try {
+      const authData = await AsyncStorage.getItem('auth-storage');
+      if (authData) {
+        const { accessToken } = JSON.parse(authData);
+        console.log('🔑 현재 토큰 상태:', accessToken ? '존재' : '없음');
+        if (accessToken) {
+          console.log('🔑 토큰 길이:', accessToken.length);
+          console.log('🔑 토큰 앞부분:', accessToken.substring(0, 20) + '...');
+        }
+      } else {
+        console.log('🔑 저장된 인증 정보 없음');
+      }
+    } catch (error) {
+      console.error('🔑 토큰 상태 확인 실패:', error);
+    }
+  },
+
+  // 리프레시 토큰 테스트
+  async testRefreshToken() {
+    try {
+      console.log('🔄 리프레시 토큰 테스트 시작');
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        console.log('✅ 리프레시 토큰 갱신 성공');
+      } else {
+        console.log('❌ 리프레시 토큰 갱신 실패');
+      }
+    } catch (error) {
+      console.error('❌ 리프레시 토큰 테스트 에러:', error);
+    }
+  },
+
+  // 대시보드 API 테스트 (인증 에러 확인)
+  async testDashboardAPI() {
+    try {
+      console.log('📊 대시보드 API 테스트 시작');
+      const response = await apiClient.get('/summary/dashboard', {
+        params: {
+          target_date: new Date().toISOString().split('T')[0],
+          force_refresh: false
+        }
+      });
+      console.log('✅ 대시보드 API 성공:', response.status);
+    } catch (error: any) {
+      console.log('❌ 대시보드 API 에러:', error.message);
+      console.log('🔍 에러 상세:', error.response?.status, error.response?.data);
+    }
+  },
+
+  // 로그아웃 처리 테스트
+  async testLogout() {
+    try {
+      console.log('🚪 로그아웃 테스트 시작');
+      await performLogout();
+      console.log('✅ 로그아웃 처리 완료');
+    } catch (error) {
+      console.error('❌ 로그아웃 테스트 에러:', error);
+    }
+  }
+};
+
+// 개발 환경에서 글로벌 접근 가능하도록 설정
+if (__DEV__) {
+  (global as any).authDebug = authDebugUtils;
+  console.log('🛠️ authDebug 유틸리티 등록됨 (global.authDebug로 접근 가능)');
+}
 
 export default apiClient;
 export { API_BASE_URL };
