@@ -72,18 +72,14 @@ export const useAuthStore = create<AuthState>()(
             tokenType: loginResponse.token_type,
           })).then(() => {
             console.log('✅ 토큰 AsyncStorage 저장 완료');
-            // 추가 지연 후 임시 토큰 제거 (상점 정보 조회 완료 후)
-            setTimeout(() => {
-              setTemporaryToken(null);
-              console.log('🔑 임시 토큰 지연 제거 완료');
-            }, 2000); // 2초 지연
+            // 즉시 임시 토큰 제거 (Zustand persist가 이미 작동 중)
+            setTemporaryToken(null);
+            console.log('🔑 임시 토큰 즉시 제거 (Zustand persist로 전환)');
           }).catch((error) => {
             console.error('❌ 토큰 AsyncStorage 저장 실패:', error);
-            // 실패해도 일정 시간 후 임시 토큰 제거
-            setTimeout(() => {
-              setTemporaryToken(null);
-              console.log('🔑 임시 토큰 에러 후 제거');
-            }, 5000); // 5초 지연
+            // 실패해도 즉시 임시 토큰 제거 (Zustand persist가 작동할 것)
+            setTemporaryToken(null);
+            console.log('🔑 임시 토큰 에러 후 즉시 제거 (Zustand persist로 전환)');
           });
 
           // 사용자 정보 조회
