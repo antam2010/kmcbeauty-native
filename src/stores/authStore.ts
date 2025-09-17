@@ -59,28 +59,9 @@ export const useAuthStore = create<AuthState>()(
           // API 로그인 호출
           const loginResponse = await authApiService.login({ email, password });
           
-          // 즉시 사용 가능하도록 임시 토큰 설정
-          const { setTemporaryToken } = await import('../api/client');
-          setTemporaryToken(loginResponse.access_token);
-          
-          // Zustand 스토어에 토큰 저장 (persist로 AsyncStorage에 자동 저장됨)
+          // Zustand 스토어에 토큰 저장 (persist가 자동으로 AsyncStorage에 저장)
           setAccessToken(loginResponse.access_token);
-          
-          // 토큰 저장 (AsyncStorage) - 백그라운드에서 진행 (호환성용)
-          AsyncStorage.setItem('auth-storage', JSON.stringify({
-            accessToken: loginResponse.access_token,
-            tokenType: loginResponse.token_type,
-          })).then(() => {
-            console.log('✅ 토큰 AsyncStorage 저장 완료');
-            // 즉시 임시 토큰 제거 (Zustand persist가 이미 작동 중)
-            setTemporaryToken(null);
-            console.log('🔑 임시 토큰 즉시 제거 (Zustand persist로 전환)');
-          }).catch((error) => {
-            console.error('❌ 토큰 AsyncStorage 저장 실패:', error);
-            // 실패해도 즉시 임시 토큰 제거 (Zustand persist가 작동할 것)
-            setTemporaryToken(null);
-            console.log('🔑 임시 토큰 에러 후 즉시 제거 (Zustand persist로 전환)');
-          });
+          console.log('✅ 토큰 Zustand persist에 저장 완료');
 
           // 사용자 정보 조회
           const user = await authApiService.getMe();
@@ -109,26 +90,24 @@ export const useAuthStore = create<AuthState>()(
           console.error('로그아웃 API 호출 실패:', error);
           // API 실패해도 로컬 정리는 진행
         } finally {
-          // 로컬 데이터 정리
-          await AsyncStorage.removeItem('auth-storage');
+          // Zustand persist가 자동으로 AsyncStorage 정리
           clearAuth();
           setLoading(false);
-          console.log('✅ 로그아웃 완료');
+          console.log('✅ 로그아웃 완료 (Zustand persist가 자동 정리)');
         }
       },
 
       // 사용자 정보 로드 (앱 시작시)
       loadUser: async () => {
-        const { setLoading, setUser, setError } = get();
+        const { setLoading, setUser, setError, accessToken } = get();
         
         try {
           setLoading(true);
           setError(null);
 
-          // 저장된 토큰 확인
-          const authData = await AsyncStorage.getItem('auth-storage');
-          if (!authData) {
-            console.log('저장된 인증 정보가 없습니다.');
+          // Zustand persist에서 토큰 확인
+          if (!accessToken) {
+            console.log('저장된 토큰이 없습니다.');
             return;
           }
 
@@ -139,8 +118,7 @@ export const useAuthStore = create<AuthState>()(
           console.log('✅ 사용자 정보 로드 성공');
         } catch (error: any) {
           console.error('❌ 사용자 정보 로드 실패:', error);
-          // 토큰이 유효하지 않으면 정리
-          await AsyncStorage.removeItem('auth-storage');
+          // 토큰이 유효하지 않으면 Zustand에서 정리
           setError(error.message || '인증이 만료되었습니다.');
         } finally {
           setLoading(false);

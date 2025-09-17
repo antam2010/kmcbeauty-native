@@ -23,16 +23,7 @@ let isNavigatingToShopSelection = false;
 let isRefreshing = false;
 let failedQueue: { resolve: Function; reject: Function }[] = [];
 
-// 임시 토큰 저장소 (AsyncStorage 저장이 지연될 때 사용)
-let temporaryAccessToken: string | null = null;
-
-// 토큰 설정 함수 (즉시 사용 가능)
-export const setTemporaryToken = (token: string | null) => {
-  temporaryAccessToken = token;
-  console.log('🔑 임시 토큰 설정:', token ? '설정됨' : '제거됨');
-};
-
-// 토큰 가져오기 함수 (여러 소스에서 확인)
+// 토큰 가져오기 함수 (Zustand persist 우선)
 const getAccessToken = async (): Promise<string | null> => {
   // 1. Zustand 스토어에서 토큰 확인 (persist로 저장된 토큰)
   try {
@@ -46,55 +37,19 @@ const getAccessToken = async (): Promise<string | null> => {
     console.error('🔑 Zustand 스토어 토큰 조회 실패:', error);
   }
 
-  // 2. 수동 저장된 auth-storage에서 토큰 확인 (호환성용)
+  // 2. 호환성을 위한 수동 저장된 auth-storage 확인 (레거시)
   try {
     const authData = await AsyncStorage.getItem('auth-storage');
-    if (__DEV__) {
-      console.log('🔍 AsyncStorage 조회 결과:', {
-        hasData: !!authData,
-        dataLength: authData?.length || 0,
-        dataPreview: authData ? authData.substring(0, 100) + '...' : 'NULL'
-      });
-    }
-    
     if (authData) {
       const parsedData = JSON.parse(authData);
-      if (__DEV__) {
-        console.log('🔍 파싱된 auth 데이터:', {
-          keys: Object.keys(parsedData),
-          hasAccessToken: !!parsedData.accessToken,
-          tokenLength: parsedData.accessToken?.length || 0
-        });
-      }
-      
       const { accessToken } = parsedData;
       if (accessToken) {
-        console.log('🔑 AsyncStorage(수동) 토큰 사용');
+        console.log('🔑 AsyncStorage(레거시) 토큰 사용');
         return accessToken;
       }
     }
   } catch (error) {
-    console.error('🔑 AsyncStorage(수동) 토큰 조회 실패:', error);
-  }
-  
-  // 3. 기타 토큰 저장소에서 확인 (다른 키일 수 있음)
-  try {
-    const tokenData = await AsyncStorage.getItem('token-storage');
-    if (tokenData) {
-      const { accessToken } = JSON.parse(tokenData);
-      if (accessToken) {
-        console.log('🔑 AsyncStorage(token-storage) 토큰 사용');
-        return accessToken;
-      }
-    }
-  } catch (error) {
-    console.error('🔑 token-storage 조회 실패:', error);
-  }
-  
-  // 4. 임시 토큰이 있으면 사용
-  if (temporaryAccessToken) {
-    console.log('🔑 임시 토큰 사용 (다른 저장소 없음)');
-    return temporaryAccessToken;
+    console.error('🔑 AsyncStorage 토큰 조회 실패:', error);
   }
   
   console.warn('⚠️ 사용 가능한 토큰이 없음');
@@ -131,24 +86,11 @@ const refreshAccessToken = async (): Promise<string | null> => {
       return null;
     }
     
-    // 새로운 액세스 토큰 저장
+    // 새로운 액세스 토큰 저장 (Zustand persist가 자동으로 AsyncStorage 처리)
     try {
-      // Zustand 스토어에 토큰 저장
       const { useAuthStore } = await import('../stores/authStore');
       useAuthStore.getState().setAccessToken(access_token);
-      
-      // AsyncStorage에도 저장 (호환성용)
-      const authData = await AsyncStorage.getItem('auth-storage');
-      const existingData = authData ? JSON.parse(authData) : {};
-      
-      const updatedAuthData = {
-        ...existingData,
-        accessToken: access_token,
-        // 리프레시 토큰은 서버가 쿠키로 관리하므로 저장하지 않음
-      };
-      
-      await AsyncStorage.setItem('auth-storage', JSON.stringify(updatedAuthData));
-      console.log('✅ 액세스 토큰 갱신 성공');
+      console.log('✅ 액세스 토큰 갱신 성공 (Zustand persist)');
     } catch (storeError) {
       console.error('⚠️ 토큰 저장 중 에러:', storeError);
       // 저장 실패해도 토큰은 반환
@@ -286,7 +228,7 @@ apiClient.interceptors.request.use(
             tokenLength: accessToken.length,
             tokenPrefix: accessToken.substring(0, 10) + '...',
             tokenSuffix: '...' + accessToken.substring(accessToken.length - 10),
-            source: temporaryAccessToken ? 'temporary' : 'asyncStorage'
+            source: 'zustand'
           });
         }
       } else {
@@ -432,11 +374,12 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // 현재 저장된 토큰이 있는지 확인
-        const authData = await AsyncStorage.getItem('auth-storage');
-        if (!authData) {
-          console.log('🚪 저장된 인증 정보가 없음 - 로그아웃 처리');
-          throw new Error('인증 정보 없음');
+        // Zustand 스토어에서 토큰 확인
+        const { useAuthStore } = await import('../stores/authStore');
+        const currentToken = useAuthStore.getState().accessToken;
+        if (!currentToken) {
+          console.log('🚪 저장된 토큰이 없음 - 로그아웃 처리');
+          throw new Error('토큰 없음');
         }
 
         const newAccessToken = await refreshAccessToken();
