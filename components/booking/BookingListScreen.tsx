@@ -1,17 +1,17 @@
 import { treatmentApiService } from '@/src/api/services/treatment';
 import type { Treatment, TreatmentListParams } from '@/src/types';
 import { formatKoreanDate } from '@/src/utils/dateUtils';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface BookingListScreenProps {
@@ -49,15 +49,20 @@ export default function BookingListScreen({
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  
+  // ref로 loading 상태 추적
+  const loadingRef = useRef(false);
 
   // 예약 목록 로드
   const loadBookings = useCallback(async (isRefresh = false, pageNum = 1) => {
     try {
       // 이미 로딩 중이면 중복 요청 방지
-      if (!isRefresh && loading) {
+      if (!isRefresh && loadingRef.current) {
         console.log('⚠️ 이미 로딩 중이므로 요청 무시');
         return;
       }
+
+      loadingRef.current = true;
 
       if (isRefresh) {
         setRefreshing(true);
@@ -99,17 +104,18 @@ export default function BookingListScreen({
       console.error('❌ 예약 목록 조회 실패:', error);
       Alert.alert('오류', '예약 목록을 불러오는데 실패했습니다.');
     } finally {
+      loadingRef.current = false;
       setLoading(false);
       setRefreshing(false);
     }
-  }, [searchQuery, selectedStatus, loading]);
+  }, [searchQuery, selectedStatus]);
 
   // 더 많은 데이터 로드 (무한 스크롤)
   const loadMore = useCallback(() => {
-    if (!loading && hasMore) {
+    if (!loadingRef.current && hasMore) {
       loadBookings(false, currentPage + 1);
     }
-  }, [loading, hasMore, currentPage, loadBookings]);
+  }, [hasMore, currentPage, loadBookings]);
 
   // 검색 실행
   const handleSearch = useCallback(() => {
@@ -133,19 +139,59 @@ export default function BookingListScreen({
     // 디바운스 useEffect에서 API 호출이 처리되므로 여기서는 호출하지 않음
   }, [selectedStatus]);
 
-  // 초기 로드
+  // 초기 로드 (한 번만 실행)
   useEffect(() => {
-    loadBookings(false, 1);
-  }, [loadBookings]);
+    const initialLoad = async () => {
+      try {
+        loadingRef.current = true;
+        setLoading(true);
+
+        const searchParams: TreatmentListParams = {
+          page: 1,
+          size: 20,
+          sort_by: 'reserved_at',
+          sort_order: 'desc'
+        };
+
+        console.log('🔍 초기 예약 목록 조회 시작');
+        const response = await treatmentApiService.list(searchParams);
+        
+        const newBookings = response.items || [];
+        setBookings(newBookings);
+        setTotalCount(response.total || 0);
+        setHasMore(newBookings.length === 20);
+        setCurrentPage(1);
+        
+        console.log('✅ 초기 예약 목록 조회 완료:', {
+          count: newBookings.length,
+          total: response.total
+        });
+        
+      } catch (error: any) {
+        console.error('❌ 초기 예약 목록 조회 실패:', error);
+        Alert.alert('오류', '예약 목록을 불러오는데 실패했습니다.');
+      } finally {
+        loadingRef.current = false;
+        setLoading(false);
+      }
+    };
+
+    initialLoad();
+  }, []); // 빈 의존성 배열로 초기 로드만 실행
 
   // 검색어/상태 변경 시 자동 검색 (디바운스)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      handleSearch();
-    }, 300); // 500ms에서 300ms로 단축
+    // 초기 로드가 아닌 경우에만 실행
+    if (searchQuery !== '' || selectedStatus !== '') {
+      const timer = setTimeout(() => {
+        setCurrentPage(1);
+        setHasMore(true);
+        loadBookings(false, 1);
+      }, 300);
 
-    return () => clearTimeout(timer);
-  }, [searchQuery, selectedStatus, handleSearch]);
+      return () => clearTimeout(timer);
+    }
+  }, [searchQuery, selectedStatus, loadBookings]);
 
   // 예약 아이템 렌더링
   const renderBookingItem = ({ item }: { item: Treatment }) => {

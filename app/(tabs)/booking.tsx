@@ -187,13 +187,13 @@ export default function BookingScreen() {
               <TouchableOpacity
                 style={[
                   styles.viewModeTab,
-                  viewMode === 'calendar' && styles.viewModeTabActive
+                  (viewMode as 'calendar' | 'list') === 'calendar' && styles.viewModeTabActive
                 ]}
                 onPress={() => setViewMode('calendar')}
               >
                 <Text style={[
                   styles.viewModeTabText,
-                  viewMode === 'calendar' && styles.viewModeTabTextActive
+                  (viewMode as 'calendar' | 'list') === 'calendar' && styles.viewModeTabTextActive
                 ]}>
                   📅 달력
                 </Text>
@@ -201,13 +201,13 @@ export default function BookingScreen() {
               <TouchableOpacity
                 style={[
                   styles.viewModeTab,
-                  viewMode === 'list' && styles.viewModeTabActive
+                  (viewMode as 'calendar' | 'list') === 'list' && styles.viewModeTabActive
                 ]}
                 onPress={() => setViewMode('list')}
               >
                 <Text style={[
                   styles.viewModeTabText,
-                  viewMode === 'list' && styles.viewModeTabTextActive
+                  (viewMode as 'calendar' | 'list') === 'list' && styles.viewModeTabTextActive
                 ]}>
                   📋 리스트
                 </Text>
@@ -294,13 +294,13 @@ export default function BookingScreen() {
               <TouchableOpacity
                 style={[
                   styles.viewModeTab,
-                  viewMode === 'calendar' && styles.viewModeTabActive
+                  (viewMode as 'calendar' | 'list') === 'calendar' && styles.viewModeTabActive
                 ]}
                 onPress={() => setViewMode('calendar')}
               >
                 <Text style={[
                   styles.viewModeTabText,
-                  viewMode === 'calendar' && styles.viewModeTabTextActive
+                  (viewMode as 'calendar' | 'list') === 'calendar' && styles.viewModeTabTextActive
                 ]}>
                   📅 달력
                 </Text>
@@ -308,13 +308,13 @@ export default function BookingScreen() {
               <TouchableOpacity
                 style={[
                   styles.viewModeTab,
-                  viewMode === 'list' && styles.viewModeTabActive
+                  (viewMode as 'calendar' | 'list') === 'list' && styles.viewModeTabActive
                 ]}
                 onPress={() => setViewMode('list')}
               >
                 <Text style={[
                   styles.viewModeTabText,
-                  viewMode === 'list' && styles.viewModeTabTextActive
+                  (viewMode as 'calendar' | 'list') === 'list' && styles.viewModeTabTextActive
                 ]}>
                   📋 리스트
                 </Text>
