@@ -18,8 +18,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.antam2010.kmcbeautynative",
-      "googleServicesFile": "./android/app/google-services.json"
+      "package": "com.antam2010.kmcbeautynative"
     },
     "web": {
       "bundler": "metro",

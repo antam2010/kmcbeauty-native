@@ -234,6 +234,9 @@ npx expo run:ios --device
 npx expo run:android --clear
 ```
 
+eas build -p android --profile preview
+
+
 ## 🎯 주요 개발 포인트
 
 ### 🔄 상태 관리 (완료)
