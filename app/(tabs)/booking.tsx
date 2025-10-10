@@ -7,7 +7,6 @@ import ShopHeader from '@/components/navigation/ShopHeader';
 import { useDashboard } from "@/contexts/DashboardContext";
 import { Treatment } from "@/src/types";
 import { BorderRadius, Colors, Shadow, Spacing, Typography } from "@/src/ui/theme";
-import { formatKoreanDate, formatTodayKorean } from "@/src/utils/dateUtils";
 import { useCallback, useRef, useState } from "react";
 import {
   Animated,
@@ -178,11 +177,6 @@ export default function BookingScreen() {
         <View style={styles.listModeContainer}>
           {/* 뷰 모드 탭만 표시 */}
           <View style={styles.listModeHeader}>
-            <View style={styles.calendarHeader}>
-              <Text style={styles.sectionTitle}>예약 관리</Text>
-              <Text style={styles.sectionSubtitle}>달력 또는 리스트로 예약을 관리하세요</Text>
-            </View>
-            
             <View style={styles.viewModeSelector}>
               <TouchableOpacity
                 style={[
@@ -231,64 +225,8 @@ export default function BookingScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {/* 헤더 섹션 */}
-          <View style={styles.headerSection}>
-            <Text style={styles.welcomeText}>오늘도 좋은 하루 되세요! ✨</Text>
-            <Text style={styles.dateText}>
-              {formatTodayKorean()}
-            </Text>
-          </View>
-
-          {/* 빠른 액션 버튼들 */}
-          <View style={styles.quickActionsSection}>
-            <Text style={styles.sectionTitle}>빠른 예약</Text>
-            <View style={styles.quickButtonsRow}>
-              <TouchableOpacity 
-                style={styles.quickButton}
-                onPress={() => handleNewBookingRequest()}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.quickButtonIcon, { backgroundColor: Colors.primary + '20' }]}>
-                  <Text style={styles.quickButtonEmoji}>➕</Text>
-                </View>
-                <Text style={styles.quickButtonText}>새 예약</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.quickButton}
-                onPress={() => handleNewBookingRequest(new Date().toISOString().split('T')[0])}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.quickButtonIcon, { backgroundColor: Colors.success + '20' }]}>
-                  <Text style={styles.quickButtonEmoji}>📅</Text>
-                </View>
-                <Text style={styles.quickButtonText}>오늘 예약</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.quickButton}
-                onPress={() => {
-                  const tomorrow = new Date();
-                  tomorrow.setDate(tomorrow.getDate() + 1);
-                  handleNewBookingRequest(tomorrow.toISOString().split('T')[0]);
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.quickButtonIcon, { backgroundColor: Colors.warning + '20' }]}>
-                  <Text style={styles.quickButtonEmoji}>⏰</Text>
-                </View>
-                <Text style={styles.quickButtonText}>내일 예약</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
           {/* 달력/리스트 전환 섹션 */}
           <View style={styles.calendarSection}>
-            <View style={styles.calendarHeader}>
-              <Text style={styles.sectionTitle}>예약 관리</Text>
-              <Text style={styles.sectionSubtitle}>달력 또는 리스트로 예약을 관리하세요</Text>
-            </View>
-            
             {/* 뷰 모드 탭 */}
             <View style={styles.viewModeSelector}>
               <TouchableOpacity
@@ -333,23 +271,6 @@ export default function BookingScreen() {
               />
             </Animated.View>
           </View>
-
-          {/* 선택된 날짜 정보 */}
-          {selectedDate && (
-            <View style={styles.selectedDateSection}>
-              <Text style={styles.selectedDateTitle}>선택된 날짜</Text>
-              <Text style={styles.selectedDateValue}>
-                {selectedDate ? formatKoreanDate(selectedDate) : ''}
-              </Text>
-              <TouchableOpacity 
-                style={styles.bookingButton}
-                onPress={() => handleNewBookingRequest(selectedDate)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.bookingButtonText}>이 날짜에 예약하기</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </ScrollView>
       )}
 
@@ -416,86 +337,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
 
-  // 헤더 섹션
-  headerSection: {
-    paddingVertical: Spacing.xl,
-    alignItems: 'center',
-  },
-  
-  welcomeText: {
-    fontSize: Typography.fontSize.xl,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.text.primary,
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
-  },
-  
-  dateText: {
-    fontSize: Typography.fontSize.base,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-  },
-
-  // 빠른 액션 섹션
-  quickActionsSection: {
-    marginBottom: Spacing.xl,
-  },
-  
-  sectionTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
-    color: Colors.text.primary,
-    marginBottom: Spacing.md,
-  },
-  
-  sectionSubtitle: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.text.secondary,
-    marginBottom: Spacing.lg,
-  },
-  
-  quickButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-  },
-  
-  quickButton: {
-    flex: 1,
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    alignItems: 'center',
-    ...Shadow.sm,
-  },
-  
-  quickButtonIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  
-  quickButtonEmoji: {
-    fontSize: 24,
-  },
-  
-  quickButtonText: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
-    color: Colors.text.primary,
-    textAlign: 'center',
-  },
-
   // 달력 섹션
   calendarSection: {
     marginBottom: Spacing.xl,
-  },
-  
-  calendarHeader: {
-    marginBottom: Spacing.lg,
+    paddingTop: Spacing.lg,
   },
   
   calendarContainer: {
@@ -503,47 +348,6 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
     ...Shadow.md,
-  },
-
-  // 선택된 날짜 섹션
-  selectedDateSection: {
-    backgroundColor: Colors.primary + '10',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-    borderWidth: 1,
-    borderColor: Colors.primary + '20',
-  },
-  
-  selectedDateTitle: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
-    color: Colors.text.secondary,
-    marginBottom: Spacing.xs,
-  },
-  
-  selectedDateValue: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
-    color: Colors.text.primary,
-    marginBottom: Spacing.lg,
-    textAlign: 'center',
-  },
-  
-  bookingButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    ...Shadow.sm,
-  },
-  
-  bookingButtonText: {
-    fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.semibold,
-    color: Colors.white,
-    textAlign: 'center',
   },
   
   // 뷰 모드 선택기 스타일
