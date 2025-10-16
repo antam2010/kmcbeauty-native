@@ -48,7 +48,23 @@ export default function TreatmentListModal({
   };
 
   const formatCustomerName = (treatment: Treatment) => {
-    return treatment.phonebook?.name || '고객명 없음';
+    if (treatment.phonebook?.name) {
+      return treatment.phonebook.name;
+    }
+    if (treatment.customer_name) {
+      return treatment.customer_name;
+    }
+    return '고객명 없음';
+  };
+
+  const formatCustomerPhone = (treatment: Treatment) => {
+    if (treatment.phonebook?.phone_number) {
+      return treatment.phonebook.phone_number;
+    }
+    if (treatment.customer_phone) {
+      return treatment.customer_phone;
+    }
+    return null;
   };
 
   const formatServiceName = (treatment: Treatment) => {
@@ -100,9 +116,16 @@ export default function TreatmentListModal({
                 </View>
               </View>
               
-              <Text style={styles.customerName}>
-                {formatCustomerName(treatment)}
-              </Text>
+              <View style={styles.customerInfo}>
+                <Text style={styles.customerName}>
+                  {formatCustomerName(treatment)}
+                </Text>
+                {formatCustomerPhone(treatment) && (
+                  <Text style={styles.customerPhone}>
+                    {formatCustomerPhone(treatment)}
+                  </Text>
+                )}
+              </View>
               
               <Text style={styles.serviceName}>
                 {formatServiceName(treatment)}
@@ -244,11 +267,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  customerInfo: {
+    marginBottom: 4,
+  },
   customerName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#495057',
-    marginBottom: 4,
+    marginBottom: 2,
+  },
+  customerPhone: {
+    fontSize: 13,
+    color: '#6c757d',
+    marginBottom: 2,
   },
   serviceName: {
     fontSize: 14,

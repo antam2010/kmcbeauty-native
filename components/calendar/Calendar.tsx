@@ -211,7 +211,15 @@ export default function Calendar({
   };
 
   const formatCustomerName = (treatment: Treatment) => {
-    return treatment.phonebook?.name || '고객명 없음';
+    if (treatment.phonebook?.name) return treatment.phonebook.name;
+    if (treatment.customer_name) return treatment.customer_name;
+    return '고객명 없음';
+  };
+
+  const formatCustomerPhone = (treatment: Treatment) => {
+    if (treatment.phonebook?.phone_number) return treatment.phonebook.phone_number;
+    if (treatment.customer_phone) return treatment.customer_phone;
+    return null;
   };
 
   const formatServiceName = (treatment: Treatment) => {
@@ -309,9 +317,16 @@ export default function Calendar({
                   </ThemedText>
                 </ThemedView>
                 
-                <ThemedText style={calendarStyles.customerName}>
-                  {formatCustomerName(treatment)}
-                </ThemedText>
+                <ThemedView style={calendarStyles.customerInfo}>
+                  <ThemedText style={calendarStyles.customerName}>
+                    {formatCustomerName(treatment)}
+                  </ThemedText>
+                  {formatCustomerPhone(treatment) && (
+                    <ThemedText style={calendarStyles.customerPhone}>
+                      {formatCustomerPhone(treatment)}
+                    </ThemedText>
+                  )}
+                </ThemedView>
                 
                 <ThemedText style={calendarStyles.serviceName}>
                   {formatServiceName(treatment)}
@@ -748,11 +763,19 @@ const calendarStyles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
   },
+  customerInfo: {
+    marginBottom: 6,
+  },
   customerName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1a1a1a',
-    marginBottom: 6,
+    marginBottom: 2,
+  },
+  customerPhone: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 2,
   },
   serviceName: {
     fontSize: 14,

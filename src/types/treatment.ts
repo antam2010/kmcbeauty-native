@@ -59,7 +59,9 @@ export interface TreatmentItem {
 }
 
 export interface TreatmentCreate {
-  phonebook_id: number; // 필수 필드
+  phonebook_id?: number | null; // 선택 필드
+  customer_name?: string | null; // 고객명 (전화번호부 미등록 시)
+  customer_phone?: string | null; // 고객 전화번호 (전화번호부 미등록 시)
   reserved_at: string; // 필수 필드 (date-time 형식)
   memo?: string;
   status: 'RESERVED' | 'VISITED' | 'CANCELLED' | 'NO_SHOW' | 'COMPLETED'; // 필수 필드
@@ -77,18 +79,16 @@ export interface TreatmentItemCreate {
 }
 
 export interface TreatmentUpdate {
-  customer_name?: string;
-  customer_phone?: string;
-  appointment_date?: string;
-  appointment_time?: string;
-  notes?: string;
-  phonebook_id?: number; // 전화번호부 ID 추가
-  reserved_at?: string; // 예약 시간 추가
-  staff_user_id?: number | null; // 담당 직원 ID 추가
-  memo?: string; // 메모 추가
-  status?: string; // 상태 추가
-  payment_method?: string; // 결제 방법 추가
-  treatment_items?: TreatmentItemCreate[];
+  phonebook_id?: number | null; // 선택 필드
+  customer_name?: string | null; // 고객명 (전화번호부 미등록 시)
+  customer_phone?: string | null; // 고객 전화번호 (전화번호부 미등록 시)
+  reserved_at?: string; // 예약 시간
+  memo?: string; // 메모
+  status?: 'RESERVED' | 'VISITED' | 'CANCELLED' | 'NO_SHOW' | 'COMPLETED'; // 상태
+  finished_at?: string; // 시술 완료일시
+  payment_method?: 'CARD' | 'CASH' | 'UNPAID'; // 결제 방법
+  staff_user_id?: number | null; // 담당 직원 ID
+  treatment_items?: TreatmentItemCreate[]; // 시술 항목 리스트
 }
 
 export interface TreatmentListParams {

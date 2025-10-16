@@ -45,7 +45,8 @@
         {
           "contactsPermission": "연락처 동기화를 위해 연락처 접근 권한이 필요합니다."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

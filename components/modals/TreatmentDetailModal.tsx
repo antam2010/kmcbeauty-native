@@ -1,4 +1,6 @@
+import BookingForm from '@/components/forms/BookingForm';
 import type { Treatment } from '@/src/types';
+import { useState } from 'react';
 import {
   Modal,
   ScrollView,
@@ -16,6 +18,7 @@ interface TreatmentDetailModalProps {
   onClose: () => void;
   onBack?: () => void; // 뒤로가기 버튼 (목록으로 돌아가기)
   showBackButton?: boolean; // 뒤로가기 버튼 표시 여부
+  onTreatmentUpdated?: () => void; // 예약 수정 완료 콜백
 }
 
 const statusLabels: Record<string, string> = {
@@ -45,11 +48,32 @@ export default function TreatmentDetailModal({
   treatment,
   onClose,
   onBack,
-  showBackButton = false
+  showBackButton = false,
+  onTreatmentUpdated
 }: TreatmentDetailModalProps) {
   const insets = useSafeAreaInsets();
+  const [isEditMode, setIsEditMode] = useState(false);
 
   if (!treatment) return null;
+
+  // 편집 모드면 BookingForm을 표시
+  if (isEditMode) {
+    const selectedDate = new Date(treatment.reserved_at).toISOString().split('T')[0];
+    
+    return (
+      <BookingForm
+        selectedDate={selectedDate}
+        editMode={true}
+        treatment={treatment}
+        onClose={() => setIsEditMode(false)}
+        onBookingComplete={() => {
+          setIsEditMode(false);
+          onTreatmentUpdated?.();
+          onClose();
+        }}
+      />
+    );
+  }
 
   const formatDateTime = (dateTime: string) => {
     const date = new Date(dateTime);
@@ -108,12 +132,12 @@ export default function TreatmentDetailModal({
           )}
           <Text style={styles.headerTitle}>예약 상세</Text>
           <TouchableOpacity 
-            onPress={onClose} 
-            style={styles.closeButton}
+            onPress={() => setIsEditMode(true)}
+            style={styles.editButton}
             activeOpacity={0.7}
             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
           >
-            <Text style={styles.closeButtonText}>✕</Text>
+            <Text style={styles.editButtonText}>편집</Text>
           </TouchableOpacity>
         </View>
 
@@ -418,5 +442,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#495057',
     lineHeight: 22,
+  },
+  editButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#667eea',
+    borderRadius: 6,
+  },
+  editButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

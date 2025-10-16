@@ -1,3 +1,4 @@
+import TreatmentDetailModal from '@/components/modals/TreatmentDetailModal';
 import type { Treatment } from '@/src/types';
 import React, { useState } from 'react';
 import {
@@ -18,7 +19,7 @@ interface TreatmentModalProps {
   date: string;
   onClose: () => void;
   onNewBooking?: () => void;
-  onEditRequest?: (treatment: Treatment) => void;
+  onTreatmentUpdated?: () => void; // 수정 완료 콜백 추가
 }
 
 type ModalView = 'list' | 'detail';
@@ -30,11 +31,12 @@ export default function TreatmentModal({
   date,
   onClose,
   onNewBooking,
-  onEditRequest
+  onTreatmentUpdated
 }: TreatmentModalProps) {
   const insets = useSafeAreaInsets();
   const [currentView, setCurrentView] = useState<ModalView>('list');
   const [currentTreatment, setCurrentTreatment] = useState<Treatment | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   // selectedTreatment가 전달되면 자동으로 detail view로 전환
   React.useEffect(() => {
@@ -103,7 +105,23 @@ export default function TreatmentModal({
   };
 
   const formatCustomerName = (treatment: Treatment) => {
-    return treatment.phonebook?.name || '고객명 없음';
+    if (treatment.phonebook?.name) {
+      return treatment.phonebook.name;
+    }
+    if (treatment.customer_name) {
+      return treatment.customer_name;
+    }
+    return '고객명 없음';
+  };
+
+  const formatCustomerPhone = (treatment: Treatment) => {
+    if (treatment.phonebook?.phone_number) {
+      return treatment.phonebook.phone_number;
+    }
+    if (treatment.customer_phone) {
+      return treatment.customer_phone;
+    }
+    return null;
   };
 
   const formatServiceName = (treatment: Treatment) => {
@@ -285,15 +303,17 @@ export default function TreatmentModal({
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>이름</Text>
                 <Text style={styles.infoValue}>
-                  {currentTreatment.phonebook?.name || '정보 없음'}
+                  {formatCustomerName(currentTreatment)}
                 </Text>
               </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>전화번호</Text>
-                <Text style={styles.infoValue}>
-                  {currentTreatment.phonebook?.phone_number || '정보 없음'}
-                </Text>
-              </View>
+              {formatCustomerPhone(currentTreatment) && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>전화번호</Text>
+                  <Text style={styles.infoValue}>
+                    {formatCustomerPhone(currentTreatment)}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -365,11 +385,10 @@ export default function TreatmentModal({
               style={styles.editButton}
               onPress={() => {
                 console.log('수정 버튼 클릭됨, currentTreatment:', currentTreatment?.id);
-                if (currentTreatment && onEditRequest) {
-                  console.log('onEditRequest 호출 중...');
-                  onEditRequest(currentTreatment);
+                if (currentTreatment) {
+                  setShowDetailModal(true);
                 } else {
-                  console.log('currentTreatment 또는 onEditRequest가 없음');
+                  console.log('currentTreatment가 없음');
                 }
               }}
               activeOpacity={0.6}
@@ -396,6 +415,17 @@ export default function TreatmentModal({
           {currentView === 'list' ? renderListView() : renderDetailView()}
         </View>
       </Modal>
+      
+      {/* TreatmentDetailModal for editing */}
+      <TreatmentDetailModal
+        visible={showDetailModal}
+        treatment={currentTreatment}
+        onClose={() => setShowDetailModal(false)}
+        onTreatmentUpdated={() => {
+          setShowDetailModal(false);
+          onTreatmentUpdated?.();
+        }}
+      />
     </>
   );
 }
