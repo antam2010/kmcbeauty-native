@@ -1,14 +1,14 @@
-import TreatmentDetailModal from '@/components/modals/TreatmentDetailModal';
+import BookingForm from '@/components/forms/BookingForm';
 import type { Treatment } from '@/src/types';
 import React, { useState } from 'react';
 import {
-  Modal,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Modal,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -36,7 +36,7 @@ export default function TreatmentModal({
   const insets = useSafeAreaInsets();
   const [currentView, setCurrentView] = useState<ModalView>('list');
   const [currentTreatment, setCurrentTreatment] = useState<Treatment | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
 
   // selectedTreatment가 전달되면 자동으로 detail view로 전환
   React.useEffect(() => {
@@ -54,6 +54,7 @@ export default function TreatmentModal({
     if (!visible) {
       setCurrentView('list');
       setCurrentTreatment(null);
+      setShowEditForm(false);
     }
   }, [visible]);
 
@@ -384,11 +385,8 @@ export default function TreatmentModal({
             <TouchableOpacity
               style={styles.editButton}
               onPress={() => {
-                console.log('수정 버튼 클릭됨, currentTreatment:', currentTreatment?.id);
                 if (currentTreatment) {
-                  setShowDetailModal(true);
-                } else {
-                  console.log('currentTreatment가 없음');
+                  setShowEditForm(true);
                 }
               }}
               activeOpacity={0.6}
@@ -405,7 +403,7 @@ export default function TreatmentModal({
   return (
     <>
       <Modal
-        visible={visible}
+        visible={visible && !showEditForm}
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={onClose}
@@ -416,16 +414,28 @@ export default function TreatmentModal({
         </View>
       </Modal>
       
-      {/* TreatmentDetailModal for editing */}
-      <TreatmentDetailModal
-        visible={showDetailModal}
-        treatment={currentTreatment}
-        onClose={() => setShowDetailModal(false)}
-        onTreatmentUpdated={() => {
-          setShowDetailModal(false);
-          onTreatmentUpdated?.();
-        }}
-      />
+      {/* BookingForm for editing */}
+      {showEditForm && currentTreatment && (
+        <Modal
+          visible={true}
+          animationType="slide"
+          presentationStyle="fullScreen"
+        >
+          <BookingForm
+            selectedDate={new Date(currentTreatment.reserved_at).toISOString().split('T')[0]}
+            editMode={true}
+            treatment={currentTreatment}
+            onClose={() => {
+              setShowEditForm(false);
+            }}
+            onBookingComplete={() => {
+              setShowEditForm(false);
+              onTreatmentUpdated?.();
+              onClose();
+            }}
+          />
+        </Modal>
+      )}
     </>
   );
 }

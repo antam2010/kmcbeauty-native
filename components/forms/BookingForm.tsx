@@ -128,10 +128,21 @@ export default function BookingForm({
   const initializeEditData = useCallback(() => {
     if (!treatment) return;
 
-    // 날짜와 시간 설정
-    const reservedDate = new Date(treatment.reserved_at);
-    const timeStr = reservedDate.toTimeString().slice(0, 5);
-    setSelectedTime(timeStr);
+    // 날짜와 시간 설정 (UTC를 한국 시간으로 변환)
+    // reserved_at 형식: "2025-10-20T09:30:00Z" (UTC)
+    // 한국 시간으로 변환: +9시간
+    const utcDate = new Date(treatment.reserved_at);
+    const koreaDate = new Date(utcDate.getTime() + (9 * 60 * 60 * 1000));
+    
+    const datePart = koreaDate.toISOString().split('T')[0];
+    const timePart = koreaDate.toISOString().split('T')[1].slice(0, 5);
+    
+    // 날짜가 props로 전달된 selectedDate와 다를 수 있으므로 onDateChange 호출
+    if (onDateChange && datePart !== selectedDate) {
+      onDateChange(datePart);
+    }
+    
+    setSelectedTime(timePart);
 
     // 고객 정보 설정
     if (treatment.phonebook) {
@@ -156,11 +167,11 @@ export default function BookingForm({
       const items: SelectedTreatmentData[] = [];
       
       for (const item of treatment.treatment_items) {
-        // 메뉴 상세 정보를 treatmentMenus에서 찾기
+        // 메뉴 상세 정보를 treatmentMenus에서 찾기 (menu_detail_id 사용)
         let menuDetail: TreatmentMenuDetail | null = null;
         
         for (const menu of treatmentMenus) {
-          const detail = menu.details.find(d => d.id === item.menu_detail?.id);
+          const detail = menu.details.find(d => d.id === item.menu_detail_id);
           if (detail) {
             menuDetail = detail;
             break;
@@ -192,7 +203,7 @@ export default function BookingForm({
         setSelectedStaff(staff);
       }
     }
-  }, [treatment, treatmentMenus, staffUsers]);
+  }, [treatment, treatmentMenus, staffUsers, onDateChange, selectedDate]);
 
   // 초기 데이터 로드
   useEffect(() => {
@@ -204,7 +215,8 @@ export default function BookingForm({
     if (editMode && treatment && staffUsers.length > 0 && treatmentMenus.length > 0) {
       initializeEditData();
     }
-  }, [editMode, treatment, staffUsers.length, treatmentMenus.length, initializeEditData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editMode, staffUsers.length, treatmentMenus.length]);
 
   // 고객 검색
   const searchCustomers = useCallback(async () => {
@@ -247,6 +259,7 @@ export default function BookingForm({
   const goBack = useCallback(() => {
     const steps: WizardStep[] = ['time', 'customer', 'treatment', 'confirm'];
     const currentIndex = steps.indexOf(currentStep);
+    
     if (currentIndex > 0) {
       setCurrentStep(steps[currentIndex - 1]);
     } else {
@@ -272,8 +285,11 @@ export default function BookingForm({
         duration_min: item.customDuration
       }));
 
-      // reserved_at: date + time을 ISO 형식으로 조합
-      const reservedAt = `${currentDate}T${selectedTime}:00`;
+      // reserved_at: 한국 시간을 UTC로 변환하여 저장
+      // 입력: 한국 시간 (예: 2025-10-20 09:30)
+      // 출력: UTC 시간 (예: 2025-10-20T00:30:00Z)
+      const localDateTime = new Date(`${currentDate}T${selectedTime}:00`);
+      const reservedAt = new Date(localDateTime.getTime() - (9 * 60 * 60 * 1000)).toISOString();
 
       if (editMode && treatment) {
         // 수정 모드
@@ -479,7 +495,8 @@ export default function BookingForm({
   );
 
   // 시술 선택 단계
-  const renderTreatmentStep = () => (
+  const renderTreatmentStep = () => {
+    return (
     <View style={styles.stepContainer}>
       <Text style={styles.stepDescription}>
         원하시는 시술을 선택해주세요
@@ -696,7 +713,8 @@ export default function BookingForm({
         ))}
       </View>
     </View>
-  );
+    );
+  };
 
   // 확인 단계
   const renderConfirmStep = () => {
@@ -866,11 +884,14 @@ export default function BookingForm({
     }
   };
 
-  if (isLoading && currentStep === 'time') {
+  // 로딩 화면: 초기 데이터 로딩 중이거나, 편집 모드인데 시술 데이터가 없을 때
+  if (isLoading || (editMode && treatmentMenus.length === 0)) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>데이터 로딩 중...</Text>
+        <Text style={styles.loadingText}>
+          {editMode ? '예약 정보 로딩 중...' : '데이터 로딩 중...'}
+        </Text>
       </View>
     );
   }

@@ -2,13 +2,13 @@ import BookingForm from '@/components/forms/BookingForm';
 import type { Treatment } from '@/src/types';
 import { useState } from 'react';
 import {
-  Modal,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Modal,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -137,7 +137,7 @@ export default function TreatmentDetailModal({
             activeOpacity={0.7}
             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
           >
-            <Text style={styles.editButtonText}>편집</Text>
+            <Text style={styles.editButtonText}>수정</Text>
           </TouchableOpacity>
         </View>
 
