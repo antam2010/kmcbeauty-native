@@ -21,14 +21,15 @@ export const authDebugUtils = {
         console.log('📱 로컬 인증 정보: 없음');
       }
       
-      // 2. 상점 정보 확인
-      const shopData = await AsyncStorage.getItem('selectedShop');
+      // 2. 상점 정보 확인 (shopStore 는 zustand persist 키 'shop-storage' 에
+      //    { state: { selectedShop } } 형태로 저장한다. 구 raw 키 'selectedShop' 은 폐기됨)
+      const shopData = await AsyncStorage.getItem('shop-storage');
       if (shopData) {
         const parsed = JSON.parse(shopData);
-        console.log('🏪 선택된 상점:', {
-          id: parsed.id,
-          name: parsed.name
-        });
+        const selectedShop = parsed.state?.selectedShop;
+        console.log('🏪 선택된 상점:', selectedShop
+          ? { id: selectedShop.id, name: selectedShop.name }
+          : '없음');
       } else {
         console.log('🏪 선택된 상점: 없음');
       }

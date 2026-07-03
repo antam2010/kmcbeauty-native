@@ -37,21 +37,14 @@ const getAccessToken = async (): Promise<string | null> => {
     console.error('🔑 Zustand 스토어 토큰 조회 실패:', error);
   }
 
-  // 2. 호환성을 위한 수동 저장된 auth-storage 확인 (레거시)
-  try {
-    const authData = await AsyncStorage.getItem('auth-storage');
-    if (authData) {
-      const parsedData = JSON.parse(authData);
-      const { accessToken } = parsedData;
-      if (accessToken) {
-        console.log('🔑 AsyncStorage(레거시) 토큰 사용');
-        return accessToken;
-      }
-    }
-  } catch (error) {
-    console.error('🔑 AsyncStorage 토큰 조회 실패:', error);
-  }
-  
+  // SPEC-SECURITY-001 REQ-SEC-005 / AC-005-1: 레거시 평문 auth-storage 폴백을 제거했다.
+  // 사유:
+  //   1) 평문 토큰 WRITE 경로는 이미 제거되어 auth-storage blob에 accessToken이 더 이상 기록되지 않는다.
+  //   2) 액세스 토큰의 단일 출처는 SecureStore 기반 authStore(secureHybridStorage)이며,
+  //      위 1번 경로에서 이미 우선 조회된다.
+  //   3) 기존 폴백은 raw AsyncStorage 키('auth-storage')에 blob 전체를 재기록하여
+  //      동일 키를 관리하는 secureHybridStorage와 이중 기록(dual-writer) 경합을 일으켜
+  //      persist 포맷을 손상시킬 위험이 있었다. 폴백 제거로 authStore가 유일한 writer가 된다.
   console.warn('⚠️ 사용 가능한 토큰이 없음');
   return null;
 };
@@ -208,6 +201,11 @@ const apiClient = axios.create({
   timeout: 15000, // 15초 타임아웃
 });
 
+// @MX:ANCHOR: [AUTO] 앱 전역 단일 axios 클라이언트의 요청 인터셉터. 모든 인증 API 요청이
+//   이 경로를 통과하여 Authorization / X-Shop-ID 헤더를 부착한다.
+// @MX:REASON: fan_in이 앱 전역(모든 서비스 레이어)이며, SPEC-REFACTOR-001 REQ-REF-001/004의
+//   단일 클라이언트·X-Shop-ID 단일 출처 계약을 보증하는 유일한 헤더 부착 경계다.
+// @MX:SPEC: SPEC-REFACTOR-001 (REQ-REF-001, REQ-REF-004)
 // 요청 인터셉터 - 모든 요청에 Authorization 헤더 추가
 apiClient.interceptors.request.use(
   async (config: any) => {
@@ -220,31 +218,31 @@ apiClient.interceptors.request.use(
         config.headers = config.headers || {};
         config.headers.Authorization = `Bearer ${accessToken}`;
         hasToken = true;
-        
-        // 토큰 상세 로깅 (민감한 정보는 마스킹)
+
+        // SPEC-SECURITY-001 REQ-SEC-005: 토큰 원문/부분 문자열을 로그로 남기지 않는다.
         if (__DEV__) {
-          console.log('🔑 토큰 정보:', {
-            hasToken: true,
-            tokenLength: accessToken.length,
-            tokenPrefix: accessToken.substring(0, 10) + '...',
-            tokenSuffix: '...' + accessToken.substring(accessToken.length - 10),
-            source: 'zustand'
-          });
+          console.log('🔑 토큰 정보:', { hasToken: true });
         }
       } else {
         console.warn('⚠️ 사용 가능한 토큰이 없음');
       }
 
       // 상점 정보도 헤더에 추가
+      // SPEC-REFACTOR-001 REQ-REF-004: 과거에는 raw AsyncStorage 키 'selectedShop'을 읽었으나,
+      //   shopStore는 persist 키 'shop-storage'에 래핑 형태({state:{selectedShop}})로 저장하므로
+      //   키/형태 불일치로 X-Shop-ID가 누락됐다. 이제 shopStore 단일 출처(getState().selectedShop)에서
+      //   조회하여 헤더를 신뢰성 있게 부착한다.
       let hasShopId = false;
-      const shopData = await AsyncStorage.getItem('selectedShop');
-      if (shopData) {
-        const shop = JSON.parse(shopData);
-        if (shop.id) {
+      try {
+        const { useShopStore } = await import('../stores/shopStore');
+        const selectedShop = useShopStore.getState().selectedShop;
+        if (selectedShop?.id) {
           config.headers = config.headers || {};
-          config.headers['X-Shop-ID'] = shop.id.toString();
+          config.headers['X-Shop-ID'] = selectedShop.id.toString();
           hasShopId = true;
         }
+      } catch (shopStoreError) {
+        console.error('🏪 shopStore 조회 실패 - X-Shop-ID 미부착:', shopStoreError);
       }
       
       // 상세한 요청 로깅 (개발 환경에서만)
@@ -256,7 +254,8 @@ apiClient.interceptors.request.use(
           hasAuthToken: hasToken,
           hasShopId: hasShopId,
           headers: {
-            Authorization: config.headers?.Authorization ? `Bearer ${config.headers.Authorization.substring(7, 17)}...` : 'NONE',
+            // SPEC-SECURITY-001 REQ-SEC-005: Authorization 값의 부분 문자열을 로그로 남기지 않는다.
+            Authorization: hasToken ? 'PRESENT' : 'NONE',
             'X-Shop-ID': config.headers?.['X-Shop-ID'] || 'NONE',
             'Content-Type': config.headers?.['Content-Type'] || 'default'
           }
@@ -295,8 +294,8 @@ apiClient.interceptors.response.use(
         errorDetail: error.response?.data?.detail?.detail,
         errorHint: error.response?.data?.detail?.hint,
         requestHeaders: {
-          Authorization: originalRequest?.headers?.Authorization ? 
-            `Bearer ${originalRequest.headers.Authorization.substring(7, 17)}...` : 'NONE',
+          // SPEC-SECURITY-001 REQ-SEC-005: Authorization 값의 부분 문자열을 로그로 남기지 않는다.
+          Authorization: originalRequest?.headers?.Authorization ? 'PRESENT' : 'NONE',
           'X-Shop-ID': originalRequest?.headers?.['X-Shop-ID'] || 'NONE'
         }
       });
@@ -356,6 +355,11 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       console.log('🔐 401 에러 발생 - 토큰 갱신 시도');
       
+      // @MX:WARN: [AUTO] 동시 401 처리 — 단일 in-flight 리프레시 + 대기 큐 동시성 로직.
+      // @MX:REASON: isRefreshing 플래그가 finally에서 리셋되지 않거나 큐가 reject되지 않으면
+      //   대기 요청이 무한 hang된다. 리프레시 호출은 반드시 bare axios(refreshAccessToken)로
+      //   보내 인터셉터 재귀를 회피해야 한다. SPEC-REFACTOR-001 REQ-REF-002의 계약.
+      // @MX:SPEC: SPEC-REFACTOR-001 (REQ-REF-002)
       if (isRefreshing) {
         // 이미 갱신 중이면 큐에 대기
         return new Promise((resolve, reject) => {
@@ -466,13 +470,11 @@ export const authDebugUtils = {
       const authData = await AsyncStorage.getItem('auth-storage');
       if (authData) {
         const parsedAuthData = JSON.parse(authData);
+        // SPEC-SECURITY-001 REQ-SEC-005: 토큰 원문/부분 문자열을 로그로 남기지 않는다.
         console.log('🔑 auth-storage 내용:', {
           keys: Object.keys(parsedAuthData),
           hasAccessToken: !!parsedAuthData.accessToken,
-          hasRefreshToken: !!parsedAuthData.refreshToken,
-          tokenLength: parsedAuthData.accessToken?.length || 0,
-          tokenPrefix: parsedAuthData.accessToken?.substring(0, 20) + '...' || 'NONE',
-          tokenSuffix: parsedAuthData.accessToken ? '...' + parsedAuthData.accessToken.substring(parsedAuthData.accessToken.length - 10) : 'NONE'
+          hasRefreshToken: !!parsedAuthData.refreshToken
         });
       } else {
         console.log('🔑 auth-storage가 null 또는 존재하지 않음');
