@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import InviteCodeGeneratorModal from '@/components/modals/InviteCodeGeneratorModal';
 import { StaffUserCreate, userApiService } from '@/src/api/services/staff';
 import { useShopStore } from '@/src/stores/shopStore';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -9,6 +10,7 @@ import {
     Modal,
     ScrollView,
     StyleSheet,
+    Switch,
     TextInput,
     TouchableOpacity
 } from 'react-native';
@@ -19,27 +21,25 @@ interface StaffRegistrationModalProps {
   onSuccess: () => void;
 }
 
+// 직원 "추가" = 이미 계정이 있는 사용자를 이메일로 상점에 연결한다(association).
+// 계정이 아직 없는 신규 직원은 초대(ShopInvite) 코드 플로우로 가입시킨다(하단 안내 참조).
+// SECURITY-001: 이 화면은 role/password 를 수집하지 않는다.
 export default function StaffRegistrationModal({
   visible,
   onClose,
   onSuccess
 }: StaffRegistrationModalProps) {
   const [formData, setFormData] = useState<StaffUserCreate>({
-    name: '',
     email: '',
-    username: '',
-    password: '',
-    role: 'MANAGER',
-    phone_number: ''
+    is_primary_owner: false
   });
   const [loading, setLoading] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const { selectedShop } = useShopStore();
 
-  const roles = [
-    { value: 'ADMIN', label: '관리자' },
-    { value: 'MANAGER', label: '매니저' },
-    { value: 'STAFF', label: '직원' }
-  ];
+  const resetForm = () => {
+    setFormData({ email: '', is_primary_owner: false });
+  };
 
   const handleSubmit = async () => {
     if (!selectedShop?.id) {
@@ -47,49 +47,35 @@ export default function StaffRegistrationModal({
       return;
     }
 
-    // 필수 필드 검증
-    if (!formData.name.trim()) {
-      Alert.alert('오류', '이름을 입력해주세요.');
-      return;
-    }
+    // 이메일 필수 검증 (연결 대상 식별자)
     if (!formData.email.trim()) {
-      Alert.alert('오류', '이메일을 입력해주세요.');
-      return;
-    }
-    if (!formData.username.trim()) {
-      Alert.alert('오류', '사용자명을 입력해주세요.');
-      return;
-    }
-    if (!formData.password.trim()) {
-      Alert.alert('오류', '비밀번호를 입력해주세요.');
+      Alert.alert('오류', '연결할 사용자의 이메일을 입력해주세요.');
       return;
     }
 
     try {
       setLoading(true);
-      await userApiService.createUser(selectedShop.id, formData);
-      
-      Alert.alert('완료', '직원이 성공적으로 등록되었습니다.', [
+      await userApiService.createUser(selectedShop.id, {
+        email: formData.email.trim(),
+        is_primary_owner: formData.is_primary_owner
+      });
+
+      Alert.alert('완료', '사용자가 직원으로 연결되었습니다.', [
         {
           text: '확인',
           onPress: () => {
             onSuccess();
             onClose();
-            // 폼 초기화
-            setFormData({
-              name: '',
-              email: '',
-              username: '',
-              password: '',
-              role: 'MANAGER',
-              phone_number: ''
-            });
+            resetForm();
           }
         }
       ]);
     } catch (error) {
-      console.error('직원 등록 중 오류:', error);
-      Alert.alert('오류', '직원 등록 중 문제가 발생했습니다.');
+      console.error('직원 연결 중 오류:', error);
+      Alert.alert(
+        '오류',
+        '직원 연결 중 문제가 발생했습니다. 입력한 이메일의 계정이 존재하는지 확인해주세요.'
+      );
     } finally {
       setLoading(false);
     }
@@ -98,6 +84,10 @@ export default function StaffRegistrationModal({
   const handleClose = () => {
     if (loading) return;
     onClose();
+  };
+
+  const handleOpenInvite = () => {
+    setShowInviteModal(true);
   };
 
   return (
@@ -113,109 +103,85 @@ export default function StaffRegistrationModal({
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
             <MaterialIcons name="close" size={24} color="#333" />
           </TouchableOpacity>
-          <ThemedText type="title" style={styles.title}>직원 등록</ThemedText>
+          <ThemedText type="title" style={styles.title}>직원 추가</ThemedText>
           <TouchableOpacity
             onPress={handleSubmit}
             style={[styles.saveButton, loading && styles.saveButtonDisabled]}
             disabled={loading}
           >
             <ThemedText style={[styles.saveButtonText, loading && styles.saveButtonTextDisabled]}>
-              {loading ? '등록 중...' : '등록'}
+              {loading ? '연결 중...' : '연결'}
             </ThemedText>
           </TouchableOpacity>
         </ThemedView>
 
         <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-          {/* 이름 */}
-          <ThemedView style={styles.fieldContainer}>
-            <ThemedText style={styles.label}>이름 *</ThemedText>
-            <TextInput
-              style={styles.input}
-              value={formData.name}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-              placeholder="이름을 입력하세요"
-              autoCapitalize="words"
-            />
+          {/* 안내: 기존 계정 연결 */}
+          <ThemedView style={styles.infoBox}>
+            <ThemedText style={styles.infoText}>
+              이미 계정이 있는 사용자를 이메일로 이 상점의 직원으로 연결합니다.
+            </ThemedText>
           </ThemedView>
 
-          {/* 이메일 */}
+          {/* 이메일 (연결 대상) */}
           <ThemedView style={styles.fieldContainer}>
-            <ThemedText style={styles.label}>이메일 *</ThemedText>
+            <ThemedText style={styles.label}>사용자 이메일 *</ThemedText>
             <TextInput
               style={styles.input}
               value={formData.email}
               onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
-              placeholder="이메일을 입력하세요"
+              placeholder="연결할 사용자의 이메일을 입력하세요"
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
             />
           </ThemedView>
 
-          {/* 사용자명 */}
-          <ThemedView style={styles.fieldContainer}>
-            <ThemedText style={styles.label}>사용자명 *</ThemedText>
-            <TextInput
-              style={styles.input}
-              value={formData.username}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, username: text }))}
-              placeholder="사용자명을 입력하세요"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </ThemedView>
-
-          {/* 비밀번호 */}
-          <ThemedView style={styles.fieldContainer}>
-            <ThemedText style={styles.label}>비밀번호 *</ThemedText>
-            <TextInput
-              style={styles.input}
-              value={formData.password}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, password: text }))}
-              placeholder="비밀번호를 입력하세요"
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </ThemedView>
-
-          {/* 역할 */}
-          <ThemedView style={styles.fieldContainer}>
-            <ThemedText style={styles.label}>역할</ThemedText>
-            <ThemedView style={styles.roleContainer}>
-              {roles.map((role) => (
-                <TouchableOpacity
-                  key={role.value}
-                  style={[
-                    styles.roleButton,
-                    formData.role === role.value && styles.roleButtonActive
-                  ]}
-                  onPress={() => setFormData(prev => ({ ...prev, role: role.value }))}
-                >
-                  <ThemedText style={[
-                    styles.roleButtonText,
-                    formData.role === role.value && styles.roleButtonTextActive
-                  ]}>
-                    {role.label}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
+          {/* 주 소유자 지정 토글 */}
+          <ThemedView style={styles.switchRow}>
+            <ThemedView style={styles.switchLabelContainer}>
+              <ThemedText style={styles.label}>주 소유자로 지정</ThemedText>
+              <ThemedText style={styles.helperText}>
+                이 사용자에게 상점의 주 소유자 권한을 부여합니다.
+              </ThemedText>
             </ThemedView>
+            <Switch
+              value={formData.is_primary_owner}
+              onValueChange={(value) =>
+                setFormData(prev => ({ ...prev, is_primary_owner: value }))
+              }
+              trackColor={{ false: '#d1d5db', true: '#007AFF' }}
+            />
           </ThemedView>
 
-          {/* 전화번호 */}
-          <ThemedView style={styles.fieldContainer}>
-            <ThemedText style={styles.label}>전화번호</ThemedText>
-            <TextInput
-              style={styles.input}
-              value={formData.phone_number}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, phone_number: text }))}
-              placeholder="전화번호를 입력하세요"
-              keyboardType="phone-pad"
-            />
+          {/* 안내: 계정이 없는 신규 직원은 초대 플로우로 */}
+          <ThemedView style={styles.inviteNoticeBox}>
+            <MaterialIcons name="info-outline" size={20} color="#856404" />
+            <ThemedView style={styles.inviteNoticeContent}>
+              <ThemedText style={styles.inviteNoticeTitle}>
+                아직 계정이 없는 직원인가요?
+              </ThemedText>
+              <ThemedText style={styles.inviteNoticeText}>
+                계정이 없는 신규 직원은 초대 코드를 발급해 가입하도록 안내하세요.
+              </ThemedText>
+              <TouchableOpacity
+                style={styles.inviteButton}
+                onPress={handleOpenInvite}
+              >
+                <MaterialIcons name="mail-outline" size={18} color="#fff" />
+                <ThemedText style={styles.inviteButtonText}>초대 코드 발급</ThemedText>
+              </TouchableOpacity>
+            </ThemedView>
           </ThemedView>
         </ScrollView>
       </ThemedView>
+
+      {/* 신규 직원 초대 코드 생성 모달 */}
+      <InviteCodeGeneratorModal
+        visible={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        shopId={selectedShop?.id || 0}
+      />
     </Modal>
   );
 }
@@ -279,29 +245,74 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
-  roleContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  roleButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+  infoBox: {
+    backgroundColor: '#eef2ff',
     borderRadius: 8,
-    alignItems: 'center',
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
   },
-  roleButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  roleButtonText: {
+  infoText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    color: '#3730a3',
+    lineHeight: 20,
   },
-  roleButtonTextActive: {
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  switchLabelContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  helperText: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  inviteNoticeBox: {
+    flexDirection: 'row',
+    backgroundColor: '#fff3cd',
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#ffeaa7',
+  },
+  inviteNoticeContent: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  inviteNoticeTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#856404',
+    marginBottom: 4,
+  },
+  inviteNoticeText: {
+    fontSize: 13,
+    color: '#856404',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  inviteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  inviteButtonText: {
     color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

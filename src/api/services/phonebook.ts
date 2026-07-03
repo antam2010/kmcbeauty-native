@@ -87,82 +87,80 @@ class PhonebookApiService extends BaseApiService {
   }
 
   // 모든 전화번호부 가져오기 (페이지네이션 우회)
+  // @MX:NOTE: [AUTO] 순차 페이지 루프 + 50ms 인위적 sleep 제거(REQ-PERF-002). 첫 페이지로 총 페이지 수를 파악한 뒤 2..N 페이지를 Promise.all 로 동시 수집한다. 결과 순서는 페이지 인덱스 순으로 결정적이며 기존 순차 방식과 동일.
   async getAllContacts(): Promise<Phonebook[]> {
-    let allContacts: Phonebook[] = [];
-    let page = 1;
     const size = 100; // 서버 LIMIT이 100으로 제한됨
-    let hasMore = true;
 
     console.log('📋 전체 전화번호부 조회 시작...');
 
-    while (hasMore) {
-      try {
-        console.log(`📄 페이지 ${page} 조회 중... (${size}개씩)`);
-        const response = await this.list({ page, size });
-        
-        allContacts = allContacts.concat(response.items);
-        
-        console.log(`📊 현재까지 ${allContacts.length}개 조회, 전체 ${response.total}개`);
-        
-        // 더 이상 가져올 데이터가 없으면 종료
-        hasMore = response.items.length === size && allContacts.length < response.total;
-        page++;
-        
-        // API 과부하 방지를 위한 짧은 지연
-        if (hasMore) {
-          await new Promise(resolve => setTimeout(resolve, 50));
-        }
-        
-      } catch (error) {
-        console.error(`페이지 ${page} 조회 실패:`, error);
-        break;
-      }
-    }
+    try {
+      // 1) 첫 페이지 조회로 총 페이지 수 파악
+      const firstPage = await this.list({ page: 1, size });
+      const totalPages = firstPage.pages || 1;
 
-    console.log(`✅ 전체 전화번호부 조회 완료: ${allContacts.length}개`);
-    return allContacts;
+      // 2) 나머지 페이지(2..N)를 동시 요청 (인위적 지연 없음). 일부 페이지 실패가 전체를 폐기하지 않도록 allSettled 사용(AC-002-2)
+      const restResults = await Promise.allSettled(
+        Array.from({ length: Math.max(0, totalPages - 1) }, (_, i) =>
+          this.list({ page: i + 2, size })
+        )
+      );
+
+      // 3) 성공한 페이지만 입력 순서대로 병합 (첫 페이지 → 성공한 2..N). 실패 페이지는 건너뜀
+      const restItems = restResults
+        .filter((r): r is PromiseFulfilledResult<PhonebookResponse> => r.status === 'fulfilled')
+        .reduce<Phonebook[]>((acc, r) => acc.concat(r.value.items), []);
+      const allContacts = [...firstPage.items, ...restItems];
+
+      const failedPages = restResults.filter((r) => r.status === 'rejected').length;
+      if (failedPages > 0) {
+        console.warn(`⚠️ 전체 전화번호부 일부 페이지 조회 실패: ${failedPages}개 페이지 누락(성공분만 반환)`);
+      }
+
+      console.log(`✅ 전체 전화번호부 조회 완료: ${allContacts.length}개`);
+      return allContacts;
+    } catch (error) {
+      console.error('전체 전화번호부 조회 실패:', error);
+      return [];
+    }
   }
 
   // 특정 그룹의 연락처만 가져오기
+  // @MX:NOTE: [AUTO] 순차 페이지 루프 + 50ms 인위적 sleep 제거(REQ-PERF-002). 동시 수집 후 group_name 필터링. 필터 결과 순서는 기존 순차 방식과 동일.
   async getContactsByGroup(groupName: string): Promise<Phonebook[]> {
-    let allContacts: Phonebook[] = [];
-    let page = 1;
     const size = 100;
-    let hasMore = true;
 
     console.log(`📋 그룹 "${groupName}" 연락처 조회 시작...`);
 
-    while (hasMore) {
-      try {
-        console.log(`📄 페이지 ${page} 조회 중... (${size}개씩)`);
-        const response = await this.list({ page, size });
-        
-        // 해당 그룹에 속한 연락처만 필터링
-        const groupContacts = response.items.filter(contact => 
-          contact.group_name === groupName
-        );
-        
-        allContacts = allContacts.concat(groupContacts);
-        
-        console.log(`📊 현재까지 ${allContacts.length}개 조회 (그룹: ${groupName})`);
-        
-        // 더 이상 가져올 데이터가 없으면 종료
-        hasMore = response.items.length === size && allContacts.length < response.total;
-        page++;
-        
-        // API 과부하 방지를 위한 짧은 지연
-        if (hasMore) {
-          await new Promise(resolve => setTimeout(resolve, 50));
-        }
-        
-      } catch (error) {
-        console.error(`페이지 ${page} 조회 실패:`, error);
-        break;
-      }
-    }
+    try {
+      // 1) 첫 페이지 조회로 총 페이지 수 파악
+      const firstPage = await this.list({ page: 1, size });
+      const totalPages = firstPage.pages || 1;
 
-    console.log(`✅ 그룹 "${groupName}" 연락처 조회 완료: ${allContacts.length}개`);
-    return allContacts;
+      // 2) 나머지 페이지(2..N)를 동시 요청 (인위적 지연 없음). 일부 페이지 실패가 전체를 폐기하지 않도록 allSettled 사용(AC-002-2)
+      const restResults = await Promise.allSettled(
+        Array.from({ length: Math.max(0, totalPages - 1) }, (_, i) =>
+          this.list({ page: i + 2, size })
+        )
+      );
+
+      // 3) 성공한 페이지만 입력 순서대로 병합 후 해당 그룹만 필터링. 실패 페이지는 건너뜀
+      const restItems = restResults
+        .filter((r): r is PromiseFulfilledResult<PhonebookResponse> => r.status === 'fulfilled')
+        .reduce<Phonebook[]>((acc, r) => acc.concat(r.value.items), []);
+      const allItems = [...firstPage.items, ...restItems];
+      const allContacts = allItems.filter(contact => contact.group_name === groupName);
+
+      const failedPages = restResults.filter((r) => r.status === 'rejected').length;
+      if (failedPages > 0) {
+        console.warn(`⚠️ 그룹 "${groupName}" 일부 페이지 조회 실패: ${failedPages}개 페이지 누락(성공분만 반환)`);
+      }
+
+      console.log(`✅ 그룹 "${groupName}" 연락처 조회 완료: ${allContacts.length}개`);
+      return allContacts;
+    } catch (error) {
+      console.error(`그룹 "${groupName}" 연락처 조회 실패:`, error);
+      return [];
+    }
   }
 }
 

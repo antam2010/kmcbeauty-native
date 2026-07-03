@@ -79,35 +79,13 @@ export default function StaffManagement({ onGoBack }: StaffManagementProps) {
     Alert.alert('직원 수정', `직원 ID: ${staffId}의 정보를 수정합니다.`);
   };
 
-  const toggleStaffStatus = async (staffId: number) => {
-    if (!selectedShop?.id) return;
-
+  // @MX:NOTE: [AUTO] 상태(활성/비활성) 토글은 개발 중 스텁이다.
+  // 백엔드에는 직원 status 계약이 없어(UserResponse 미반환) API 호출 없이 안내만 표시한다.
+  const toggleStaffStatus = (staffId: number) => {
     const staff = staffList.find(s => s.id === staffId);
     if (!staff) return;
 
-    try {
-      const newStatus = staff.status === 'active' ? 'inactive' : 'active';
-      await userApiService.updateUser(selectedShop.id, staffId, { status: newStatus });
-      
-      setStaffList(prev =>
-        prev.map(s =>
-          s.id === staffId
-            ? { ...s, status: newStatus }
-            : s
-        )
-      );
-      
-      Alert.alert('완료', `직원 상태가 ${newStatus === 'active' ? '활성화' : '비활성화'}되었습니다.`);
-    } catch (error: any) {
-      console.error('직원 상태 변경 중 오류:', error);
-      
-      // 개발 중 메시지인 경우 친화적으로 표시
-      if (error.message && error.message.includes('개발 중')) {
-        Alert.alert('알림', error.message);
-      } else {
-        Alert.alert('오류', '직원 상태 변경 중 문제가 발생했습니다.');
-      }
-    }
+    Alert.alert('알림', '직원 상태 변경 기능은 현재 개발 중입니다. 곧 제공될 예정입니다.');
   };
 
   if (loading) {
@@ -173,11 +151,6 @@ export default function StaffManagement({ onGoBack }: StaffManagementProps) {
                   <ThemedText style={styles.cardDetails}>
                     이메일: {staff.email}
                   </ThemedText>
-                  {staff.phone_number && (
-                    <ThemedText style={styles.cardDetails}>
-                      전화번호: {staff.phone_number}
-                    </ThemedText>
-                  )}
                   <ThemedText style={[styles.cardDetails, {
                     color: staff.status === 'active' ? '#4CAF50' : '#FF9800'
                   }]}>

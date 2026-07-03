@@ -15,16 +15,10 @@ export interface Shop {
   updated_at: string;
 }
 
-export interface ShopUser {
-  shop_id: number;
-  user_id: number;
-  is_primary_owner: number; // 1=대표, 0=아님
-  user: {
-    name: string;
-    email: string;
-    role: string;
-  };
-}
+// @MX:NOTE: [AUTO] ShopUser 정본은 src/api/services/staff.ts 의 ShopUserResponse 다.
+// 여기서는 하위 호환을 위해 재노출(re-export)만 한다 — 필드를 중복 선언하지 말 것.
+// is_primary_owner 는 백엔드가 int(0/1) 로 직렬화하므로 number 유지(=== 1 코어션은 소비 측 책임).
+export type { ShopUserResponse, ShopUserResponse as ShopUser } from '@/src/api/services/staff';
 
 export type ShopResponse = Page<Shop>;
 

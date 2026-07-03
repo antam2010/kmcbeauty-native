@@ -41,7 +41,13 @@ export default function ShopSelectionScreen() {
     } catch (error: any) {
       console.error('상점 목록 로드 실패:', error);
       // SHOP_NOT_SELECTED 에러인 경우 무한 루프 방지 (이미 shop-selection 페이지이므로)
-      if (error.response?.data?.detail?.code === 'SHOP_NOT_SELECTED') {
+      // 인터셉터가 이 에러를 일반 Error('상점이 선택되지 않았습니다...')로 re-wrap 하므로
+      // 원본 axios 형태와 re-wrap 된 메시지를 모두 확인한다.
+      const isShopNotSelected =
+        error.response?.data?.detail?.code === 'SHOP_NOT_SELECTED' ||
+        (typeof error?.message === 'string' &&
+          error.message.includes('상점이 선택되지 않았습니다'));
+      if (isShopNotSelected) {
         console.log('🏪 이미 상점 선택 페이지에 있음 - 추가 리다이렉트 하지 않음');
         return;
       }
