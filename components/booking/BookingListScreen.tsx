@@ -1,7 +1,7 @@
 import { treatmentApiService } from '@/src/api/services/treatment';
 import type { Treatment, TreatmentListParams } from '@/src/types';
 import { formatKoreanDate } from '@/src/utils/dateUtils';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -31,11 +31,86 @@ const statusColors: Record<string, string> = {
   'RESERVED': '#667eea',
   'VISITED': '#f093fb',
   'COMPLETED': '#4facfe',
-  'CANCELLED': '#ff6b6b',  
+  'CANCELLED': '#ff6b6b',
   'NO_SHOW': '#feca57'
 };
 
-export default function BookingListScreen({ 
+interface BookingListItemProps {
+  item: Treatment;
+  onPress?: (booking: Treatment) => void;
+}
+
+// @MX:NOTE: [AUTO] FlatList 항목을 React.memo 로 메모화(REQ-PERF-005). 상위(BookingListScreen) 리렌더 시 props(item, onPress)가 불변인 행은 재렌더되지 않는다. 렌더 결과는 기존 인라인 renderBookingItem 과 동일.
+const BookingListItem = memo(function BookingListItem({ item, onPress }: BookingListItemProps) {
+  const formatDateTime = (dateTime: string) => {
+    const date = new Date(dateTime);
+    return {
+      date: formatKoreanDate(dateTime),
+      time: date.toLocaleTimeString('ko-KR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })
+    };
+  };
+
+  const { date, time } = formatDateTime(item.reserved_at);
+  const totalPrice = item.treatment_items?.reduce((sum, ti) => sum + ti.base_price, 0) || 0;
+
+  return (
+    <TouchableOpacity
+      style={styles.bookingItem}
+      onPress={() => onPress?.(item)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.bookingHeader}>
+        <View style={styles.customerInfo}>
+          <Text style={styles.customerName}>
+            {item.phonebook?.name || item.customer_name || '고객명 없음'}
+          </Text>
+          <Text style={styles.customerPhone}>
+            {item.phonebook?.phone_number || item.customer_phone || ''}
+          </Text>
+        </View>
+        <View style={[
+          styles.statusBadge,
+          { backgroundColor: statusColors[item.status] || '#6c757d' }
+        ]}>
+          <Text style={styles.statusText}>
+            {statusLabels[item.status] || item.status}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.bookingDetails}>
+        <View style={styles.dateTimeInfo}>
+          <Text style={styles.dateText}>📅 {date}</Text>
+          <Text style={styles.timeText}>🕐 {time}</Text>
+        </View>
+
+        {item.treatment_items && item.treatment_items.length > 0 && (
+          <View style={styles.treatmentInfo}>
+            <Text style={styles.treatmentTitle}>
+              {item.treatment_items[0].menu_detail?.name || '시술명 없음'}
+              {item.treatment_items.length > 1 && ` 외 ${item.treatment_items.length - 1}개`}
+            </Text>
+            <Text style={styles.priceText}>
+              💰 {totalPrice.toLocaleString()}원
+            </Text>
+          </View>
+        )}
+
+        {item.memo && (
+          <Text style={styles.memoText} numberOfLines={2}>
+            💬 {item.memo}
+          </Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+export default function BookingListScreen({
   onBookingPress, 
   onNewBooking 
 }: BookingListScreenProps) {
@@ -194,74 +269,13 @@ export default function BookingListScreen({
   }, [searchQuery, selectedStatus, loadBookings]);
 
   // 예약 아이템 렌더링
-  const renderBookingItem = ({ item }: { item: Treatment }) => {
-    const formatDateTime = (dateTime: string) => {
-      const date = new Date(dateTime);
-      return {
-        date: formatKoreanDate(dateTime),
-        time: date.toLocaleTimeString('ko-KR', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        })
-      };
-    };
-
-    const { date, time } = formatDateTime(item.reserved_at);
-    const totalPrice = item.treatment_items?.reduce((sum, ti) => sum + ti.base_price, 0) || 0;
-
-    return (
-      <TouchableOpacity
-        style={styles.bookingItem}
-        onPress={() => onBookingPress?.(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.bookingHeader}>
-          <View style={styles.customerInfo}>
-            <Text style={styles.customerName}>
-              {item.phonebook?.name || item.customer_name || '고객명 없음'}
-            </Text>
-            <Text style={styles.customerPhone}>
-              {item.phonebook?.phone_number || item.customer_phone || ''}
-            </Text>
-          </View>
-          <View style={[
-            styles.statusBadge,
-            { backgroundColor: statusColors[item.status] || '#6c757d' }
-          ]}>
-            <Text style={styles.statusText}>
-              {statusLabels[item.status] || item.status}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.bookingDetails}>
-          <View style={styles.dateTimeInfo}>
-            <Text style={styles.dateText}>📅 {date}</Text>
-            <Text style={styles.timeText}>🕐 {time}</Text>
-          </View>
-          
-          {item.treatment_items && item.treatment_items.length > 0 && (
-            <View style={styles.treatmentInfo}>
-              <Text style={styles.treatmentTitle}>
-                {item.treatment_items[0].menu_detail?.name || '시술명 없음'}
-                {item.treatment_items.length > 1 && ` 외 ${item.treatment_items.length - 1}개`}
-              </Text>
-              <Text style={styles.priceText}>
-                💰 {totalPrice.toLocaleString()}원
-              </Text>
-            </View>
-          )}
-
-          {item.memo && (
-            <Text style={styles.memoText} numberOfLines={2}>
-              💬 {item.memo}
-            </Text>
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  // @MX:NOTE: [AUTO] useCallback 으로 안정적 참조 유지(REQ-PERF-005). 항목 UI 는 React.memo 로 감싼 BookingListItem 으로 위임한다. 의존성은 onBookingPress 뿐이므로 상위 상태 변경 시에도 renderItem 참조가 안정적이다.
+  const renderBookingItem = useCallback(
+    ({ item }: { item: Treatment }) => (
+      <BookingListItem item={item} onPress={onBookingPress} />
+    ),
+    [onBookingPress]
+  );
 
   // 상태 필터 버튼들
   const statusFilters = [
