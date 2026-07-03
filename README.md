@@ -65,19 +65,61 @@ KMC Beauty는 뷰티 서비스 관리를 위한 React Native 모바일 애플리
 
 ```
 kmcbeauty-native/
-├── app/                    # Expo Router 기반 페이지
-│   ├── (tabs)/            # 탭 네비게이션
-│   │   ├── index.tsx      # 홈 화면
-│   │   ├── booking.tsx    # 예약 화면
-│   │   ├── management.tsx # 관리 화면
-│   │   └── profile.tsx    # 프로필 화면
-│   └── _layout.tsx        # 루트 레이아웃
-├── components/            # 재사용 가능한 컴포넌트
-├── services/             # API 서비스 및 데이터 관리
-│   ├── api.ts           # Axios 설정
-│   ├── index.ts         # 실제 API 서비스
-│   └── mockServices.ts  # 목업 데이터 서비스
-└── constants/           # 상수 및 테마 설정
+├── app/                          # Expo Router 기반 페이지
+│   ├── (tabs)/                  # 탭 네비게이션
+│   │   ├── index.tsx            # 홈 대시보드
+│   │   ├── booking.tsx          # 예약 화면
+│   │   ├── management.tsx       # 관리 화면
+│   │   └── profile.tsx          # 프로필 화면
+│   ├── login.tsx                # 로그인 화면
+│   ├── shop-selection.tsx       # 상점 선택 화면
+│   ├── monthly-dashboard.tsx    # 월간 대시보드
+│   └── _layout.tsx              # 루트 레이아웃
+├── src/
+│   ├── api/                     # API 레이어 (단일 통합 클라이언트)
+│   │   ├── client.ts            # 단일 Axios 인스턴스 (인증·X-Shop-ID 인터셉터 포함)
+│   │   └── services/            # 도메인별 API 서비스 (10개)
+│   │       ├── auth.ts          # 인증 (로그인·로그아웃·토큰 갱신)
+│   │       ├── dashboard.ts     # 대시보드 통계
+│   │       ├── treatment.ts     # 시술 예약 (예약 목록·생성·수정·삭제)
+│   │       ├── treatmentMenu.ts # 시술 메뉴 관리
+│   │       ├── shop.ts          # 상점 관리
+│   │       ├── phonebook.ts     # 전화번호부
+│   │       ├── staff.ts         # 직원 관리 (링크 모델 기반)
+│   │       ├── invite.ts        # 초대 코드 (신규 직원 가입)
+│   │       ├── base.ts          # BaseApiService 추상 클래스
+│   │       └── index.ts         # 서비스 통합 export
+│   ├── services/                # 앱 레벨 서비스
+│   │   ├── contactSync.ts       # 기기 연락처 동기화
+│   │   ├── storage/
+│   │   │   └── userDataService.ts
+│   │   └── api/                 # 레거시 스텁 (2개, 점진적 제거 예정)
+│   │       ├── phonebook.ts
+│   │       └── treatment-menu.ts
+│   ├── stores/                  # Zustand 상태 저장소
+│   │   ├── authStore.ts         # 인증 상태 (SecureStore 기반 persist)
+│   │   └── shopStore.ts         # 상점 선택 상태
+│   ├── types/                   # TypeScript 타입 정의
+│   │   ├── auth.ts
+│   │   ├── common.ts
+│   │   ├── dashboard.ts
+│   │   ├── phonebook.ts
+│   │   ├── shop.ts
+│   │   ├── treatment.ts
+│   │   ├── user.ts
+│   │   ├── unified.ts
+│   │   └── index.ts
+│   ├── ui/                      # 공통 UI 컴포넌트 시스템
+│   │   ├── atoms/               # BaseButton, BaseInput 등 원자 컴포넌트
+│   │   ├── molecules/           # BaseModal 등 복합 컴포넌트
+│   │   ├── theme.ts             # 디자인 시스템 (색상·타이포·간격)
+│   │   ├── types.ts             # UI 공통 타입
+│   │   └── index.ts
+│   └── utils/                   # 유틸리티 함수
+│       ├── authDebug.ts
+│       ├── dateUtils.ts
+│       └── phoneFormat.ts
+└── components/                  # 화면 수준 컴포넌트 (레거시 포함)
 ```
 
 ## 시작하기
@@ -105,17 +147,29 @@ npm start
 - **Android 에뮬레이터**: `a` 키 입력
 - **실제 기기**: Expo Go 앱으로 QR 코드 스캔
 
+## 환경 변수 설정
+
+앱 실행 전 반드시 `.env` 또는 `.env.local` 파일에 다음 환경 변수를 설정해야 합니다.
+
+```env
+EXPO_PUBLIC_API_BASE_URL=https://api-kmc2.daeho3.shop
+```
+
+`EXPO_PUBLIC_API_BASE_URL`이 설정되지 않으면 `src/api/client.ts` 초기화 시 즉시 에러가 발생합니다.
+
 ## API 연동
 
-현재 앱은 목업 데이터(`services/mockServices.ts`)를 사용하고 있습니다. 
-실제 API와 연동하려면:
+모든 HTTP 요청은 `src/api/client.ts`의 단일 Axios 인스턴스를 통해 처리됩니다.
+목업 데이터 레이어(`mockServices`)는 리팩토링 과정에서 삭제되었습니다.
 
-1. `services/api.ts`에서 API 기본 URL 확인
-2. `services/index.ts`의 실제 API 호출 코드 활성화
-3. 목업 서비스 대신 실제 서비스 임포트
+### 인터셉터 동작
 
-### API 엔드포인트
-- 기본 URL: `https://api-kmc2.daeho3.shop`
+- **요청 인터셉터**: `authStore`에서 액세스 토큰을 읽어 `Authorization: Bearer` 헤더를 부착하고, `shopStore.getState().selectedShop`에서 상점 ID를 읽어 `X-Shop-ID` 헤더를 부착합니다.
+- **응답 인터셉터**: 401 응답 시 토큰 갱신을 시도하며, 갱신 중 도착하는 병렬 요청은 `failedQueue`에 대기시킵니다. 403 응답 또는 갱신 실패 시 강제 로그아웃하고 `/login`으로 이동합니다.
+
+### 주요 API 엔드포인트
+
+- 기본 URL: `https://api-kmc2.daeho3.shop` (환경 변수로 관리)
 - OpenAPI 문서: `https://api-kmc2.daeho3.shop/openapi.json`
 
 ## 개발 스크립트
