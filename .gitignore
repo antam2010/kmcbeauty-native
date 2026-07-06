@@ -43,3 +43,12 @@ yarn-error.*
 app-example
 
 .env
+# MoAI-ADK transient artifacts (do not commit)
+.moai/logs/
+.moai/reports/
+.moai/state/
+.moai/evolution/
+.moai/learning/
+.claude/settings.local.json
+.claude/agent-memory/
+.claude/worktrees/
