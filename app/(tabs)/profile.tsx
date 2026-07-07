@@ -89,13 +89,7 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleEditProfile = () => {
-    Alert.alert('준비중', '프로필 수정 기능은 준비 중입니다.');
-  };
-
-  const handleNotificationSettings = () => {
-    Alert.alert('준비중', '알림 설정 기능은 준비 중입니다.');
-  };
+  // SPEC-HOME-001 REQ-HOME-001-07: "프로필 수정"·"알림 설정" 죽은 메뉴 제거로 관련 "준비중" Alert 핸들러도 함께 삭제(도달 경로 0).
 
   const handleAppInfo = () => {
     Alert.alert('앱 정보', 'KMC Beauty\n버전: 1.0.0');
@@ -140,14 +134,7 @@ export default function ProfileScreen() {
                   {getRoleText(user?.role || 'MANAGER')}
                 </ThemedText>
               </View>
-              <TouchableOpacity
-                style={styles.editIconButton}
-                onPress={handleEditProfile}
-                accessibilityRole="button"
-                accessibilityLabel="프로필 수정"
-              >
-                <ThemedText style={styles.editIcon}>✏️</ThemedText>
-              </TouchableOpacity>
+              {/* SPEC-HOME-001 REQ-HOME-001-07: "프로필 수정"은 "준비중" Alert 만 뜨는 죽은 메뉴 → 노출 제거(도달 경로 0). */}
             </View>
             
             <View style={styles.infoList}>
@@ -217,14 +204,8 @@ export default function ProfileScreen() {
               <ThemedText style={styles.arrow}>›</ThemedText>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.settingItem} onPress={handleNotificationSettings}>
-              <View style={styles.settingItemLeft}>
-                <ThemedText style={styles.settingIcon}>🔔</ThemedText>
-                <ThemedText style={styles.settingText}>알림 설정</ThemedText>
-              </View>
-              <ThemedText style={styles.arrow}>›</ThemedText>
-            </TouchableOpacity>
-            
+            {/* SPEC-HOME-001 REQ-HOME-001-07: "알림 설정"은 "준비중" Alert 만 뜨는 죽은 메뉴 → 노출 제거(도달 경로 0). */}
+
             <TouchableOpacity style={styles.settingItem} onPress={handleAppInfo}>
               <View style={styles.settingItemLeft}>
                 <ThemedText style={styles.settingIcon}>ℹ️</ThemedText>
