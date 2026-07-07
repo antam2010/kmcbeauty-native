@@ -22,3 +22,23 @@ export function toBookingRow(booking: Treatment): BookingRow {
     totalText: formatKrwNumber(totalPrice),
   };
 }
+
+// SPEC-BOOKING-001 REQ-BOOKING-001-06 (F-11b): 현재 시각 이후 첫 가용 시간 슬롯 계산(순수 함수).
+// now 의 시각(HH:mm)보다 뒤이면서 예약되지 않은 첫 슬롯을 반환한다. 없으면 null.
+// 시각적 유도 전용 — selectedTime 을 설정하지 않으므로 선택을 강제하지 않는다.
+export function findFirstAvailableSlotAfter(
+  now: Date,
+  slots: string[],
+  reservedSlots: string[],
+): string | null {
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  for (const slot of slots) {
+    const [h, m] = slot.split(':').map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) continue;
+    const slotMinutes = h * 60 + m;
+    if (slotMinutes > nowMinutes && !reservedSlots.includes(slot)) {
+      return slot;
+    }
+  }
+  return null;
+}

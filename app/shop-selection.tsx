@@ -3,6 +3,7 @@ import { ThemedView } from '@/components/ThemedView';
 import ShopRegistrationModal from '@/components/modals/ShopRegistrationModal';
 import { Shop, shopApiService } from '@/src/api/services/shop';
 import { useShopStore } from '@/src/stores/shopStore';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -66,27 +67,15 @@ export default function ShopSelectionScreen() {
     try {
       setSelecting(true);
       await selectShop(shop.id); // 상점 스토어의 selectShop 사용
-      
-      // 상점 선택 완료 후 잠시 대기하여 상태가 완전히 업데이트되도록 함
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      Alert.alert(
-        '상점 선택 완료',
-        `${shop.name}이(가) 선택되었습니다.`,
-        [
-          {
-            text: '확인',
-            onPress: () => {
-              // 이전 화면으로 돌아가기 또는 홈으로 이동
-              if (router.canGoBack()) {
-                router.back();
-              } else {
-                router.replace('/(tabs)');
-              }
-            }
-          }
-        ]
-      );
+
+      // SPEC-BOOKING-001 REQ-04(F-17 + 햅틱): "확인" 탭 성공 Alert 및 인위적 500ms 지연 제거.
+      // 성공 햅틱 1회 후 즉시 다음 화면으로 이동한다(추가 탭 불필요).
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (error: any) {
       console.error('상점 선택 실패:', error);
       Alert.alert('오류', '상점 선택에 실패했습니다.');

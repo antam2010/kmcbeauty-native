@@ -227,6 +227,11 @@ export const bookingFormStyles = StyleSheet.create({
     backgroundColor: '#667eea',
     borderColor: '#667eea',
   },
+  // SPEC-BOOKING-001 REQ-06(F-11b): 첫 가용 슬롯 시각 유도 — 기존 primary(#667eea) 테두리 재사용.
+  highlightedTimeSlot: {
+    borderColor: '#667eea',
+    borderWidth: 2,
+  },
   reservedTimeSlot: {
     backgroundColor: '#f8f9fa',
     borderColor: '#dee2e6',
