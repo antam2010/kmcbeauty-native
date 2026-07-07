@@ -90,6 +90,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+    minHeight: 44, // SPEC-UX-001 REQ-UX-004: 유효 터치 영역 44pt 확보
   },
   shopButtonText: {
     fontSize: 14,

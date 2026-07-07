@@ -136,7 +136,12 @@ export default function ProfileScreen() {
                   {getRoleText(user?.role || 'MANAGER')}
                 </ThemedText>
               </View>
-              <TouchableOpacity style={styles.editIconButton} onPress={handleEditProfile}>
+              <TouchableOpacity
+                style={styles.editIconButton}
+                onPress={handleEditProfile}
+                accessibilityRole="button"
+                accessibilityLabel="프로필 수정"
+              >
                 <ThemedText style={styles.editIcon}>✏️</ThemedText>
               </TouchableOpacity>
             </View>
@@ -243,9 +248,11 @@ export default function ProfileScreen() {
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <ThemedText type="subtitle" style={styles.modalTitle}>비밀번호 변경</ThemedText>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setShowPasswordModal(false)}
                 style={styles.closeButton}
+                accessibilityRole="button"
+                accessibilityLabel="닫기"
               >
                 <ThemedText style={styles.closeButtonText}>✕</ThemedText>
               </TouchableOpacity>
@@ -260,7 +267,7 @@ export default function ProfileScreen() {
                   onChangeText={setNewPassword}
                   secureTextEntry
                   placeholder="새 비밀번호를 입력하세요 (4자 이상)"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#6b7280"
                 />
               </View>
               
@@ -272,7 +279,7 @@ export default function ProfileScreen() {
                   onChangeText={setConfirmPassword}
                   secureTextEntry
                   placeholder="새 비밀번호를 다시 입력하세요"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#6b7280"
                 />
               </View>
             </View>
@@ -424,12 +431,12 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   shopAddress: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#666',
     marginBottom: 2,
   },
   shopPhone: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#666',
   },
   

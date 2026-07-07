@@ -500,7 +500,7 @@ export default function EditTreatmentModal({
                 autoCorrect={false}
                 underlineColorAndroid="transparent"
                 selectionColor="#667eea"
-                placeholderTextColor="#999"
+                placeholderTextColor="#6b7280"
               />
               
               {selectedCustomer && (

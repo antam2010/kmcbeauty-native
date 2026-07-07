@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   businessNumber: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#888',
   },
   selectingOverlay: {

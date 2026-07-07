@@ -27,12 +27,15 @@ const statusLabels: Record<string, string> = {
   'NO_SHOW': '노쇼'
 };
 
-const statusColors: Record<string, string> = {
-  'RESERVED': '#667eea',
-  'VISITED': '#f093fb',
-  'COMPLETED': '#4facfe',
-  'CANCELLED': '#ff6b6b',
-  'NO_SHOW': '#feca57'
+// SPEC-UX-001 REQ-UX-002: 흰색 텍스트 대비 4.5:1 이상을 확보하기 위해 배지 배경을 진한 색으로 조정.
+// (기존 밝은 색 #feca57/#f093fb 등은 흰 텍스트 대비 ≈1.4:1로 판독 불가였음)
+// 각 배경 vs #ffffff 대비: RESERVED 6.3, VISITED 6.4, COMPLETED 6.0, CANCELLED 4.8, NO_SHOW 5.1
+export const statusColors: Record<string, string> = {
+  'RESERVED': '#4f46e5',
+  'VISITED': '#a21caf',
+  'COMPLETED': '#0369a1',
+  'CANCELLED': '#dc2626',
+  'NO_SHOW': '#b45309'
 };
 
 interface BookingListItemProps {
@@ -133,7 +136,7 @@ export default function BookingListScreen({
     try {
       // 이미 로딩 중이면 중복 요청 방지
       if (!isRefresh && loadingRef.current) {
-        console.log('⚠️ 이미 로딩 중이므로 요청 무시');
+        if (__DEV__) console.log('⚠️ 이미 로딩 중이므로 요청 무시');
         return;
       }
 
@@ -154,7 +157,7 @@ export default function BookingListScreen({
         status: selectedStatus || undefined
       };
 
-      console.log('🔍 예약 목록 조회 시작:', searchParams);
+      if (__DEV__) console.log('🔍 예약 목록 조회 시작:', searchParams);
       const response = await treatmentApiService.list(searchParams);
       
       const newBookings = response.items || [];
@@ -169,7 +172,7 @@ export default function BookingListScreen({
       setHasMore(newBookings.length === (searchParams.size || 20));
       setCurrentPage(pageNum);
       
-      console.log('✅ 예약 목록 조회 완료:', {
+      if (__DEV__) console.log('✅ 예약 목록 조회 완료:', {
         count: newBookings.length,
         total: response.total,
         page: pageNum
@@ -228,7 +231,7 @@ export default function BookingListScreen({
           sort_order: 'desc'
         };
 
-        console.log('🔍 초기 예약 목록 조회 시작');
+        if (__DEV__) console.log('🔍 초기 예약 목록 조회 시작');
         const response = await treatmentApiService.list(searchParams);
         
         const newBookings = response.items || [];
@@ -237,7 +240,7 @@ export default function BookingListScreen({
         setHasMore(newBookings.length === 20);
         setCurrentPage(1);
         
-        console.log('✅ 초기 예약 목록 조회 완료:', {
+        if (__DEV__) console.log('✅ 초기 예약 목록 조회 완료:', {
           count: newBookings.length,
           total: response.total
         });
@@ -447,14 +450,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     borderWidth: 1,
     borderColor: '#d1d5db',
+    minHeight: 44, // SPEC-UX-001 REQ-UX-004: 유효 터치 영역 44pt 확보
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusFilterButtonActive: {
     backgroundColor: '#3b82f6',
     borderColor: '#3b82f6',
   },
   statusFilterText: {
-    fontSize: 12,
-    color: '#6b7280',
+    fontSize: 14,
+    color: '#374151',
     fontWeight: '500',
   },
   statusFilterTextActive: {
@@ -506,7 +512,7 @@ const styles = StyleSheet.create({
   },
   customerPhone: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#374151',
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -514,7 +520,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#ffffff',
     fontWeight: '600',
   },
@@ -550,7 +556,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   memoText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6b7280',
     fontStyle: 'italic',
   },
@@ -562,7 +568,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#9ca3af',
+    color: '#6b7280',
     textAlign: 'center',
   },
   loadingFooter: {

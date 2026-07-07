@@ -37,6 +37,8 @@ export default function HomeScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [weeklyTreatments, setWeeklyTreatments] = useState<Treatment[]>([]);
   const [showMonthlyModal, setShowMonthlyModal] = useState(false);
+  // SPEC-UX-001 REQ-UX-007: 주간 시술 로드 실패를 무음 처리하지 않고 인라인으로 안내
+  const [weeklyError, setWeeklyError] = useState(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { refreshTrigger } = useDashboard();
@@ -47,15 +49,17 @@ export default function HomeScreen() {
       // 새로운 주간 API 사용
       const weeklyData = await treatmentApiService.getWeeklyTreatments();
       setWeeklyTreatments(weeklyData);
+      setWeeklyError(false);
     } catch (error: any) {
       console.error('주간 시술 데이터 로딩 실패:', error);
-      
+
       // 인증 관련 에러는 상위로 전파 (인터셉터가 처리하도록)
       if (error.message?.includes('인증이 만료') || error.message?.includes('권한이 없습니다')) {
         throw error; // 인터셉터가 처리하도록 재throw
       }
-      
-      // 그 외 에러는 여기서 처리 (UI 상태만 업데이트)
+
+      // SPEC-UX-001 REQ-UX-007: 그 외 에러는 무음 처리하지 않고 인라인 안내 상태를 설정한다.
+      setWeeklyError(true);
     }
   }, []);
 
@@ -204,6 +208,18 @@ export default function HomeScreen() {
       <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 20 }]}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>데이터를 불러올 수 없습니다</Text>
+          {/* SPEC-UX-001 REQ-UX-006: 막다른 오류 화면에 재시도 수단 제공 */}
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setLoading(true);
+              onHeaderRefresh();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="다시 시도"
+          >
+            <Text style={styles.retryButtonText}>다시 시도</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -239,17 +255,21 @@ export default function HomeScreen() {
             </Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.monthlyButton}
               onPress={() => setShowMonthlyModal(true)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="달력 보기"
             >
               <MaterialIcons name="calendar-month" size={24} color="#007AFF" />
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.refreshButton}
               onPress={onHeaderRefresh}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="새로고침"
             >
               <MaterialIcons name="refresh" size={24} color="#007AFF" />
             </TouchableOpacity>
@@ -259,6 +279,22 @@ export default function HomeScreen() {
         {/* 간편 달력 위젯 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>이번 주 예약 현황</Text>
+          {/* SPEC-UX-001 REQ-UX-007: 주간 시술 로드 실패 인라인 안내 + 재시도 */}
+          {weeklyError && (
+            <View style={styles.inlineNotice}>
+              <Text style={styles.inlineNoticeText}>
+                주간 예약 정보를 불러오지 못했습니다
+              </Text>
+              <TouchableOpacity
+                style={styles.inlineRetryButton}
+                onPress={() => { loadWeeklyTreatments().catch(() => {}); }}
+                accessibilityRole="button"
+                accessibilityLabel="주간 예약 다시 시도"
+              >
+                <Text style={styles.inlineRetryText}>다시 시도</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           <View style={styles.weekCalendar}>
             {getCurrentWeek().map((date) => {
               const dateInfo = formatDateForDisplay(date);
@@ -462,6 +498,8 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowMonthlyModal(false)}
+              accessibilityRole="button"
+              accessibilityLabel="닫기"
             >
               <MaterialIcons name="close" size={24} color="#007AFF" />
             </TouchableOpacity>
@@ -503,6 +541,21 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     color: '#dc3545',
+  },
+  retryButton: {
+    marginTop: 20,
+    backgroundColor: '#007bff',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
@@ -578,7 +631,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#666',
     textAlign: 'center',
   },
@@ -642,9 +695,41 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#1a1a1a',
+  },
+  // SPEC-UX-001 REQ-UX-007: 인라인 실패 안내 스타일
+  inlineNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  inlineNoticeText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#b91c1c',
+  },
+  inlineRetryButton: {
+    marginLeft: 12,
+    backgroundColor: '#dc2626',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inlineRetryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
   },
   // 달력 위젯 스타일
   weekCalendar: {
@@ -670,7 +755,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffc107',
   },
   weekDayName: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#666',
     marginBottom: 4,
     fontWeight: '500',
@@ -695,15 +780,16 @@ const styles = StyleSheet.create({
     top: -5,
     right: -5,
     backgroundColor: '#dc3545',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    borderRadius: 11,
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   bookingBadgeText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   calendarButton: {

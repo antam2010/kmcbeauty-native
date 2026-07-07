@@ -197,7 +197,7 @@ export const useAuthStore = create<AuthState>()(
 
           // Zustand persist에서 토큰 확인
           if (!accessToken) {
-            console.log('저장된 토큰이 없습니다.');
+            if (__DEV__) console.log('저장된 토큰이 없습니다.');
             return;
           }
 
@@ -205,7 +205,7 @@ export const useAuthStore = create<AuthState>()(
           const user = await authApiService.getMe();
           setUser(user);
 
-          console.log('✅ 사용자 정보 로드 성공');
+          if (__DEV__) console.log('✅ 사용자 정보 로드 성공');
         } catch (error: any) {
           console.error('❌ 사용자 정보 로드 실패:', error);
           // 토큰이 유효하지 않으면 Zustand에서 정리

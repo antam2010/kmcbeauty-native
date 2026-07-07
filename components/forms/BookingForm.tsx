@@ -70,6 +70,8 @@ export default function BookingForm({
   const [treatmentMenus, setTreatmentMenus] = useState<TreatmentMenu[]>([]);
   const [staffUsers, setStaffUsers] = useState<ShopUser[]>([]);
   const [isLoadingMenus, setIsLoadingMenus] = useState(true);
+  // SPEC-UX-001 REQ-UX-007: 직원 목록 로드 실패를 무음 처리하지 않고 인라인으로 안내
+  const [staffLoadError, setStaffLoadError] = useState(false);
   
   const insets = useSafeAreaInsets();
 
@@ -244,12 +246,14 @@ export default function BookingForm({
 
   const loadStaffUsers = async () => {
     try {
+      setStaffLoadError(false);
       const users = await shopApiService.getCurrentShopUsers();
       setStaffUsers(users);
     } catch (error) {
       console.error('직원 목록 로드 실패:', error);
-      // 직원 목록 로드는 실패해도 앱이 동작하도록 경고만 표시
-      console.warn('직원 목록을 불러올 수 없습니다. 직원 선택 없이 진행됩니다.');
+      // SPEC-UX-001 REQ-UX-007: 무음 실패 대신 인라인 안내 상태를 설정한다.
+      // 직원 선택은 선택사항이므로 예약 흐름은 차단하지 않는다.
+      setStaffLoadError(true);
     }
   };
 
@@ -569,7 +573,12 @@ export default function BookingForm({
           >
           {/* 헤더 */}
           <View style={bookingFormStyles.header}>
-            <TouchableOpacity onPress={onClose} style={bookingFormStyles.closeButton}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={bookingFormStyles.closeButton}
+              accessibilityRole="button"
+              accessibilityLabel="닫기"
+            >
               <Text style={bookingFormStyles.closeButtonText}>✕</Text>
             </TouchableOpacity>
             <Text style={bookingFormStyles.headerTitle}>새 예약 만들기</Text>
@@ -607,9 +616,11 @@ export default function BookingForm({
                 <View style={bookingFormStyles.datePickerModalContent}>
                   <View style={bookingFormStyles.datePickerHeader}>
                     <Text style={bookingFormStyles.datePickerTitle}>날짜 선택</Text>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       onPress={() => setShowDatePicker(false)}
                       style={bookingFormStyles.datePickerCloseButton}
+                      accessibilityRole="button"
+                      accessibilityLabel="닫기"
                     >
                       <Text style={bookingFormStyles.datePickerCloseText}>✕</Text>
                     </TouchableOpacity>
@@ -692,7 +703,7 @@ export default function BookingForm({
               autoCorrect={false}
               underlineColorAndroid="transparent"
               selectionColor="#667eea"
-              placeholderTextColor="#999"
+              placeholderTextColor="#6b7280"
             />
             
             {selectedCustomer && (
@@ -719,6 +730,9 @@ export default function BookingForm({
                     }, 100);
                   }}
                   style={bookingFormStyles.removeButton}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="선택한 고객 지우기"
                 >
                   <Text style={bookingFormStyles.removeButtonText}>✕</Text>
                 </TouchableOpacity>
@@ -967,6 +981,22 @@ export default function BookingForm({
           {/* 담당 직원 선택 */}
           <View style={bookingFormStyles.section}>
             <Text style={bookingFormStyles.sectionTitle}>👨‍💼 담당 직원 (선택사항)</Text>
+            {/* SPEC-UX-001 REQ-UX-007: 직원 목록 로드 실패 인라인 안내 + 재시도 */}
+            {staffLoadError && (
+              <View style={bookingFormStyles.inlineNotice}>
+                <Text style={bookingFormStyles.inlineNoticeText}>
+                  직원 목록을 불러오지 못했습니다
+                </Text>
+                <TouchableOpacity
+                  onPress={loadStaffUsers}
+                  style={bookingFormStyles.inlineRetryButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="직원 목록 다시 시도"
+                >
+                  <Text style={bookingFormStyles.inlineRetryText}>다시 시도</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             <View style={bookingFormStyles.staffSelection}>
               <TouchableOpacity
                 style={[

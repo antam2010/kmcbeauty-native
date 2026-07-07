@@ -375,7 +375,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                   value={menuForm.name}
                   onChangeText={(text: string) => setMenuForm({ ...menuForm, name: text })}
                   placeholder="예: 눈썹"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#6b7280"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
                 />
@@ -423,7 +423,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                   value={detailForm.name}
                   onChangeText={(text: string) => setDetailForm({ ...detailForm, name: text })}
                   placeholder="예: 눈썹 문신"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#6b7280"
                   returnKeyType="next"
                   onSubmitEditing={() => {
                     // 다음 필드로 포커스 이동하거나 키보드 닫기
@@ -441,7 +441,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                     setDetailForm({ ...detailForm, duration_min: parseInt(text) || 0 })
                   }
                   placeholder="60"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#6b7280"
                   keyboardType="numeric"
                   returnKeyType="next"
                   onSubmitEditing={() => {
@@ -460,7 +460,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                     setDetailForm({ ...detailForm, base_price: parseInt(text) || 0 })
                   }
                   placeholder="50000"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#6b7280"
                   keyboardType="numeric"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
+    color: '#6b7280',
     textAlign: 'center',
     lineHeight: 20,
   },

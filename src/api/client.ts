@@ -30,11 +30,11 @@ const getAccessToken = async (): Promise<string | null> => {
     const { useAuthStore } = await import('../stores/authStore');
     const accessToken = useAuthStore.getState().accessToken;
     if (accessToken) {
-      console.log('🔑 Zustand 스토어 토큰 사용');
+      if (__DEV__) console.log('🔑 Zustand 스토어 토큰 사용');
       return accessToken;
     }
   } catch (error) {
-    console.error('🔑 Zustand 스토어 토큰 조회 실패:', error);
+    if (__DEV__) console.error('🔑 Zustand 스토어 토큰 조회 실패:', error);
   }
 
   // SPEC-SECURITY-001 REQ-SEC-005 / AC-005-1: 레거시 평문 auth-storage 폴백을 제거했다.
@@ -45,7 +45,7 @@ const getAccessToken = async (): Promise<string | null> => {
   //   3) 기존 폴백은 raw AsyncStorage 키('auth-storage')에 blob 전체를 재기록하여
   //      동일 키를 관리하는 secureHybridStorage와 이중 기록(dual-writer) 경합을 일으켜
   //      persist 포맷을 손상시킬 위험이 있었다. 폴백 제거로 authStore가 유일한 writer가 된다.
-  console.warn('⚠️ 사용 가능한 토큰이 없음');
+  if (__DEV__) console.warn('⚠️ 사용 가능한 토큰이 없음');
   return null;
 };
 
@@ -224,7 +224,7 @@ apiClient.interceptors.request.use(
           console.log('🔑 토큰 정보:', { hasToken: true });
         }
       } else {
-        console.warn('⚠️ 사용 가능한 토큰이 없음');
+        if (__DEV__) console.warn('⚠️ 사용 가능한 토큰이 없음');
       }
 
       // 상점 정보도 헤더에 추가
@@ -242,7 +242,7 @@ apiClient.interceptors.request.use(
           hasShopId = true;
         }
       } catch (shopStoreError) {
-        console.error('🏪 shopStore 조회 실패 - X-Shop-ID 미부착:', shopStoreError);
+        if (__DEV__) console.error('🏪 shopStore 조회 실패 - X-Shop-ID 미부착:', shopStoreError);
       }
       
       // 상세한 요청 로깅 (개발 환경에서만)
@@ -263,9 +263,9 @@ apiClient.interceptors.request.use(
       }
       
     } catch (error) {
-      console.error('💥 토큰/상점 정보 로드 실패:', error);
+      if (__DEV__) console.error('💥 토큰/상점 정보 로드 실패:', error);
     }
-    
+
     return config;
   },
   (error: any) => Promise.reject(error)

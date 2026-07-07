@@ -237,16 +237,20 @@ export const ImprovedCalendar: React.FC<ImprovedCalendarProps> = ({
           style={styles.navButton}
           onPress={() => navigateMonth('prev')}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="이전 달"
         >
           <Text style={styles.navButtonText}>‹</Text>
         </TouchableOpacity>
-        
+
         <Text style={styles.monthYear}>{monthYearText}</Text>
-        
+
         <TouchableOpacity
           style={styles.navButton}
           onPress={() => navigateMonth('next')}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="다음 달"
         >
           <Text style={styles.navButtonText}>›</Text>
         </TouchableOpacity>
@@ -431,14 +435,15 @@ const styles = StyleSheet.create({
     right: 2,
     backgroundColor: Colors.error,
     borderRadius: BorderRadius.full,
-    minWidth: 16,
-    height: 16,
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 4,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   bookingCount: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.white,
   },
@@ -451,7 +456,7 @@ const styles = StyleSheet.create({
   },
 
   listIcon: {
-    fontSize: 12,
+    fontSize: 14,
     opacity: 0.7,
   },
 
