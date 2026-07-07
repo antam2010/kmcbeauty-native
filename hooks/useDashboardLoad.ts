@@ -48,14 +48,17 @@ export function useDashboardLoad() {
   const [weekRange] = useState(() => currentWeekKey());
 
   // pull-to-refresh 시 오늘 요약을 force_refresh 로 1회 조회하기 위한 플래그.
+  // 플래그의 수명(set→reset)은 각 수동 새로고침 호출부가 소유한다:
+  //   refresh() 가 refetch 직전에 true 로 올리고, refetch 완료 후 false 로 되돌린다.
+  //   queryFn 은 읽기만 하므로(read-only) refetch 도중 리셋되는 read-then-reset 경합이 없다.
   const forceRefreshRef = useRef(false);
 
   // 오늘 요약 query — 상점 미선택 시 비활성(요청 스킵).
   const todayQuery = useQuery<DashboardSummaryResponse>({
     queryKey: queryKeys.dashboardToday(shopId, todayDate),
     queryFn: async () => {
+      // 읽기 전용: 플래그 리셋은 호출부(onRefresh/onHeaderRefresh/retryDashboard)가 담당.
       const force = forceRefreshRef.current;
-      forceRefreshRef.current = false;
       return dashboardApiService.getTodayDetailedSummary(force);
     },
     enabled: !!shopId,
@@ -103,21 +106,24 @@ export function useDashboardLoad() {
     try {
       await Promise.all([todayQuery.refetch(), weeklyQuery.refetch()]);
     } finally {
+      forceRefreshRef.current = false; // refetch 완료 후 원자적으로 리셋
       setRefreshing(false);
     }
   }, [todayQuery, weeklyQuery]);
 
   const onHeaderRefresh = useCallback(() => {
     forceRefreshRef.current = true; // 헤더 새로고침 버튼 클릭 시 force_refresh=true
-    todayQuery.refetch();
-    weeklyQuery.refetch();
+    Promise.all([todayQuery.refetch(), weeklyQuery.refetch()]).finally(() => {
+      forceRefreshRef.current = false; // refetch 완료 후 리셋
+    });
   }, [todayQuery, weeklyQuery]);
 
   // 막다른 오류 화면 재시도(SPEC-UX-001 REQ-UX-006): 강제 새로고침
   const retryDashboard = useCallback(() => {
     forceRefreshRef.current = true;
-    todayQuery.refetch();
-    weeklyQuery.refetch();
+    Promise.all([todayQuery.refetch(), weeklyQuery.refetch()]).finally(() => {
+      forceRefreshRef.current = false; // refetch 완료 후 리셋
+    });
   }, [todayQuery, weeklyQuery]);
 
   return {

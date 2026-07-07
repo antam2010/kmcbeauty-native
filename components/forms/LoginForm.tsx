@@ -91,24 +91,6 @@ export default function LoginForm({ onLogin, onSwitchToSignup, loading = false }
     return emailRegex.test(email);
   };
 
-  const handleDemoLogin = () => {
-    Alert.alert(
-      '데모 계정 안내',
-      '테스트를 위한 데모 계정을 사용하시겠습니까?',
-      [
-        { text: '취소', style: 'cancel' },
-        { 
-          text: '데모 로그인', 
-          onPress: () => {
-            setEmail('antam2010@naver.com');
-            setPassword('1111');
-            console.log('🔵 데모 계정 설정됨');
-          }
-        }
-      ]
-    );
-  };
-
   return (
     <KeyboardAvoidingView 
       style={styles.container}
@@ -200,15 +182,6 @@ export default function LoginForm({ onLogin, onSwitchToSignup, loading = false }
               variant="primary"
               size="large"
               style={styles.loginButton}
-            />
-
-            <Button
-              title="데모 계정으로 로그인"
-              onPress={handleDemoLogin}
-              disabled={loading}
-              variant="secondary"
-              size="large"
-              style={styles.demoButton}
             />
           </ThemedView>
 
@@ -320,9 +293,6 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginBottom: Spacing.sm,
-  },
-  demoButton: {
-    // 스타일은 Button 컴포넌트에서 관리
   },
   linkSection: {
     alignItems: 'center',
