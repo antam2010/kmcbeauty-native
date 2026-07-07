@@ -8,12 +8,16 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Dimensions, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useShallow } from 'zustand/react/shallow';
 
 const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
-  const { logout, user } = useAuthStore();
-  const { selectedShop } = useShopStore();
+  // REQ-PERF-003-08: 필드 셀렉터 구독(다중 필드는 useShallow).
+  const { logout, user } = useAuthStore(
+    useShallow((s) => ({ logout: s.logout, user: s.user })),
+  );
+  const selectedShop = useShopStore((s) => s.selectedShop);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -85,13 +89,7 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleEditProfile = () => {
-    Alert.alert('준비중', '프로필 수정 기능은 준비 중입니다.');
-  };
-
-  const handleNotificationSettings = () => {
-    Alert.alert('준비중', '알림 설정 기능은 준비 중입니다.');
-  };
+  // SPEC-HOME-001 REQ-HOME-001-07: "프로필 수정"·"알림 설정" 죽은 메뉴 제거로 관련 "준비중" Alert 핸들러도 함께 삭제(도달 경로 0).
 
   const handleAppInfo = () => {
     Alert.alert('앱 정보', 'KMC Beauty\n버전: 1.0.0');
@@ -136,9 +134,7 @@ export default function ProfileScreen() {
                   {getRoleText(user?.role || 'MANAGER')}
                 </ThemedText>
               </View>
-              <TouchableOpacity style={styles.editIconButton} onPress={handleEditProfile}>
-                <ThemedText style={styles.editIcon}>✏️</ThemedText>
-              </TouchableOpacity>
+              {/* SPEC-HOME-001 REQ-HOME-001-07: "프로필 수정"은 "준비중" Alert 만 뜨는 죽은 메뉴 → 노출 제거(도달 경로 0). */}
             </View>
             
             <View style={styles.infoList}>
@@ -208,14 +204,8 @@ export default function ProfileScreen() {
               <ThemedText style={styles.arrow}>›</ThemedText>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.settingItem} onPress={handleNotificationSettings}>
-              <View style={styles.settingItemLeft}>
-                <ThemedText style={styles.settingIcon}>🔔</ThemedText>
-                <ThemedText style={styles.settingText}>알림 설정</ThemedText>
-              </View>
-              <ThemedText style={styles.arrow}>›</ThemedText>
-            </TouchableOpacity>
-            
+            {/* SPEC-HOME-001 REQ-HOME-001-07: "알림 설정"은 "준비중" Alert 만 뜨는 죽은 메뉴 → 노출 제거(도달 경로 0). */}
+
             <TouchableOpacity style={styles.settingItem} onPress={handleAppInfo}>
               <View style={styles.settingItemLeft}>
                 <ThemedText style={styles.settingIcon}>ℹ️</ThemedText>
@@ -243,9 +233,11 @@ export default function ProfileScreen() {
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <ThemedText type="subtitle" style={styles.modalTitle}>비밀번호 변경</ThemedText>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setShowPasswordModal(false)}
                 style={styles.closeButton}
+                accessibilityRole="button"
+                accessibilityLabel="닫기"
               >
                 <ThemedText style={styles.closeButtonText}>✕</ThemedText>
               </TouchableOpacity>
@@ -260,7 +252,7 @@ export default function ProfileScreen() {
                   onChangeText={setNewPassword}
                   secureTextEntry
                   placeholder="새 비밀번호를 입력하세요 (4자 이상)"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#6b7280"
                 />
               </View>
               
@@ -272,7 +264,7 @@ export default function ProfileScreen() {
                   onChangeText={setConfirmPassword}
                   secureTextEntry
                   placeholder="새 비밀번호를 다시 입력하세요"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#6b7280"
                 />
               </View>
             </View>
@@ -424,12 +416,12 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   shopAddress: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#666',
     marginBottom: 2,
   },
   shopPhone: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#666',
   },
   

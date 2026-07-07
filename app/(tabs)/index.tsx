@@ -1,13 +1,14 @@
 import MonthlyDashboard from '@/components/dashboard/MonthlyDashboard';
+import UnifiedTreatmentModal from '@/components/modals/UnifiedTreatmentModal';
 import ShopHeader from '@/components/navigation/ShopHeader';
-import { useDashboard } from '@/contexts/DashboardContext';
-import { useShopStore } from '@/src/stores/shopStore';
+import { useDashboardLoad } from '@/hooks/useDashboardLoad';
 import type { Treatment } from '@/src/types';
+import { Colors } from '@/src/ui/theme';
+import { formatKoreanFullDate, formatKrwNumber, formatTimeHm } from '@/src/utils/intlFormat';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
   Modal,
   Platform,
   RefreshControl,
@@ -18,176 +19,68 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { dashboardApiService } from '../../src/api/services/dashboard';
-import { treatmentApiService } from '../../src/api/services/treatment';
 
-// 임시 타입 정의
-interface DashboardSummaryResponse {
-  target_date: string;
-  summary: any;
-  sales: any;
-  customer_insights: any[];
-  staff_summary: any;
-}
-
+// @MX:NOTE: [AUTO] 홈 primary surface(SPEC-HOME-001): "오늘 중심" 재구성 = 오늘 예약 리스트 + 새 예약 CTA + 요약 2카드.
+//   비즈니스 규칙: 오늘 리스트는 useDashboardLoad.weeklyTreatments 를 오늘로 필터·정렬해 파생하며 신규 API 를 호출하지 않는다.
+//   상세는 UnifiedTreatmentModal(항목 탭) / MonthlyDashboard(자세히 보기) 재사용. 상세 통계 3섹션·주간 위젯은 홈에서 제거됨.
 export default function HomeScreen() {
-  const [dashboardData, setDashboardData] = useState<DashboardSummaryResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [weeklyTreatments, setWeeklyTreatments] = useState<Treatment[]>([]);
   const [showMonthlyModal, setShowMonthlyModal] = useState(false);
+  const [showTreatmentModal, setShowTreatmentModal] = useState(false);
+  const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null);
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { refreshTrigger } = useDashboard();
-  const { selectedShop, loading: shopLoading } = useShopStore();
 
-  const loadWeeklyTreatments = useCallback(async () => {
-    try {
-      // 새로운 주간 API 사용
-      const weeklyData = await treatmentApiService.getWeeklyTreatments();
-      setWeeklyTreatments(weeklyData);
-    } catch (error: any) {
-      console.error('주간 시술 데이터 로딩 실패:', error);
-      
-      // 인증 관련 에러는 상위로 전파 (인터셉터가 처리하도록)
-      if (error.message?.includes('인증이 만료') || error.message?.includes('권한이 없습니다')) {
-        throw error; // 인터셉터가 처리하도록 재throw
-      }
-      
-      // 그 외 에러는 여기서 처리 (UI 상태만 업데이트)
-    }
+  // REQ-PERF-003-01/08: 대시보드 로드 로직·스토어 셀렉터 구독을 훅으로 위임(중복 요청 제거·병렬화).
+  const {
+    dashboardData,
+    loading,
+    refreshing,
+    weeklyTreatments,
+    weeklyError,
+    loadWeeklyTreatments,
+    onRefresh,
+    onHeaderRefresh,
+    retryDashboard,
+  } = useDashboardLoad();
+
+  // REQ-PERF-003-07: 렌더마다 새 포맷터를 만들던 toLocaleString 을 모듈 캐시 포맷터로 대체.
+  const formatCurrency = (amount: number) => `₩${formatKrwNumber(amount)}`;
+
+  // REQ-PERF-003-07: 헤더 날짜(오늘)를 렌더마다 재포맷하지 않고 마운트 시 1회 메모화.
+  const headerDateText = useMemo(() => formatKoreanFullDate(new Date()), []);
+
+  // 오늘 날짜 문자열(마운트 시 1회 고정) — 주간 시술을 오늘로 필터하는 기준.
+  const todayString = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  // REQ-HOME-001-02: "오늘의 예약 리스트" = 기존 weeklyTreatments 를 오늘로 필터·시간(reserved_at) 오름차순 정렬.
+  //   신규 API/추가 서비스 호출 없이 캐싱된 주간 데이터에서 파생한다(AC-03).
+  const todayTreatments = useMemo(() => {
+    return weeklyTreatments
+      .filter((t) => t.reserved_at.split('T')[0] === todayString)
+      .sort((a, b) => a.reserved_at.localeCompare(b.reserved_at));
+  }, [weeklyTreatments, todayString]);
+
+  const customerNameOf = (t: Treatment) => t.phonebook?.name || t.customer_name || '고객 미지정';
+  const serviceNameOf = (t: Treatment) =>
+    t.treatment_items?.[0]?.menu_detail?.name || '서비스';
+  const statusLabelOf = (t: Treatment) => t.status_label || t.status;
+
+  // REQ-HOME-001-02: 오늘 리스트 항목 탭 → UnifiedTreatmentModal(detail 뷰)로 상세 표시.
+  //   booking.tsx:382 소비 패턴과 동일(selectedTreatment 전달, treatments=[], date=''). 편집(onEditRequest)은 배선하지 않음(예약 탭 소관).
+  const handleTreatmentPress = useCallback((treatment: Treatment) => {
+    setSelectedTreatment(treatment);
+    setShowTreatmentModal(true);
   }, []);
 
-  const loadDashboardData = useCallback(async (forceRefresh: boolean = false) => {
-    // 상점이 선택되지 않았으면 로딩하지 않음
-    if (!selectedShop) {
-      console.log('🏪 상점이 선택되지 않아 대시보드 데이터를 로딩하지 않습니다.');
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
+  const handleCloseTreatmentModal = useCallback(() => {
+    setShowTreatmentModal(false);
+    setSelectedTreatment(null);
+  }, []);
 
-    try {
-      const data = await dashboardApiService.getTodayDetailedSummary(forceRefresh);
-      setDashboardData(data);
-      await loadWeeklyTreatments();
-    } catch (error: any) {
-      console.error('대시보드 데이터 로딩 실패:', error);
-      
-      // 인증 관련 에러는 상위로 전파 (API 인터셉터가 자동으로 로그인 페이지 이동 처리)
-      if (error.message?.includes('인증이 만료') || error.message?.includes('권한이 없습니다')) {
-        console.log('🔐 인증 에러 감지 - 인터셉터가 로그인 페이지로 이동 처리');
-        // 에러를 재throw하지 않고 단순히 로딩 상태만 정리
-        // 인터셉터에서 이미 로그인 페이지로 이동 처리됨
-      } else {
-        // 일반 에러는 사용자에게 알림
-        Alert.alert('오류', '대시보드 데이터를 불러올 수 없습니다.');
-      }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [loadWeeklyTreatments, selectedShop]);
-
-  useEffect(() => {
-    // 상점 로딩이 완료되면 대시보드 데이터 로드
-    if (!shopLoading) {
-      loadDashboardData();
-    }
-  }, [loadDashboardData, shopLoading]);
-
-  // Dashboard refresh trigger 감지
-  useEffect(() => {
-    if (refreshTrigger > 0) {
-      loadDashboardData();
-    }
-  }, [refreshTrigger, loadDashboardData]);
-
-  // 상점 변경 감지 및 대시보드 데이터 로드
-  useEffect(() => {
-    if (!shopLoading) {
-      console.log('🏪 상점 로딩 완료, 대시보드 데이터 로드');
-      loadDashboardData();
-    }
-  }, [shopLoading, selectedShop, loadDashboardData]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadDashboardData(true); // 새로고침 시 force_refresh=true
-  };
-
-  const onHeaderRefresh = () => {
-    loadDashboardData(true); // 헤더 새로고침 버튼 클릭 시 force_refresh=true
-  };
-
-  const formatCurrency = (amount: number) => {
-    return `₩${amount.toLocaleString()}`;
-  };
-
-  // 주간 달력 위젯 함수들 (실제 예약 데이터 사용)
-  const getCurrentWeek = () => {
-    const today = new Date();
-    const currentDay = today.getDay(); // 0(일) ~ 6(토)
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - currentDay + 1); // 월요일부터 시작
-
-    const week = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + i);
-      week.push(date);
-    }
-    return week;
-  };
-
-  const formatDateForDisplay = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
-    
-    // 해당 날짜의 예약 수 계산
-    const dayTreatments = weeklyTreatments.filter(treatment => {
-      const treatmentDate = treatment.reserved_at.split('T')[0];
-      return treatmentDate === dateString;
-    });
-
-    return {
-      day: date.getDate(),
-      dayName: ['일', '월', '화', '수', '목', '금', '토'][date.getDay()],
-      isToday: date.toDateString() === new Date().toDateString(),
-      dateString: dateString,
-      bookingCount: dayTreatments.length,
-      hasBookings: dayTreatments.length > 0,
-      treatments: dayTreatments
-    };
-  };
-
-  const handleDateSelect = (dateString: string) => {
-    setSelectedDate(dateString);
-    
-    // 선택된 날짜의 예약 정보 표시
-    const dayTreatments = weeklyTreatments.filter(treatment => {
-      const treatmentDate = treatment.reserved_at.split('T')[0];
-      return treatmentDate === dateString;
-    });
-
-    if (dayTreatments.length > 0) {
-      const treatmentNames = dayTreatments.map(t => {
-        const customerName = t.phonebook?.name || '고객';
-        const serviceName = t.treatment_items?.[0]?.menu_detail?.name || '서비스';
-        const time = new Date(t.reserved_at).toLocaleTimeString('ko-KR', {
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-        return `${time} - ${customerName}: ${serviceName}`;
-      }).join('\n');
-      
-      Alert.alert(
-        `${new Date(dateString).toLocaleDateString('ko-KR')} 예약 현황`,
-        `총 ${dayTreatments.length}건의 예약\n\n${treatmentNames}`,
-        [{ text: '확인' }]
-      );
-    }
-  };
+  // REQ-HOME-001-03: 새 예약 CTA → 기존 예약 탭 흐름 진입(최소 diff·롤백 용이).
+  const handleNewBooking = useCallback(() => {
+    router.push('/booking');
+  }, [router]);
 
   if (loading) {
     return (
@@ -204,10 +97,21 @@ export default function HomeScreen() {
       <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 20 }]}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>데이터를 불러올 수 없습니다</Text>
+          {/* SPEC-UX-001 REQ-UX-006: 막다른 오류 화면에 재시도 수단 제공 */}
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={retryDashboard}
+            accessibilityRole="button"
+            accessibilityLabel="다시 시도"
+          >
+            <Text style={styles.retryButtonText}>다시 시도</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
   }
+
+  const todaySummary = dashboardData.summary.target_date;
 
   return (
     <View style={[styles.container, { paddingTop: 0 }]}>
@@ -216,9 +120,7 @@ export default function HomeScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { 
-            paddingBottom: Platform.OS === 'ios' ? insets.bottom + 100 : 80 // 아이폰 탭바 여유공간 추가
-          }
+          { paddingBottom: Platform.OS === 'ios' ? insets.bottom + 100 : 80 }
         ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -229,248 +131,157 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>오늘의 현황</Text>
-            <Text style={styles.headerDate}>
-              {new Date().toLocaleDateString('ko-KR', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                weekday: 'long'
-              })}
-            </Text>
+            <Text style={styles.headerDate}>{headerDateText}</Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.monthlyButton}
               onPress={() => setShowMonthlyModal(true)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="달력 보기"
             >
-              <MaterialIcons name="calendar-month" size={24} color="#007AFF" />
+              <MaterialIcons name="calendar-month" size={24} color={Colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.refreshButton}
               onPress={onHeaderRefresh}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="새로고침"
             >
-              <MaterialIcons name="refresh" size={24} color="#007AFF" />
+              <MaterialIcons name="refresh" size={24} color={Colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* 간편 달력 위젯 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>이번 주 예약 현황</Text>
-          <View style={styles.weekCalendar}>
-            {getCurrentWeek().map((date) => {
-              const dateInfo = formatDateForDisplay(date);
-              return (
-                <TouchableOpacity 
-                  key={dateInfo.dateString}
-                  style={[
-                    styles.weekDay,
-                    dateInfo.isToday && styles.todayWeekDay,
-                    selectedDate === dateInfo.dateString && styles.selectedWeekDay,
-                    dateInfo.hasBookings && styles.hasBookingsWeekDay
-                  ]}
-                  onPress={() => handleDateSelect(dateInfo.dateString)}
-                >
-                  <Text style={[
-                    styles.weekDayName,
-                    dateInfo.isToday && styles.todayText,
-                    selectedDate === dateInfo.dateString && styles.selectedText,
-                    dateInfo.hasBookings && styles.hasBookingsText
-                  ]}>
-                    {dateInfo.dayName}
-                  </Text>
-                  <Text style={[
-                    styles.weekDayNumber,
-                    dateInfo.isToday && styles.todayText,
-                    selectedDate === dateInfo.dateString && styles.selectedText,
-                    dateInfo.hasBookings && styles.hasBookingsText
-                  ]}>
-                    {dateInfo.day}
-                  </Text>
-                  {dateInfo.hasBookings && (
-                    <View style={styles.bookingBadge}>
-                      <Text style={styles.bookingBadgeText}>{dateInfo.bookingCount}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          <TouchableOpacity 
-            style={styles.calendarButton}
-            onPress={() => {
-              // 예약 탭으로 이동
-              router.push('/booking');
-            }}
-          >
-            <Text style={styles.calendarButtonText}>전체 달력 보기</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* 매출 요약 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>매출 현황</Text>
-          <View style={styles.statsGrid}>
-            <View style={[styles.statCard, styles.primaryCard]}>
-              <Text style={[styles.statValue, { color: '#ffffff' }]}>
-                {formatCurrency(dashboardData.summary.target_date.actual_sales)}
-              </Text>
-              <Text style={[styles.statLabel, { color: '#ffffff' }]}>오늘 매출</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {dashboardData.summary.target_date.completed}
-              </Text>
-              <Text style={styles.statLabel}>완료된 예약</Text>
-            </View>
-          </View>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {formatCurrency(dashboardData.summary.target_date.expected_sales)}
-              </Text>
-              <Text style={styles.statLabel}>예상 매출</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {formatCurrency(dashboardData.summary.month.actual_sales)}
-              </Text>
-              <Text style={styles.statLabel}>이번 달 매출</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* 예약 현황 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>예약 현황</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {dashboardData.summary.target_date.total_reservations}
-              </Text>
-              <Text style={styles.statLabel}>총 예약</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {dashboardData.summary.target_date.completed}
-              </Text>
-              <Text style={styles.statLabel}>완료</Text>
-            </View>
-          </View>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {dashboardData.summary.target_date.cancelled}
-              </Text>
-              <Text style={styles.statLabel}>취소</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {dashboardData.summary.target_date.no_show}
-              </Text>
-              <Text style={styles.statLabel}>노쇼</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* 서비스 현황 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>인기 서비스</Text>
-          {dashboardData.sales.target_date.slice(0, 5).map((service: any, index: number) => (
-            <View key={service.menu_detail_id} style={styles.serviceItem}>
-              <View style={styles.serviceInfo}>
-                <Text style={styles.serviceName}>{service.name}</Text>
-                <Text style={styles.serviceStats}>
-                  {service.count}회 예약 · {formatCurrency(service.actual_price)} 매출
-                </Text>
-              </View>
-              <View style={styles.serviceRank}>
-                <Text style={styles.rankNumber}>{index + 1}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* 고객 인사이트 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>고객 인사이트</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {dashboardData.customer_insights.length}
-              </Text>
-              <Text style={styles.statLabel}>오늘 고객 수</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {dashboardData.customer_insights.filter(c => c.total_reservations === 1).length}
-              </Text>
-              <Text style={styles.statLabel}>신규 고객</Text>
-            </View>
-          </View>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {dashboardData.customer_insights.filter(c => c.total_reservations > 1).length}
-              </Text>
-              <Text style={styles.statLabel}>재방문 고객</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {dashboardData.customer_insights.filter(c => c.no_show_count === 0).length}
-              </Text>
-              <Text style={styles.statLabel}>정상 방문</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* VIP 고객 */}
-        {dashboardData.customer_insights && dashboardData.customer_insights.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>VIP 고객</Text>
-            {dashboardData.customer_insights
-              .sort((a, b) => b.total_spent - a.total_spent)
-              .slice(0, 5)
-              .map((customer) => (
-              <View key={customer.id} style={styles.customerItem}>
-                <View style={styles.customerInfo}>
-                  <Text style={styles.customerName}>{customer.customer_name}</Text>
-                  <Text style={styles.customerStats}>
-                    총 {formatCurrency(customer.total_spent)} · {customer.total_reservations}회 방문
-                  </Text>
-                </View>
-                <View style={styles.customerBadge}>
-                  <Text style={styles.badgeText}>VIP</Text>
-                </View>
-              </View>
-            ))}
+        {/* SPEC-UX-001 REQ-UX-007: 주간 시술 로드 실패 인라인 안내 + 재시도(오늘 리스트가 주간 데이터에서 파생되므로 여기서 안내) */}
+        {weeklyError && (
+          <View style={styles.inlineNotice}>
+            <Text style={styles.inlineNoticeText}>주간 예약 정보를 불러오지 못했습니다</Text>
+            <TouchableOpacity
+              style={styles.inlineRetryButton}
+              onPress={() => { loadWeeklyTreatments().catch(() => {}); }}
+              accessibilityRole="button"
+              accessibilityLabel="주간 예약 다시 시도"
+            >
+              <Text style={styles.inlineRetryText}>다시 시도</Text>
+            </TouchableOpacity>
           </View>
         )}
-      </ScrollView>
-      
-      {/* 월별 대시보드 모달 */}
-      <Modal
-        visible={showMonthlyModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowMonthlyModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setShowMonthlyModal(false)}
-            >
-              <MaterialIcons name="close" size={24} color="#007AFF" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>월별 현황</Text>
-            <View style={styles.modalPlaceholder} />
-          </View>
-          <MonthlyDashboard onClose={() => setShowMonthlyModal(false)} />
+
+        {/* REQ-HOME-001-01/02: 오늘의 예약 리스트(첫 화면) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>오늘의 예약</Text>
+          {todayTreatments.length > 0 ? (
+            <View testID="today-reservations-list" style={styles.todayList}>
+              {todayTreatments.map((t) => {
+                const time = formatTimeHm(t.reserved_at);
+                const customer = customerNameOf(t);
+                const service = serviceNameOf(t);
+                const status = statusLabelOf(t);
+                return (
+                  <TouchableOpacity
+                    key={t.id}
+                    testID={`today-item-${t.id}`}
+                    style={styles.todayItem}
+                    onPress={() => handleTreatmentPress(t)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${time} ${customer} ${service} ${status}`}
+                  >
+                    <Text style={styles.todayItemTime}>{time}</Text>
+                    <View style={styles.todayItemMain}>
+                      <Text style={styles.todayItemCustomer} numberOfLines={1}>{customer}</Text>
+                      <Text style={styles.todayItemService} numberOfLines={1}>{service}</Text>
+                    </View>
+                    <Text style={styles.todayItemStatus}>{status}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <View testID="today-empty-state" style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>오늘 예약이 없습니다</Text>
+            </View>
+          )}
         </View>
-      </Modal>
+
+        {/* REQ-HOME-001-03: 큰 새 예약 CTA(minHeight 56, 화면 폭) */}
+        <TouchableOpacity
+          testID="new-booking-cta"
+          style={styles.newBookingCta}
+          onPress={handleNewBooking}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="새 예약"
+        >
+          <MaterialIcons name="add" size={24} color={Colors.text.inverse} />
+          <Text style={styles.newBookingCtaText}>새 예약</Text>
+        </TouchableOpacity>
+
+        {/* REQ-HOME-001-04/05: 오늘 요약 핵심 숫자 2개 + 자세히 보기(월간 모달 경유) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>오늘 요약</Text>
+          <View testID="today-summary" style={styles.summaryGrid}>
+            <View testID="summary-card" style={styles.summaryCard}>
+              <Text style={styles.summaryValue}>{formatCurrency(todaySummary.actual_sales)}</Text>
+              <Text style={styles.summaryLabel}>오늘 매출</Text>
+            </View>
+            <View testID="summary-card" style={styles.summaryCard}>
+              <Text style={styles.summaryValue}>{todaySummary.total_reservations}건</Text>
+              <Text style={styles.summaryLabel}>오늘 예약</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            testID="view-details-button"
+            style={styles.viewDetailsButton}
+            onPress={() => setShowMonthlyModal(true)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="자세히 보기"
+          >
+            <Text style={styles.viewDetailsButtonText}>자세히 보기</Text>
+            <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {/* 오늘 리스트 항목 상세 — 예약 탭이 실사용하는 통합 모달 재사용(편집 경로는 배선하지 않음) */}
+      <UnifiedTreatmentModal
+        visible={showTreatmentModal}
+        treatments={[]}
+        selectedTreatment={selectedTreatment}
+        date=""
+        onClose={handleCloseTreatmentModal}
+      />
+
+      {/* 월별 대시보드 모달 */}
+      {/* REQ-PERF-003-02: 닫힌 동안 MonthlyDashboard 를 마운트하지 않아 월별 API 호출을 0회로 만든다. */}
+      {showMonthlyModal && (
+        <Modal
+          visible={showMonthlyModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowMonthlyModal(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowMonthlyModal(false)}
+                accessibilityRole="button"
+                accessibilityLabel="닫기"
+              >
+                <MaterialIcons name="close" size={24} color={Colors.primary} />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>월별 현황</Text>
+              <View style={styles.modalPlaceholder} />
+            </View>
+            <MonthlyDashboard onClose={() => setShowMonthlyModal(false)} />
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -478,7 +289,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: Colors.backgroundSecondary,
   },
   scrollView: {
     flex: 1,
@@ -493,7 +304,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
+    color: Colors.text.secondary,
   },
   errorContainer: {
     flex: 1,
@@ -502,7 +313,22 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#dc3545',
+    color: Colors.error,
+  },
+  retryButton: {
+    marginTop: 20,
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  retryButtonText: {
+    color: Colors.text.inverse,
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
@@ -529,23 +355,20 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: Colors.text.primary,
     marginBottom: 4,
   },
   headerDate: {
     fontSize: 16,
-    color: '#666',
+    color: Colors.text.secondary,
   },
   section: {
     marginBottom: 24,
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
@@ -553,174 +376,151 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: Colors.text.primary,
     marginBottom: 16,
   },
-  statsGrid: {
+  // SPEC-UX-001 REQ-UX-007: 인라인 실패 안내 스타일
+  inlineNotice: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     marginBottom: 12,
-    gap: 12,
   },
-  statCard: {
+  inlineNoticeText: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    fontSize: 14,
+    color: '#b91c1c',
+  },
+  inlineRetryButton: {
+    marginLeft: 12,
+    backgroundColor: '#dc2626',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inlineRetryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text.inverse,
+  },
+  // REQ-HOME-001-02/08: 오늘의 예약 리스트 항목(터치 타깃 >= 44pt, 본문 >= 16pt, AA 색상 토큰)
+  todayList: {
+    gap: 8,
+  },
+  todayItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 44,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border.light,
+  },
+  todayItemTime: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    width: 64,
+  },
+  todayItemMain: {
+    flex: 1,
+    paddingHorizontal: 8,
+  },
+  todayItemCustomer: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 2,
+  },
+  todayItemService: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+  todayItemStatus: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.text.secondary,
+  },
+  // REQ-HOME-001-02: 빈 상태(오늘 예약 0건)
+  emptyState: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: Colors.text.secondary,
+  },
+  // REQ-HOME-001-03: 큰 새 예약 CTA
+  newBookingCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    minHeight: 56,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 16,
+    marginBottom: 24,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  newBookingCtaText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text.inverse,
+  },
+  // REQ-HOME-001-04: 오늘 요약 카드(2개)
+  summaryGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: Colors.backgroundSecondary,
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
   },
-  primaryCard: {
-    backgroundColor: '#007bff',
-  },
-  statValue: {
-    fontSize: 20,
+  summaryValue: {
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: Colors.text.primary,
     marginBottom: 4,
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
+  summaryLabel: {
+    fontSize: 14,
+    color: Colors.text.secondary,
     textAlign: 'center',
   },
-  serviceItem: {
+  // REQ-HOME-001-05: 자세히 보기(월간 모달 경유)
+  viewDetailsButton: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  serviceInfo: {
-    flex: 1,
-  },
-  serviceName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  serviceStats: {
-    fontSize: 14,
-    color: '#666',
-  },
-  serviceRank: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#007bff',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  rankNumber: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  customerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    minHeight: 44,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
-  customerInfo: {
-    flex: 1,
-  },
-  customerName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  customerStats: {
-    fontSize: 14,
-    color: '#666',
-  },
-  customerBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#ffc107',
-    borderRadius: 12,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-  },
-  // 달력 위젯 스타일
-  weekCalendar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  weekDay: {
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#f8f9fa',
-    minWidth: 40,
-    position: 'relative',
-  },
-  todayWeekDay: {
-    backgroundColor: '#007bff',
-  },
-  selectedWeekDay: {
-    backgroundColor: '#28a745',
-  },
-  hasBookingsWeekDay: {
-    backgroundColor: '#ffc107',
-  },
-  weekDayName: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-    fontWeight: '500',
-  },
-  weekDayNumber: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-  },
-  todayText: {
-    color: '#ffffff',
-  },
-  selectedText: {
-    color: '#ffffff',
-  },
-  hasBookingsText: {
-    color: '#1a1a1a',
-    fontWeight: 'bold',
-  },
-  bookingBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#dc3545',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bookingBadgeText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  calendarButton: {
-    backgroundColor: '#007bff',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  calendarButtonText: {
-    color: '#ffffff',
+  viewDetailsButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    color: Colors.text.secondary,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.backgroundSecondary,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -728,9 +528,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: Colors.border.light,
   },
   modalCloseButton: {
     padding: 8,
@@ -738,7 +538,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: Colors.text.primary,
   },
   modalPlaceholder: {
     width: 40,

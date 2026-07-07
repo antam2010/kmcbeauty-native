@@ -1,0 +1,11 @@
+# Enforce LF line endings for all text files (repo standard)
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ttf binary
+*.otf binary
+*.jar binary

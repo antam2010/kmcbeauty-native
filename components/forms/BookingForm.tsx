@@ -1,15 +1,28 @@
 import ContactSyncModal from '@/components/modals/ContactSyncModal';
 import CustomerRegistrationModal from '@/components/modals/CustomerRegistrationModal';
+import { useShopUsersQuery } from '@/hooks/queries/useShopUsersQuery';
+import { useTreatmentMenusQuery } from '@/hooks/queries/useTreatmentMenusQuery';
+import { queryKeyPrefix } from '@/src/api/queryKeys';
 import { phonebookApiService, type Phonebook } from '@/src/api/services/phonebook';
-import { shopApiService, type ShopUser } from '@/src/api/services/shop';
+import { type ShopUser } from '@/src/api/services/shop';
 import { treatmentApiService } from '@/src/api/services/treatment';
-import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
+import { type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import { type ContactSyncResult } from '@/src/services/contactSync';
-import type { TreatmentCreate, TreatmentItemCreate } from '@/src/types';
+import { useShopStore } from '@/src/stores/shopStore';
+import type { TreatmentCreate } from '@/src/types';
 import { Button, TextInput as CustomTextInput, DatePicker } from '@/src/ui/atoms';
+import { useQueryClient } from '@tanstack/react-query';
 
+import {
+  buildTreatmentPayload,
+  loadLastStaffUserId,
+  persistLastStaff,
+  resolveRestoredStaff,
+} from '@/src/utils/bookingPayload';
 import { formatKoreanDate } from '@/src/utils/dateUtils';
+import { findFirstAvailableSlotAfter } from '@/src/utils/bookingFormat';
 import { detectInputType, extractNameAndPhone, formatPhoneNumber } from '@/src/utils/phoneFormat';
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -67,10 +80,25 @@ export default function BookingForm({
   
   // 로딩 상태
   const [isLoading, setIsLoading] = useState(false);
-  const [treatmentMenus, setTreatmentMenus] = useState<TreatmentMenu[]>([]);
-  const [staffUsers, setStaffUsers] = useState<ShopUser[]>([]);
-  const [isLoadingMenus, setIsLoadingMenus] = useState(true);
-  
+
+  // SPEC-DATA-001 REQ-DATA-001-04/05: 서버-상태 캐싱 + mutation 무효화.
+  const queryClient = useQueryClient();
+  const shopId = useShopStore((s) => s.selectedShop?.id);
+
+  // 메뉴 공유 query(예약 폼·메뉴 관리 공유 key `['treatmentMenus', shopId]`).
+  const menusQuery = useTreatmentMenusQuery(shopId);
+  const treatmentMenus = menusQuery.data ?? [];
+  const isLoadingMenus = menusQuery.isLoading;
+
+  // 직원 공유 query(직원 관리 화면과 동일 key `['shopUsers', shopId]`).
+  // queryFn 은 throw 페처(getUsers)이므로, 기존 무음 `[]` 폴백과 달리 오류가 staffLoadError 인라인 안내로
+  // 노출된다 — SPEC-UX-001 REQ-UX-007 의 원래 의도를 회복하는 의도된 변경(SPEC 예외).
+  const staffQuery = useShopUsersQuery(shopId);
+  const staffUsers: ShopUser[] = staffQuery.data ?? [];
+  const staffLoadError = staffQuery.isError;
+  // 최근 사용 직원 복원을 최초 1회만 수행(사용자 수동 선택을 덮어쓰지 않도록).
+  const staffRestoredRef = useRef(false);
+
   const insets = useSafeAreaInsets();
 
   // 시간 슬롯 (30분 간격)
@@ -81,13 +109,35 @@ export default function BookingForm({
     '18:00', '18:30'
   ];
 
-  // 시술 메뉴와 직원 목록 로드
+  // 최근 고객 로드(F-12 5대상 외 부수 경로 — 현행 유지, 캐싱 대상 아님).
   useEffect(() => {
-    loadTreatmentMenus();
-    loadStaffUsers();
-    loadRecentCustomers(); // 최근 고객 로드 추가
+    loadRecentCustomers();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 컴포넌트 마운트 시 한 번만 실행
+
+  // 메뉴 로드 실패 시 기존과 동일하게 Alert 안내.
+  useEffect(() => {
+    if (menusQuery.isError) {
+      console.error('시술 메뉴 로드 실패:', menusQuery.error);
+      Alert.alert('오류', '시술 메뉴를 불러오는데 실패했습니다.');
+    }
+  }, [menusQuery.isError, menusQuery.errorUpdatedAt, menusQuery.error]);
+
+  // SPEC-BOOKING-001 REQ-05(F-11a): 직원 목록 로드 완료 후, 저장된 최근 직원이 목록에 있으면 기본 선택 복원.
+  // 최초 1회만(사용자 수동 선택 보존).
+  useEffect(() => {
+    if (staffRestoredRef.current) return;
+    const users = staffQuery.data;
+    if (!users) return;
+    staffRestoredRef.current = true;
+    (async () => {
+      const storedStaffId = await loadLastStaffUserId();
+      const restoredStaff = resolveRestoredStaff(storedStaffId, users);
+      if (restoredStaff) {
+        setSelectedStaff(restoredStaff);
+      }
+    })();
+  }, [staffQuery.data]);
 
   // 최근 등록된 고객들 로드
   const loadRecentCustomers = useCallback(async () => {
@@ -229,30 +279,6 @@ export default function BookingForm({
     });
   }, [recentCustomers, showRecentCustomers, selectedCustomer]);
 
-  const loadTreatmentMenus = async () => {
-    try {
-      setIsLoadingMenus(true);
-      const menus = await treatmentMenuApiService.getAllWithDetails();
-      setTreatmentMenus(menus);
-    } catch (error) {
-      console.error('시술 메뉴 로드 실패:', error);
-      Alert.alert('오류', '시술 메뉴를 불러오는데 실패했습니다.');
-    } finally {
-      setIsLoadingMenus(false);
-    }
-  };
-
-  const loadStaffUsers = async () => {
-    try {
-      const users = await shopApiService.getCurrentShopUsers();
-      setStaffUsers(users);
-    } catch (error) {
-      console.error('직원 목록 로드 실패:', error);
-      // 직원 목록 로드는 실패해도 앱이 동작하도록 경고만 표시
-      console.warn('직원 목록을 불러올 수 없습니다. 직원 선택 없이 진행됩니다.');
-    }
-  };
-
   const isTimeReserved = (time: string): boolean => {
     return reservedTimes.includes(time);
   };
@@ -273,21 +299,10 @@ export default function BookingForm({
     };
     
     // 상호작용이 완료된 후 상태 업데이트를 수행하여 UI 블로킹 방지
+    // SPEC-BOOKING-001 REQ-02(F-9): 시술 추가 시 가격 입력 자동 focus()/키보드 강제 노출 제거.
+    // 상태 추가 로직은 유지(회귀 방지), 자동 포커스만 삭제 — 가격은 명시적 탭 시에만 편집.
     InteractionManager.runAfterInteractions(() => {
-      setSelectedTreatments(prev => {
-        const newTreatments = [...prev, newTreatment];
-        const newIndex = newTreatments.length - 1;
-        
-        // 새로 추가된 시술의 가격 입력 필드에 포커스 (키보드를 띄워서 스크롤 문제 해결)
-        setTimeout(() => {
-          if (treatmentPriceInputRefs.current[newIndex]) {
-            treatmentPriceInputRefs.current[newIndex]?.focus();
-            console.log('🎯 새로 추가된 시술의 가격 필드에 포커스:', menuDetail.name);
-          }
-        }, 300); // 약간의 지연을 주어 UI 렌더링 완료 후 포커스
-        
-        return newTreatments;
-      });
+      setSelectedTreatments(prev => [...prev, newTreatment]);
     });
   }, [selectedTreatments]);
 
@@ -432,91 +447,50 @@ export default function BookingForm({
     try {
       setIsLoading(true);
 
-      // 고객이 선택되지 않은 경우 기본 고객 사용
+      // SPEC-BOOKING-001 REQ-03(F-10): 고객 미지정 확인 Alert 제거 — 한 번의 탭으로 진행.
+      // 미지정 안내는 폼 내 비차단 인라인 문구로 상시 노출된다(차단 대화상자 없음).
       let customerToUse = selectedCustomer;
       if (!customerToUse) {
-        const shouldContinue = await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            '고객 미지정',
-            '고객을 선택하지 않으셨습니다.\n"고객 미지정"으로 예약을 진행하시겠습니까?',
-            [
-              {
-                text: '취소',
-                style: 'cancel',
-                onPress: () => resolve(false)
-              },
-              {
-                text: '계속 진행',
-                onPress: () => resolve(true)
-              }
-            ]
-          );
-        });
-        
-        if (!shouldContinue) {
-          setIsLoading(false);
-          return;
-        }
-        
         console.log('🔄 고객이 선택되지 않음. 기본 고객 생성/조회 중...');
         customerToUse = await getOrCreateDefaultCustomer();
         console.log('✅ 기본 고객 사용:', customerToUse.name, customerToUse.phone_number);
       }
 
-      // 시술 항목들 준비
-      const treatmentItems: TreatmentItemCreate[] = selectedTreatments.map(item => ({
-        menu_detail_id: item.menuDetail.id,
-        session_no: item.sessionNo,
-        base_price: item.menuDetail.base_price,
-        duration_min: item.customDuration
-      }));
-
-      // appointment_date와 appointment_time을 reserved_at으로 변환
-      const reservedAt = `${currentDate}T${selectedTime}:00`;
-
-      // 시술 예약 생성
-      const treatmentData: TreatmentCreate = {
-        phonebook_id: customerToUse.id,
-        reserved_at: reservedAt,
-        memo: memo.trim() || undefined,
-        status: 'RESERVED', // 기본 상태
-        treatment_items: treatmentItems
-      };
+      // SPEC-BOOKING-001 REQ-01(F-8): payload 조립을 순수 함수로 위임한다.
+      // 화면 선택값(담당 직원·결제 방법)이 payload에 포함되어 전송 시점에 유실되지 않는다.
+      const treatmentData: TreatmentCreate = buildTreatmentPayload({
+        phonebookId: customerToUse.id,
+        currentDate,
+        selectedTime,
+        memo,
+        selectedTreatments,
+        selectedStaff,
+        paymentMethod,
+      });
 
       console.log('📝 최종 예약 데이터 검증:', {
         phonebook_id: treatmentData.phonebook_id,
         reserved_at: treatmentData.reserved_at,
         status: treatmentData.status,
         treatment_items_count: treatmentData.treatment_items.length,
+        staff_user_id: treatmentData.staff_user_id ?? '미지정',
+        payment_method: treatmentData.payment_method,
         memo: treatmentData.memo || 'null',
-        '모든_필수_필드_존재': !!(
-          treatmentData.phonebook_id && 
-          treatmentData.reserved_at && 
-          treatmentData.status && 
-          treatmentData.treatment_items.length > 0
-        )
       });
-      
-      console.log('📝 시술 항목 상세 검증:', treatmentItems.map((item, index) => ({
-        index,
-        menu_detail_id: item.menu_detail_id,
-        session_no: item.session_no,
-        base_price: item.base_price,
-        duration_min: item.duration_min,
-        '필드_타입_검증': {
-          menu_detail_id_type: typeof item.menu_detail_id,
-          session_no_type: typeof item.session_no,
-          base_price_type: typeof item.base_price,
-          duration_min_type: typeof item.duration_min
-        },
-        '모든_필드_존재': !!(item.menu_detail_id && item.session_no && item.base_price && item.duration_min)
-      })));
 
       await treatmentApiService.create(treatmentData);
-      
-      Alert.alert('완료', '예약이 성공적으로 완료되었습니다!', [
-        { text: '확인', onPress: onBookingComplete }
-      ]);
+
+      // SPEC-DATA-001 REQ-DATA-001-05: 예약 생성 성공 → 예약 목록·달력·대시보드 관련 query 무효화.
+      // (달력 ['treatments','monthly',...]·주간 ['treatments','weekly',...]·대시보드 ['dashboard',...])
+      queryClient.invalidateQueries({ queryKey: queryKeyPrefix.treatments });
+      queryClient.invalidateQueries({ queryKey: queryKeyPrefix.dashboard });
+
+      // SPEC-BOOKING-001 REQ-04(F-17 + 햅틱): "확인" 탭 성공 Alert 제거.
+      // 성공 햅틱 1회 + 폼 자동 닫힘(onBookingComplete) → 목록 갱신이 성공의 시각적 확인이 된다.
+      // SPEC-BOOKING-001 REQ-05(F-11a): 성공 시에만 최근 사용 직원 저장(미지정 시 미저장).
+      await persistLastStaff(selectedStaff);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      onBookingComplete();
 
     } catch (error) {
       console.error('예약 생성 실패:', error);
@@ -536,6 +510,14 @@ export default function BookingForm({
       console.log('🔧 BookingForm 컴포넌트 언마운트됨. ID:', componentId);
     };
   }, [componentId]);
+
+  // SPEC-BOOKING-001 REQ-06(F-11b): 오늘 날짜일 때 현재 시각 이후 첫 가용 슬롯을 시각적으로 강조.
+  // selectedTime 은 설정하지 않는다(선택 강제 금지) — 하이라이트/유도만 제공한다.
+  const todayStr = new Date().toISOString().split('T')[0];
+  const highlightedSlot =
+    currentDate === todayStr
+      ? findFirstAvailableSlotAfter(new Date(), timeSlots, reservedTimes)
+      : null;
 
   if (isLoadingMenus) {
     return (
@@ -569,7 +551,12 @@ export default function BookingForm({
           >
           {/* 헤더 */}
           <View style={bookingFormStyles.header}>
-            <TouchableOpacity onPress={onClose} style={bookingFormStyles.closeButton}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={bookingFormStyles.closeButton}
+              accessibilityRole="button"
+              accessibilityLabel="닫기"
+            >
               <Text style={bookingFormStyles.closeButtonText}>✕</Text>
             </TouchableOpacity>
             <Text style={bookingFormStyles.headerTitle}>새 예약 만들기</Text>
@@ -607,9 +594,11 @@ export default function BookingForm({
                 <View style={bookingFormStyles.datePickerModalContent}>
                   <View style={bookingFormStyles.datePickerHeader}>
                     <Text style={bookingFormStyles.datePickerTitle}>날짜 선택</Text>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       onPress={() => setShowDatePicker(false)}
                       style={bookingFormStyles.datePickerCloseButton}
+                      accessibilityRole="button"
+                      accessibilityLabel="닫기"
                     >
                       <Text style={bookingFormStyles.datePickerCloseText}>✕</Text>
                     </TouchableOpacity>
@@ -648,6 +637,15 @@ export default function BookingForm({
             <Text style={[bookingFormStyles.sectionSubtitle, { marginBottom: 8 }]}>
               💡 고객을 선택하지 않으면 &apos;고객 미지정&apos;으로 예약됩니다
             </Text>
+            {/* SPEC-BOOKING-001 REQ-03(F-10): 고객 미선택 시 비차단 인라인 안내 */}
+            {!selectedCustomer && (
+              <Text
+                testID="customer-unassigned-notice"
+                style={[bookingFormStyles.sectionSubtitle, { marginBottom: 8, color: '#667eea' }]}
+              >
+                고객 미지정으로 저장됩니다
+              </Text>
+            )}
             <CustomTextInput
               placeholder="고객 이름 또는 전화번호 검색 (010-1234-5678)"
               value={customerSearch}
@@ -692,7 +690,7 @@ export default function BookingForm({
               autoCorrect={false}
               underlineColorAndroid="transparent"
               selectionColor="#667eea"
-              placeholderTextColor="#999"
+              placeholderTextColor="#6b7280"
             />
             
             {selectedCustomer && (
@@ -719,6 +717,9 @@ export default function BookingForm({
                     }, 100);
                   }}
                   style={bookingFormStyles.removeButton}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="선택한 고객 지우기"
                 >
                   <Text style={bookingFormStyles.removeButtonText}>✕</Text>
                 </TouchableOpacity>
@@ -860,11 +861,14 @@ export default function BookingForm({
             <View style={bookingFormStyles.timeGrid}>
               {timeSlots.map((time) => {
                 const isReserved = isTimeReserved(time);
+                const isHighlighted = time === highlightedSlot && selectedTime !== time;
                 return (
                   <TouchableOpacity
                     key={time}
+                    testID={isHighlighted ? 'highlighted-slot' : undefined}
                     style={[
                       bookingFormStyles.timeSlot,
+                      isHighlighted && bookingFormStyles.highlightedTimeSlot,
                       selectedTime === time && bookingFormStyles.selectedTimeSlot,
                       isReserved && bookingFormStyles.reservedTimeSlot
                     ]}
@@ -967,6 +971,22 @@ export default function BookingForm({
           {/* 담당 직원 선택 */}
           <View style={bookingFormStyles.section}>
             <Text style={bookingFormStyles.sectionTitle}>👨‍💼 담당 직원 (선택사항)</Text>
+            {/* SPEC-UX-001 REQ-UX-007: 직원 목록 로드 실패 인라인 안내 + 재시도 */}
+            {staffLoadError && (
+              <View style={bookingFormStyles.inlineNotice}>
+                <Text style={bookingFormStyles.inlineNoticeText}>
+                  직원 목록을 불러오지 못했습니다
+                </Text>
+                <TouchableOpacity
+                  onPress={() => staffQuery.refetch()}
+                  style={bookingFormStyles.inlineRetryButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="직원 목록 다시 시도"
+                >
+                  <Text style={bookingFormStyles.inlineRetryText}>다시 시도</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             <View style={bookingFormStyles.staffSelection}>
               <TouchableOpacity
                 style={[

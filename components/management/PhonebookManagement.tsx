@@ -1,12 +1,16 @@
-import { Phonebook, PhonebookCreate } from '@/src/api/services/phonebook';
-import { phonebookAPI } from '@/src/services/api/phonebook';
+import { Phonebook, PhonebookCreate, phonebookApiService } from '@/src/api/services/phonebook';
+import { queryKeyPrefix } from '@/src/api/queryKeys';
+import { usePhonebookQuery } from '@/hooks/queries/usePhonebookQuery';
+import { useShopStore } from '@/src/stores/shopStore';
 import { TextInput as CustomTextInput } from '@/src/ui/atoms';
 
 import { formatPhoneNumber, handlePhoneInputChange, unformatPhoneNumber } from '@/src/utils/phoneFormat';
+import { useQueryClient } from '@tanstack/react-query';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  FlatList,
   Keyboard,
   Modal,
   SafeAreaView,
@@ -24,16 +28,59 @@ interface PhonebookManagementProps {
   onGoBack?: () => void;
 }
 
+// SPEC-PERF-003 REQ-PERF-003-04: 표시용 포맷 전화번호를 수신 시점에 1회 계산해 보관한다.
+type ContactRow = Phonebook & { displayPhone: string };
+
+interface ContactItemProps {
+  contact: ContactRow;
+  onEdit: (contact: Phonebook) => void;
+  onDelete: (contact: Phonebook) => void;
+}
+
+// @MX:NOTE: [AUTO] FlatList 행을 React.memo 로 메모화(REQ-PERF-003-04). displayPhone 은 수신 시점에
+//   파생되므로 행 render 경로에서 formatPhoneNumber 를 재계산하지 않는다. 렌더 결과는 기존 renderContactItem 과 동일.
+const ContactItem = memo(function ContactItem({ contact, onEdit, onDelete }: ContactItemProps) {
+  return (
+    <View style={styles.contactCard}>
+      <View style={styles.contactInfo}>
+        <Text style={styles.contactName}>{contact.name}</Text>
+        <Text style={styles.contactPhone}>{contact.displayPhone}</Text>
+        {contact.group_name && (
+          <Text style={styles.contactGroup}>그룹: {contact.group_name}</Text>
+        )}
+        {contact.memo && (
+          <Text style={styles.contactMemo}>{contact.memo}</Text>
+        )}
+      </View>
+      <View style={styles.contactActions}>
+        <TouchableOpacity
+          onPress={() => onEdit(contact)}
+          style={styles.actionButton}
+        >
+          <MaterialIcons name="edit" size={20} color="#007AFF" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          testID={`delete-contact-${contact.id}`}
+          onPress={() => onDelete(contact)}
+          style={styles.actionButton}
+        >
+          <MaterialIcons name="delete" size={20} color="#FF3B30" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
 export default function PhonebookManagement({ onGoBack }: PhonebookManagementProps) {
-  const [phonebooks, setPhonebooks] = useState<Phonebook[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+  // SPEC-DATA-001 REQ-04: 검색은 기존 UX 대로 명시적 제출 시점에만 갱신한다(제출된 검색어를 query key 로 사용).
+  const [submittedSearch, setSubmittedSearch] = useState('');
+
   // 모달 관련 상태
   const [showModal, setShowModal] = useState(false);
   const [editingContact, setEditingContact] = useState<Phonebook | null>(null);
   const [showSyncModal, setShowSyncModal] = useState(false); // 동기화 모달 상태 추가
-  
+
   // 폼 상태
   const [contactForm, setContactForm] = useState<PhonebookCreate>({
     name: '',
@@ -42,29 +89,35 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
     memo: '',
   });
 
-  useEffect(() => {
-    loadPhonebooks();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // SPEC-DATA-001 REQ-06/04: 레거시 phonebookAPI → 도메인 phonebookApiService + react-query 캐싱.
+  const shopId = useShopStore((s) => s.selectedShop?.id);
+  const queryClient = useQueryClient();
+  const phonebooksQuery = usePhonebookQuery({ shopId, search: submittedSearch, page: 1 });
+  const phonebooks = useMemo(() => phonebooksQuery.data ?? [], [phonebooksQuery.data]);
+  const loading = phonebooksQuery.isLoading;
 
-  const loadPhonebooks = async () => {
-    try {
-      setLoading(true);
-      const response = await phonebookAPI.getPhonebooks({
-        search: searchTerm || undefined,
-        page: 1,
-        size: 100,
-      });
-      setPhonebooks(response.items);
-    } catch (error) {
-      console.error('전화번호부 로딩 실패:', error);
+  const invalidatePhonebook = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: queryKeyPrefix.phonebook }),
+    [queryClient],
+  );
+
+  // 기존 동작 보존(AC-12): 목록 로드 실패 시 인라인 Alert.
+  useEffect(() => {
+    if (phonebooksQuery.isError) {
+      console.error('전화번호부 로딩 실패:', phonebooksQuery.error);
       Alert.alert('오류', '전화번호부를 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [phonebooksQuery.isError, phonebooksQuery.errorUpdatedAt, phonebooksQuery.error]);
+
+  // REQ-PERF-003-04: 표시용 포맷 전화번호를 목록 수신(phonebooks 변경) 시점에 1회 계산한다.
+  const contactRows = useMemo<ContactRow[]>(
+    () => phonebooks.map((c) => ({ ...c, displayPhone: formatPhoneNumber(c.phone_number) })),
+    [phonebooks],
+  );
 
   const handleSearch = () => {
-    loadPhonebooks();
+    // 제출된 검색어 갱신 → query key 변경 시 재조회(동일 검색어는 staleTime 내 캐시 사용).
+    setSubmittedSearch(searchTerm);
   };
 
   // 전화번호 입력 처리 함수
@@ -84,7 +137,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
     setShowModal(true);
   };
 
-  const handleEditContact = (contact: Phonebook) => {
+  const handleEditContact = useCallback((contact: Phonebook) => {
     setEditingContact(contact);
     setContactForm({
       name: contact.name,
@@ -93,7 +146,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
       memo: contact.memo || '',
     });
     setShowModal(true);
-  };
+  }, []);
 
   const handleSaveContact = async () => {
     if (!contactForm.name.trim() || !contactForm.phone_number.trim()) {
@@ -111,21 +164,24 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
 
       if (editingContact) {
         // 수정
-        await phonebookAPI.updatePhonebook(editingContact.id, dataToSave);
+        await phonebookApiService.update(editingContact.id, dataToSave);
         Alert.alert('성공', '연락처가 수정되었습니다.');
       } else {
         // 생성
-        await phonebookAPI.createPhonebook(dataToSave);
+        await phonebookApiService.create(dataToSave);
         Alert.alert('성공', '연락처가 추가되었습니다.');
       }
 
       setShowModal(false);
-      loadPhonebooks();
+      // SPEC-DATA-001 REQ-05: mutation 성공 → 전화번호부 query 무효화(재조회).
+      invalidatePhonebook();
     } catch (error) {
       console.error('연락처 저장 실패:', error);
       Alert.alert('오류', '연락처 저장에 실패했습니다.');
     }
-  };  const handleDeleteContact = (contact: Phonebook) => {
+  };
+
+  const handleDeleteContact = useCallback((contact: Phonebook) => {
     Alert.alert(
       '연락처 삭제',
       `"${contact.name}"을(를) 삭제하시겠습니까?`,
@@ -136,9 +192,10 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
           style: 'destructive',
           onPress: async () => {
             try {
-              await phonebookAPI.deletePhonebook(contact.id);
+              await phonebookApiService.remove(contact.id);
               Alert.alert('성공', '연락처가 삭제되었습니다.');
-              loadPhonebooks();
+              // SPEC-DATA-001 REQ-05: 삭제 성공 → 전화번호부 query 무효화.
+              invalidatePhonebook();
             } catch (error) {
               console.error('연락처 삭제 실패:', error);
               Alert.alert('오류', '연락처 삭제에 실패했습니다.');
@@ -147,12 +204,12 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
         },
       ]
     );
-  };
+  }, [invalidatePhonebook]);
 
   // 동기화 완료 후 콜백
   const handleSyncComplete = () => {
     setShowSyncModal(false);
-    loadPhonebooks(); // 동기화 후 연락처 목록 새로고침
+    invalidatePhonebook(); // 동기화 후 연락처 목록 새로고침(무효화)
   };
 
   // 동기화 모달 열기
@@ -160,33 +217,11 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
     setShowSyncModal(true);
   };
 
-  const renderContactItem = (contact: Phonebook) => (
-    <View key={contact.id} style={styles.contactCard}>
-      <View style={styles.contactInfo}>
-        <Text style={styles.contactName}>{contact.name}</Text>
-        <Text style={styles.contactPhone}>{formatPhoneNumber(contact.phone_number)}</Text>
-        {contact.group_name && (
-          <Text style={styles.contactGroup}>그룹: {contact.group_name}</Text>
-        )}
-        {contact.memo && (
-          <Text style={styles.contactMemo}>{contact.memo}</Text>
-        )}
-      </View>
-      <View style={styles.contactActions}>
-        <TouchableOpacity
-          onPress={() => handleEditContact(contact)}
-          style={styles.actionButton}
-        >
-          <MaterialIcons name="edit" size={20} color="#007AFF" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => handleDeleteContact(contact)}
-          style={styles.actionButton}
-        >
-          <MaterialIcons name="delete" size={20} color="#FF3B30" />
-        </TouchableOpacity>
-      </View>
-    </View>
+  const renderContactItem = useCallback(
+    ({ item }: { item: ContactRow }) => (
+      <ContactItem contact={item} onEdit={handleEditContact} onDelete={handleDeleteContact} />
+    ),
+    [handleEditContact, handleDeleteContact],
   );
 
   if (loading) {
@@ -247,10 +282,17 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
       </View>
 
       {/* 연락처 목록 */}
-      <ScrollView style={styles.contactList}>
-        {phonebooks.length > 0 ? (
-          phonebooks.map(renderContactItem)
-        ) : (
+      {/* REQ-PERF-003-04: ScrollView 전체 마운트 대신 FlatList 가상화 */}
+      <FlatList
+        style={styles.contactList}
+        data={contactRows}
+        renderItem={renderContactItem}
+        keyExtractor={(item) => String(item.id)}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={11}
+        removeClippedSubviews={true}
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <MaterialIcons name="contacts" size={64} color="#ccc" />
             <Text style={styles.emptyText}>등록된 연락처가 없습니다.</Text>
@@ -258,8 +300,8 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
               <Text style={styles.emptyAddButtonText}>첫 연락처 추가하기</Text>
             </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
+        }
+      />
 
       {/* 연락처 추가/수정 모달 */}
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet">

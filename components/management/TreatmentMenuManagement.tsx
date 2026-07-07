@@ -1,4 +1,7 @@
-import { treatmentMenuAPI } from '@/src/services/api/treatment-menu';
+import { treatmentMenuApiService } from '@/src/api/services/treatmentMenu';
+import { queryKeyPrefix } from '@/src/api/queryKeys';
+import { useTreatmentMenusQuery } from '@/hooks/queries/useTreatmentMenusQuery';
+import { useShopStore } from '@/src/stores/shopStore';
 import {
     TreatmentMenu,
     TreatmentMenuCreate,
@@ -7,14 +10,16 @@ import {
 } from '@/src/types';
 import { Button, TextInput as CustomTextInput } from '@/src/ui/atoms';
 import { Colors, Spacing, Typography } from '@/src/ui/theme';
+import { formatKoreanShortDate, formatKrwNumber } from '@/src/utils/intlFormat';
+import { useQueryClient } from '@tanstack/react-query';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Alert,
+    FlatList,
     Keyboard,
     Modal,
     Platform,
-    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -26,12 +31,27 @@ interface TreatmentMenuManagementProps {
   onGoBack?: () => void;
 }
 
+// SPEC-PERF-003 REQ-PERF-003-05: 표시 문자열을 수신 시점에 파생해 render 경로 toLocale* 를 제거한다.
+type MenuRow = TreatmentMenu & { displayDate: string };
+type DetailRow = TreatmentMenuDetail & { displayPrice: string };
+
 export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManagementProps) {
-  const [menus, setMenus] = useState<TreatmentMenu[]>([]);
   const [selectedMenu, setSelectedMenu] = useState<TreatmentMenu | null>(null);
   const [menuDetails, setMenuDetails] = useState<TreatmentMenuDetail[]>([]);
-  const [loading, setLoading] = useState(true);
-  
+
+  // SPEC-DATA-001 REQ-06/04: 레거시 treatmentMenuAPI → 도메인 treatmentMenuApiService + react-query 캐싱.
+  // 예약 폼과 공유 key `['treatmentMenus', shopId]` 로 단일 캐시를 공유한다.
+  const shopId = useShopStore((s) => s.selectedShop?.id);
+  const queryClient = useQueryClient();
+  const menusQuery = useTreatmentMenusQuery(shopId);
+  const menus = useMemo<TreatmentMenu[]>(() => menusQuery.data ?? [], [menusQuery.data]);
+  const loading = menusQuery.isLoading;
+
+  const invalidateMenus = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: queryKeyPrefix.treatmentMenus }),
+    [queryClient],
+  );
+
   // 모달 관련 상태
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -46,26 +66,17 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
     base_price: 0,
   });
 
+  // 기존 동작 보존: 목록 로드 실패 시 인라인 Alert.
   useEffect(() => {
-    loadMenus();
-  }, []);
-
-  const loadMenus = async () => {
-    try {
-      setLoading(true);
-      const response = await treatmentMenuAPI.getMenus();
-      setMenus(response.items);
-    } catch (error) {
-      console.error('시술 메뉴 로딩 실패:', error);
+    if (menusQuery.isError) {
+      console.error('시술 메뉴 로딩 실패:', menusQuery.error);
       Alert.alert('오류', '시술 메뉴를 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [menusQuery.isError, menusQuery.errorUpdatedAt, menusQuery.error]);
 
   const loadMenuDetails = async (menuId: number) => {
     try {
-      const details = await treatmentMenuAPI.getMenuDetails(menuId);
+      const details = await treatmentMenuApiService.getDetails(menuId);
       setMenuDetails(details);
     } catch (error) {
       console.error('시술 상세 로딩 실패:', error);
@@ -99,16 +110,17 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
 
       if (editingMenu) {
         // 수정
-        await treatmentMenuAPI.updateMenu(editingMenu.id, menuForm);
+        await treatmentMenuApiService.update(editingMenu.id, menuForm);
         Alert.alert('성공', '시술 메뉴가 수정되었습니다.');
       } else {
         // 생성
-        await treatmentMenuAPI.createMenu(menuForm);
+        await treatmentMenuApiService.create(menuForm);
         Alert.alert('성공', '시술 메뉴가 생성되었습니다.');
       }
 
       setShowMenuModal(false);
-      await loadMenus();
+      // SPEC-DATA-001 REQ-05: 메뉴 CUD 성공 → 메뉴 query 무효화.
+      invalidateMenus();
     } catch (error) {
       console.error('시술 메뉴 저장 실패:', error);
       Alert.alert('오류', '시술 메뉴 저장에 실패했습니다.');
@@ -126,9 +138,10 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
           style: 'destructive',
           onPress: async () => {
             try {
-              await treatmentMenuAPI.deleteMenu(menu.id);
+              await treatmentMenuApiService.remove(menu.id);
               Alert.alert('성공', '시술 메뉴가 삭제되었습니다.');
-              await loadMenus();
+              // SPEC-DATA-001 REQ-05: 메뉴 삭제 성공 → 메뉴 query 무효화.
+              invalidateMenus();
               if (selectedMenu?.id === menu.id) {
                 setSelectedMenu(null);
                 setMenuDetails([]);
@@ -186,16 +199,18 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
 
       if (editingDetail) {
         // 수정
-        await treatmentMenuAPI.updateMenuDetail(selectedMenu.id, editingDetail.id, detailForm);
+        await treatmentMenuApiService.updateDetail(selectedMenu.id, editingDetail.id, detailForm);
         Alert.alert('성공', '시술 상세가 수정되었습니다.');
       } else {
         // 생성
-        await treatmentMenuAPI.createMenuDetail(selectedMenu.id, detailForm);
+        await treatmentMenuApiService.createDetail(selectedMenu.id, detailForm);
         Alert.alert('성공', '시술 상세가 생성되었습니다.');
       }
 
       setShowDetailModal(false);
       await loadMenuDetails(selectedMenu.id);
+      // SPEC-DATA-001 REQ-05: 상세 변경은 메뉴(details 포함) query 에도 반영되도록 무효화.
+      invalidateMenus();
     } catch (error) {
       console.error('시술 상세 저장 실패:', error);
       Alert.alert('오류', '시술 상세 저장에 실패했습니다.');
@@ -214,10 +229,12 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
           onPress: async () => {
             try {
               if (!selectedMenu) return;
-              
-              await treatmentMenuAPI.deleteMenuDetail(selectedMenu.id, detail.id);
+
+              await treatmentMenuApiService.removeDetail(selectedMenu.id, detail.id);
               Alert.alert('성공', '시술 상세가 삭제되었습니다.');
               await loadMenuDetails(selectedMenu.id);
+              // SPEC-DATA-001 REQ-05: 상세 삭제도 메뉴 query 무효화.
+              invalidateMenus();
             } catch (error) {
               console.error('시술 상세 삭제 실패:', error);
               Alert.alert('오류', '시술 상세 삭제에 실패했습니다.');
@@ -227,6 +244,16 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
       ]
     );
   };
+
+  // REQ-PERF-003-05: 메뉴 생성일·상세 가격 표시 문자열을 목록 수신 시점에 1회 파생한다.
+  const menuRows = useMemo<MenuRow[]>(
+    () => menus.map((m) => ({ ...m, displayDate: formatKoreanShortDate(m.created_at) })),
+    [menus],
+  );
+  const detailRows = useMemo<DetailRow[]>(
+    () => menuDetails.map((d) => ({ ...d, displayPrice: formatKrwNumber(d.base_price) })),
+    [menuDetails],
+  );
 
   if (loading) {
     return (
@@ -264,10 +291,18 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.menuList}>
-            {menus.map((menu) => (
+          {/* REQ-PERF-003-05: 메뉴 목록 FlatList 가상화 + 수신 시점 파생 날짜(displayDate) 사용 */}
+          <FlatList
+            style={styles.menuList}
+            data={menuRows}
+            keyExtractor={(item) => String(item.id)}
+            extraData={selectedMenu?.id}
+            initialNumToRender={12}
+            maxToRenderPerBatch={12}
+            windowSize={11}
+            removeClippedSubviews={true}
+            renderItem={({ item: menu }) => (
               <TouchableOpacity
-                key={menu.id}
                 style={[
                   styles.menuItem,
                   selectedMenu?.id === menu.id && styles.selectedMenuItem,
@@ -276,9 +311,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
               >
                 <View style={styles.menuInfo}>
                   <Text style={styles.menuName}>{menu.name}</Text>
-                  <Text style={styles.menuDate}>
-                    {new Date(menu.created_at).toLocaleDateString('ko-KR')}
-                  </Text>
+                  <Text style={styles.menuDate}>{menu.displayDate}</Text>
                 </View>
                 <View style={styles.menuActions}>
                   <TouchableOpacity
@@ -288,6 +321,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                     <MaterialIcons name="edit" size={18} color="#666" />
                   </TouchableOpacity>
                   <TouchableOpacity
+                    testID={`delete-menu-${menu.id}`}
                     onPress={() => handleDeleteMenu(menu)}
                     style={styles.actionButton}
                   >
@@ -295,8 +329,8 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            )}
+          />
         </View>
 
         {/* 시술 상세 목록 */}
@@ -310,13 +344,21 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={styles.detailList}>
-                {menuDetails.map((detail) => (
-                  <View key={detail.id} style={styles.detailItem}>
+              {/* REQ-PERF-003-05: 상세 목록 FlatList 가상화 + 수신 시점 파생 가격(displayPrice) 사용 */}
+              <FlatList
+                style={styles.detailList}
+                data={detailRows}
+                keyExtractor={(item) => String(item.id)}
+                initialNumToRender={12}
+                maxToRenderPerBatch={12}
+                windowSize={11}
+                removeClippedSubviews={true}
+                renderItem={({ item: detail }) => (
+                  <View style={styles.detailItem}>
                     <View style={styles.detailInfo}>
                       <Text style={styles.detailName}>{detail.name}</Text>
                       <Text style={styles.detailPrice}>
-                        {detail.base_price.toLocaleString()}원 • {detail.duration_min}분
+                        {detail.displayPrice}원 • {detail.duration_min}분
                       </Text>
                     </View>
                     <View style={styles.detailActions}>
@@ -334,15 +376,14 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                       </TouchableOpacity>
                     </View>
                   </View>
-                ))}
-                
-                {menuDetails.length === 0 && (
+                )}
+                ListEmptyComponent={
                   <View style={styles.emptyState}>
                     <Text style={styles.emptyText}>등록된 상세가 없습니다.</Text>
                     <Text style={styles.emptySubtext}>상단의 + 버튼을 눌러 상세를 추가해보세요.</Text>
                   </View>
-                )}
-              </ScrollView>
+                }
+              />
             </>
           ) : (
             <View style={styles.emptyState}>
@@ -355,6 +396,8 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
       </View>
 
       {/* 메뉴 생성/수정 모달 */}
+      {/* REQ-PERF-003-05: 닫힌 동안 모달 하위 트리를 마운트하지 않는다(조건부 마운트). */}
+      {showMenuModal && (
       <Modal visible={showMenuModal} animationType="slide" presentationStyle="pageSheet">
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalContainer}>
@@ -375,7 +418,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                   value={menuForm.name}
                   onChangeText={(text: string) => setMenuForm({ ...menuForm, name: text })}
                   placeholder="예: 눈썹"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#6b7280"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
                 />
@@ -401,8 +444,11 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+      )}
 
       {/* 상세 생성/수정 모달 */}
+      {/* REQ-PERF-003-05: 닫힌 동안 모달 하위 트리를 마운트하지 않는다(조건부 마운트). */}
+      {showDetailModal && (
       <Modal visible={showDetailModal} animationType="slide" presentationStyle="pageSheet">
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalContainer}>
@@ -423,7 +469,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                   value={detailForm.name}
                   onChangeText={(text: string) => setDetailForm({ ...detailForm, name: text })}
                   placeholder="예: 눈썹 문신"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#6b7280"
                   returnKeyType="next"
                   onSubmitEditing={() => {
                     // 다음 필드로 포커스 이동하거나 키보드 닫기
@@ -441,7 +487,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                     setDetailForm({ ...detailForm, duration_min: parseInt(text) || 0 })
                   }
                   placeholder="60"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#6b7280"
                   keyboardType="numeric"
                   returnKeyType="next"
                   onSubmitEditing={() => {
@@ -460,7 +506,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                     setDetailForm({ ...detailForm, base_price: parseInt(text) || 0 })
                   }
                   placeholder="50000"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#6b7280"
                   keyboardType="numeric"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
@@ -487,6 +533,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+      )}
     </View>
   );
 }
@@ -641,7 +688,7 @@ const styles = StyleSheet.create({
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
+    color: '#6b7280',
     textAlign: 'center',
     lineHeight: 20,
   },

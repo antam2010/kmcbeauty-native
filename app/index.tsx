@@ -4,6 +4,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { useAuthStore } from '@/src/stores/authStore';
 import { useShopStore } from '@/src/stores/shopStore';
+import { useShallow } from 'zustand/react/shallow';
 
 // 개발 환경에서 디버깅 유틸리티 로드
 if (__DEV__) {
@@ -11,8 +12,17 @@ if (__DEV__) {
 }
 
 export default function Index() {
-  const { isAuthenticated, isLoading: authLoading } = useAuthStore();
-  const { selectedShop, loading: shopLoading, loadSelectedShop } = useShopStore();
+  // REQ-PERF-003-08: 다중 필드 셀렉터 구독(useShallow).
+  const { isAuthenticated, isLoading: authLoading } = useAuthStore(
+    useShallow((s) => ({ isAuthenticated: s.isAuthenticated, isLoading: s.isLoading })),
+  );
+  const { selectedShop, loading: shopLoading, loadSelectedShop } = useShopStore(
+    useShallow((s) => ({
+      selectedShop: s.selectedShop,
+      loading: s.loading,
+      loadSelectedShop: s.loadSelectedShop,
+    })),
+  );
 
   // 인증된 사용자의 경우 상점 정보 로드 (약간의 지연 후)
   useEffect(() => {

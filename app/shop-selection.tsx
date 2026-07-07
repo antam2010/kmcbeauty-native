@@ -3,6 +3,7 @@ import { ThemedView } from '@/components/ThemedView';
 import ShopRegistrationModal from '@/components/modals/ShopRegistrationModal';
 import { Shop, shopApiService } from '@/src/api/services/shop';
 import { useShopStore } from '@/src/stores/shopStore';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -19,7 +20,8 @@ export default function ShopSelectionScreen() {
   const [loading, setLoading] = useState(true);
   const [selecting, setSelecting] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
-  const { selectShop } = useShopStore(); // 상점 스토어 사용
+  // REQ-PERF-003-08: 액션 필드 셀렉터 구독(전체 구독 시 무관 상태 변경에도 리렌더됨).
+  const selectShop = useShopStore((s) => s.selectShop);
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,
@@ -41,7 +43,13 @@ export default function ShopSelectionScreen() {
     } catch (error: any) {
       console.error('상점 목록 로드 실패:', error);
       // SHOP_NOT_SELECTED 에러인 경우 무한 루프 방지 (이미 shop-selection 페이지이므로)
-      if (error.response?.data?.detail?.code === 'SHOP_NOT_SELECTED') {
+      // 인터셉터가 이 에러를 일반 Error('상점이 선택되지 않았습니다...')로 re-wrap 하므로
+      // 원본 axios 형태와 re-wrap 된 메시지를 모두 확인한다.
+      const isShopNotSelected =
+        error.response?.data?.detail?.code === 'SHOP_NOT_SELECTED' ||
+        (typeof error?.message === 'string' &&
+          error.message.includes('상점이 선택되지 않았습니다'));
+      if (isShopNotSelected) {
         console.log('🏪 이미 상점 선택 페이지에 있음 - 추가 리다이렉트 하지 않음');
         return;
       }
@@ -59,27 +67,15 @@ export default function ShopSelectionScreen() {
     try {
       setSelecting(true);
       await selectShop(shop.id); // 상점 스토어의 selectShop 사용
-      
-      // 상점 선택 완료 후 잠시 대기하여 상태가 완전히 업데이트되도록 함
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      Alert.alert(
-        '상점 선택 완료',
-        `${shop.name}이(가) 선택되었습니다.`,
-        [
-          {
-            text: '확인',
-            onPress: () => {
-              // 이전 화면으로 돌아가기 또는 홈으로 이동
-              if (router.canGoBack()) {
-                router.back();
-              } else {
-                router.replace('/(tabs)');
-              }
-            }
-          }
-        ]
-      );
+
+      // SPEC-BOOKING-001 REQ-04(F-17 + 햅틱): "확인" 탭 성공 Alert 및 인위적 500ms 지연 제거.
+      // 성공 햅틱 1회 후 즉시 다음 화면으로 이동한다(추가 탭 불필요).
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (error: any) {
       console.error('상점 선택 실패:', error);
       Alert.alert('오류', '상점 선택에 실패했습니다.');
@@ -238,7 +234,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   businessNumber: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#888',
   },
   selectingOverlay: {

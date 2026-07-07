@@ -1,8 +1,98 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import { authApiService } from '../api/services/auth';
 import type { User } from '../types/auth';
+
+// @MX:ANCHOR: [AUTO] Zustand persist용 하이브리드 저장 어댑터. 민감정보(accessToken)는
+//   expo-secure-store(OS 암호화 저장소), 비민감 UI 상태(user 등)는 AsyncStorage로 분리한다.
+// @MX:REASON: fan_in>=1이며 SPEC-SECURITY-001 REQ-SEC-005의 핵심 계약(평문 저장 금지)을 보증하는
+//   유일한 저장 경계. 이 계약이 깨지면 액세스 토큰이 평문 AsyncStorage에 재노출된다.
+// @MX:SPEC: SPEC-SECURITY-001 (REQ-SEC-005, AC-005-1)
+//
+// SecureStore는 항목당 ~2KB 크기 제한이 있으므로 토큰(들)만 저장한다.
+// SecureStore 키는 영숫자/./-/_만 허용하므로 persist 키의 '-'는 유지되나 안전한 상수를 사용한다.
+const SECURE_ACCESS_TOKEN_KEY = 'auth_access_token';
+
+// persist가 저장하는 JSON 문자열에서 accessToken만 분리하여 SecureStore로, 나머지는 AsyncStorage로 보낸다.
+const secureHybridStorage: StateStorage = {
+  getItem: async (name: string): Promise<string | null> => {
+    try {
+      const nonSensitive = await AsyncStorage.getItem(name);
+      let secureToken: string | null = null;
+      try {
+        secureToken = await SecureStore.getItemAsync(SECURE_ACCESS_TOKEN_KEY);
+      } catch (secureError) {
+        // SecureStore 읽기 실패 시 안전하게 미인증 상태로 폴백 (크래시 없음)
+        console.warn('SecureStore 토큰 읽기 실패 - 미인증 상태로 폴백');
+        secureToken = null;
+      }
+
+      if (!nonSensitive) {
+        // 비민감 상태가 없으면 복원할 것이 없음
+        return null;
+      }
+
+      // AsyncStorage에는 accessToken이 저장되지 않으므로 SecureStore 값으로 병합해 돌려준다.
+      const parsed = JSON.parse(nonSensitive);
+      const merged = {
+        ...parsed,
+        state: {
+          ...parsed.state,
+          accessToken: secureToken,
+        },
+      };
+      return JSON.stringify(merged);
+    } catch (error) {
+      console.warn('인증 상태 복원 실패 - 미인증 상태로 폴백');
+      return null;
+    }
+  },
+
+  setItem: async (name: string, value: string): Promise<void> => {
+    try {
+      const parsed = JSON.parse(value);
+      const accessToken: string | null = parsed?.state?.accessToken ?? null;
+
+      // 민감정보(accessToken)는 AsyncStorage 페이로드에서 제거하고 SecureStore로만 저장한다.
+      const sanitized = {
+        ...parsed,
+        state: {
+          ...parsed.state,
+          accessToken: null,
+        },
+      };
+      await AsyncStorage.setItem(name, JSON.stringify(sanitized));
+
+      try {
+        if (accessToken) {
+          await SecureStore.setItemAsync(SECURE_ACCESS_TOKEN_KEY, accessToken);
+        } else {
+          // 토큰이 없으면(로그아웃/clearAuth) SecureStore에서도 제거한다.
+          await SecureStore.deleteItemAsync(SECURE_ACCESS_TOKEN_KEY);
+        }
+      } catch (secureError) {
+        console.warn('SecureStore 토큰 저장 실패');
+      }
+    } catch (error) {
+      console.warn('인증 상태 저장 실패');
+    }
+  },
+
+  removeItem: async (name: string): Promise<void> => {
+    try {
+      await AsyncStorage.removeItem(name);
+    } catch {
+      // 무시
+    }
+    try {
+      await SecureStore.deleteItemAsync(SECURE_ACCESS_TOKEN_KEY);
+    } catch {
+      // 무시
+    }
+  },
+};
 
 interface AuthState {
   // 상태
@@ -107,7 +197,7 @@ export const useAuthStore = create<AuthState>()(
 
           // Zustand persist에서 토큰 확인
           if (!accessToken) {
-            console.log('저장된 토큰이 없습니다.');
+            if (__DEV__) console.log('저장된 토큰이 없습니다.');
             return;
           }
 
@@ -115,7 +205,7 @@ export const useAuthStore = create<AuthState>()(
           const user = await authApiService.getMe();
           setUser(user);
 
-          console.log('✅ 사용자 정보 로드 성공');
+          if (__DEV__) console.log('✅ 사용자 정보 로드 성공');
         } catch (error: any) {
           console.error('❌ 사용자 정보 로드 실패:', error);
           // 토큰이 유효하지 않으면 Zustand에서 정리
@@ -137,9 +227,11 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'auth-storage', // AsyncStorage 키
-      storage: createJSONStorage(() => AsyncStorage),
-      // 필요한 인증 정보만 저장 (accessToken 포함)
+      name: 'auth-storage', // 비민감 상태용 AsyncStorage 키 (accessToken은 SecureStore로 분리됨)
+      // 하이브리드 저장소: accessToken은 expo-secure-store(암호화), 나머지는 AsyncStorage.
+      // SPEC-SECURITY-001 REQ-SEC-005: 평문 AsyncStorage에 액세스 토큰을 저장하지 않는다.
+      storage: createJSONStorage(() => secureHybridStorage),
+      // accessToken은 partialize에 포함되지만 저장 어댑터가 SecureStore로 라우팅한다.
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
