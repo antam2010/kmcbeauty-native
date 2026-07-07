@@ -5,8 +5,10 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef } from 'react';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { queryClient } from '@/src/api/queryClient';
 import { useAuthStore } from '@/src/stores/authStore';
 import { useShopStore } from '@/src/stores/shopStore';
+import { QueryClientProvider } from '@tanstack/react-query';
 
 // Zustand 스토어 초기화 컴포넌트
 // SPEC-REFACTOR-001 REQ-REF-003: 과거에는 스토어 훅을 통째로 구독(const { loadUser } = useAuthStore())하고
@@ -53,7 +55,10 @@ export default React.memo(function RootLayout() {
   }
 
   return (
-    <>
+    // SPEC-DATA-001 REQ-DATA-001-01: 단일 QueryClientProvider 로 전체 트리를 래핑하여
+    // 모든 화면이 동일 QueryClient(서버-상태 캐시)를 공유한다. 기존 StoreInitializer/ThemeProvider
+    // 트리를 그대로 감싼다(초기화 순서·zustand 클라이언트 상태 불변).
+    <QueryClientProvider client={queryClient}>
       <StoreInitializer />
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack screenOptions={{ headerShown: false }}>
@@ -65,6 +70,6 @@ export default React.memo(function RootLayout() {
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
-    </>
+    </QueryClientProvider>
   );
 });

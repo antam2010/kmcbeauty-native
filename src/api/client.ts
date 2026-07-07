@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { router } from 'expo-router';
+// SPEC-DATA-001 REQ-DATA-001-08 (F-15): 스토어 동적 import 를 최초 1회 후 캐시(반복 import 오버헤드 제거).
+//   순환 참조 회피(최초 호출 전까지 스토어 미평가)는 storeLoaders 의 lazy import 로 유지된다.
+import { loadAuthStore, loadShopStore } from './storeLoaders';
 
 // 타입 정의
 interface AuthTokenResponse {
@@ -27,7 +30,7 @@ let failedQueue: { resolve: Function; reject: Function }[] = [];
 const getAccessToken = async (): Promise<string | null> => {
   // 1. Zustand 스토어에서 토큰 확인 (persist로 저장된 토큰)
   try {
-    const { useAuthStore } = await import('../stores/authStore');
+    const useAuthStore = await loadAuthStore();
     const accessToken = useAuthStore.getState().accessToken;
     if (accessToken) {
       if (__DEV__) console.log('🔑 Zustand 스토어 토큰 사용');
@@ -81,7 +84,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
     
     // 새로운 액세스 토큰 저장 (Zustand persist가 자동으로 AsyncStorage 처리)
     try {
-      const { useAuthStore } = await import('../stores/authStore');
+      const useAuthStore = await loadAuthStore();
       useAuthStore.getState().setAccessToken(access_token);
       console.log('✅ 액세스 토큰 갱신 성공 (Zustand persist)');
     } catch (storeError) {
@@ -121,11 +124,10 @@ const performLogout = async () => {
   try {
     console.log('🚪 강제 로그아웃 처리 시작');
     
-    // Zustand 스토어 정리 (동적 import로 순환 참조 방지)
+    // Zustand 스토어 정리 (캐시된 lazy 로더로 순환 참조 방지)
     try {
-      const { useAuthStore } = await import('../stores/authStore');
-      const { useShopStore } = await import('../stores/shopStore');
-      
+      const [useAuthStore, useShopStore] = await Promise.all([loadAuthStore(), loadShopStore()]);
+
       // 상태 정리
       useAuthStore.getState().clearAuth();
       useShopStore.getState().clearSelectedShop();
@@ -234,7 +236,7 @@ apiClient.interceptors.request.use(
       //   조회하여 헤더를 신뢰성 있게 부착한다.
       let hasShopId = false;
       try {
-        const { useShopStore } = await import('../stores/shopStore');
+        const useShopStore = await loadShopStore();
         const selectedShop = useShopStore.getState().selectedShop;
         if (selectedShop?.id) {
           config.headers = config.headers || {};
@@ -379,7 +381,7 @@ apiClient.interceptors.response.use(
 
       try {
         // Zustand 스토어에서 토큰 확인
-        const { useAuthStore } = await import('../stores/authStore');
+        const useAuthStore = await loadAuthStore();
         const currentToken = useAuthStore.getState().accessToken;
         if (!currentToken) {
           console.log('🚪 저장된 토큰이 없음 - 로그아웃 처리');

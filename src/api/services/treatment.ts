@@ -1,6 +1,11 @@
 import type { Treatment, TreatmentCreate, TreatmentListParams, TreatmentResponse, TreatmentSimpleResponse, TreatmentUpdate } from '../../types';
 import { BaseApiService } from './base';
 
+// SPEC-DATA-001 REQ-DATA-001-07 (F-14): 월간/주간 동시 페이지네이션 팬아웃 상한.
+// @MX:NOTE: [AUTO] 월 ~50건/page × 20 = ~1000건 상한 — 단일 뷰 실사용 범위를 넉넉히 포괄한다.
+//   초과 시 MAX_PAGES 까지만 조회하고 console.warn 으로 절단 사실을 남긴다(dev-gated).
+const MAX_PAGES = 20;
+
 class TreatmentApiService extends BaseApiService {
   protected readonly basePath = '/treatments';
 
@@ -48,7 +53,12 @@ class TreatmentApiService extends BaseApiService {
     try {
       // 1) 첫 페이지 조회로 총 페이지 수 파악
       const firstPage = await this.list({ ...listParams, page: 1 });
-      const totalPages = firstPage.pages || 1;
+      const rawPages = firstPage.pages || 1;
+      // SPEC-DATA-001 REQ-DATA-001-07: 동시 요청 페이지 수를 MAX_PAGES 로 상한.
+      const totalPages = Math.min(rawPages, MAX_PAGES);
+      if (rawPages > MAX_PAGES && __DEV__) {
+        console.warn(`⚠️ 월별 트리트먼트 페이지 상한 초과: ${rawPages}p → ${MAX_PAGES}p 로 제한(팬아웃 방어)`);
+      }
 
       // 2) 나머지 페이지(2..N)를 동시 요청 (인위적 지연 없음). 일부 페이지 실패가 전체를 폐기하지 않도록 allSettled 사용(AC-002-2)
       const restResults = await Promise.allSettled(
@@ -115,7 +125,12 @@ class TreatmentApiService extends BaseApiService {
     try {
       // 1) 첫 페이지 조회로 총 페이지 수 파악
       const firstPage = await this.list({ ...listParams, page: 1 });
-      const totalPages = firstPage.pages || 1;
+      const rawPages = firstPage.pages || 1;
+      // SPEC-DATA-001 REQ-DATA-001-07: 동시 요청 페이지 수를 MAX_PAGES 로 상한.
+      const totalPages = Math.min(rawPages, MAX_PAGES);
+      if (rawPages > MAX_PAGES && __DEV__) {
+        console.warn(`⚠️ 주간 트리트먼트 페이지 상한 초과: ${rawPages}p → ${MAX_PAGES}p 로 제한(팬아웃 방어)`);
+      }
 
       // 2) 나머지 페이지(2..N)를 동시 요청 (인위적 지연 없음). 일부 페이지 실패가 전체를 폐기하지 않도록 allSettled 사용(AC-002-2)
       const restResults = await Promise.allSettled(

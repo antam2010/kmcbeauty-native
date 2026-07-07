@@ -1,5 +1,6 @@
-import { treatmentApiService } from '@/src/api/services/treatment';
+import { useMonthlyTreatmentsQuery } from '@/hooks/queries/useMonthlyTreatmentsQuery';
 import { Treatment } from '@/src/types';
+import { useShopStore } from '@/src/stores/shopStore';
 import { BorderRadius, Colors, Shadow, Spacing, Typography } from '@/src/ui/theme';
 import {
   buildBookingCountMap,
@@ -91,35 +92,31 @@ export const ImprovedCalendar: React.FC<ImprovedCalendarProps> = ({
   refreshTrigger,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [treatments, setTreatments] = useState<Treatment[]>([]);
 
-  // 월별 시술 예약 데이터 로드
-  const loadMonthlyTreatments = useCallback(async (year: number, month: number) => {
-    try {
-      const monthlyTreatments = await treatmentApiService.getMonthlyTreatments(year, month);
-      setTreatments(monthlyTreatments);
-      onTreatmentsLoad?.(monthlyTreatments);
-    } catch (error) {
-      console.error('월별 시술 예약 로드 실패:', error);
-      setTreatments([]);
-    }
-  }, [onTreatmentsLoad]);
+  // SPEC-DATA-001 REQ-DATA-001-03 (F-12b): 월별 시술 읽기 경로를 react-query 로 캐싱한다.
+  // 동일 월 재방문 시 staleTime 내 재요청 0회(AC-06). onTreatmentsLoad 부모 콜백 계약을 보존한다(D9).
+  const shopId = useShopStore((s) => s.selectedShop?.id);
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth() + 1;
+  const monthlyQuery = useMonthlyTreatmentsQuery(shopId, year, month);
+  const treatments = useMemo<Treatment[]>(() => monthlyQuery.data ?? [], [monthlyQuery.data]);
 
-  // 현재 월이 변경될 때마다 데이터 로드
+  // 부모 콜백 계약 보존: 로드 성공 시 결과를 부모로 전달(기존 loadMonthlyTreatments 동작과 동일).
+  const { data: monthlyData } = monthlyQuery;
   useEffect(() => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth() + 1;
-    loadMonthlyTreatments(year, month);
-  }, [currentMonth, loadMonthlyTreatments]);
-
-  // refreshTrigger가 변경될 때마다 데이터 다시 로드
-  useEffect(() => {
-    if (refreshTrigger !== undefined) {
-      const year = currentMonth.getFullYear();
-      const month = currentMonth.getMonth() + 1;
-      loadMonthlyTreatments(year, month);
+    if (monthlyData) {
+      onTreatmentsLoad?.(monthlyData);
     }
-  }, [refreshTrigger, currentMonth, loadMonthlyTreatments]);
+  }, [monthlyData, onTreatmentsLoad]);
+
+  // refreshTrigger 변경 시 현재 월 데이터를 다시 조회(예약 생성/수정 후 부모가 트리거).
+  const { refetch: refetchMonthly } = monthlyQuery;
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      refetchMonthly();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
 
   // REQ-PERF-003-06: 날짜→예약 건수 Map 을 useMemo 로 1회 구성하여 O(1) 조회.
   const bookingCountMap = useMemo(() => buildBookingCountMap(treatments), [treatments]);

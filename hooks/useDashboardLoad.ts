@@ -1,15 +1,19 @@
 // SPEC-PERF-003 REQ-PERF-003-01: 홈 대시보드 로드 로직을 테스트 가능한 훅으로 분리한다.
-// - 마운트 시 중복 요청 제거: 단일 effect 로 수렴(기존 이중 effect 제거).
-// - 병렬화: 오늘 요약 + 주간 시술을 Promise.all 로 동시 발행.
-// - 불변식 보존: 인증 오류 상위 전파, 주간 실패 weeklyError 인라인 안내(SPEC-UX-001 REQ-UX-007),
-//   상점 미선택 시 로드 스킵. (research.md §3 회귀 가드)
-// REQ-PERF-003-08: 스토어 접근을 전체 구조분해에서 필드 셀렉터 구독으로 전환.
+// - 마운트 시 중복 요청 제거, 병렬화(오늘 요약 + 주간 시술).
+// - 불변식 보존: 인증 오류 상위 전파(인터셉터 처리), 주간 실패 weeklyError 인라인 안내(SPEC-UX-001 REQ-UX-007),
+//   상점 미선택 시 로드 스킵.
+// SPEC-DATA-001 REQ-DATA-001-02 (F-12a): 두 읽기 경로를 react-query 로 캐싱한다.
+// - 동일 query key 재마운트 시 staleTime(60s) 내 재요청 0회(중복제거).
+// - pull-to-refresh/헤더 새로고침 → force_refresh 로 정확히 1회 refetch.
+// - 두 query 는 병렬 발행(react-query 가 마운트 시 동시 dispatch)되며, 주간 실패는 오늘 요약을 유실시키지 않는다.
 import { useDashboard } from '@/contexts/DashboardContext';
+import { queryKeys } from '@/src/api/queryKeys';
 import { dashboardApiService } from '@/src/api/services/dashboard';
 import { treatmentApiService } from '@/src/api/services/treatment';
 import { useShopStore } from '@/src/stores/shopStore';
 import type { Treatment } from '@/src/types';
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 // 임시 타입 정의 (기존 index.tsx 정의 이전)
@@ -24,98 +28,97 @@ export interface DashboardSummaryResponse {
 const isAuthError = (error: any): boolean =>
   !!error?.message?.includes('인증이 만료') || !!error?.message?.includes('권한이 없습니다');
 
+// 주간 범위(월요일 기준) 키 문자열. 서비스는 자체적으로 오늘 기준 주를 계산하므로 캐시 식별용으로만 사용.
+function currentWeekKey(): string {
+  const today = new Date();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - today.getDay() + 1);
+  return monday.toISOString().split('T')[0];
+}
+
 export function useDashboardLoad() {
-  const [dashboardData, setDashboardData] = useState<DashboardSummaryResponse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [weeklyTreatments, setWeeklyTreatments] = useState<Treatment[]>([]);
-  // SPEC-UX-001 REQ-UX-007: 주간 시술 로드 실패를 무음 처리하지 않고 인라인으로 안내
-  const [weeklyError, setWeeklyError] = useState(false);
 
   // REQ-PERF-003-08: 필드 셀렉터 구독(전체 구조분해 대신)
-  const selectedShop = useShopStore((s) => s.selectedShop);
-  const shopLoading = useShopStore((s) => s.loading);
+  const shopId = useShopStore((s) => s.selectedShop?.id);
   const { refreshTrigger } = useDashboard();
 
-  const loadWeeklyTreatments = useCallback(async () => {
-    try {
-      const weeklyData = await treatmentApiService.getWeeklyTreatments();
-      setWeeklyTreatments(weeklyData);
-      setWeeklyError(false);
-    } catch (error: any) {
-      console.error('주간 시술 데이터 로딩 실패:', error);
-      // 인증 관련 에러는 상위로 전파 (인터셉터가 처리하도록)
-      if (isAuthError(error)) {
-        throw error;
-      }
-      // SPEC-UX-001 REQ-UX-007: 그 외 에러는 무음 처리하지 않고 인라인 안내 상태를 설정한다.
-      setWeeklyError(true);
-    }
-  }, []);
+  // 캐시 식별 키(마운트 시점 고정). '오늘'/주간 범위는 세션 내 안정적이면 충분하다.
+  const [todayDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [weekRange] = useState(() => currentWeekKey());
 
-  const loadDashboardData = useCallback(
-    async (forceRefresh: boolean = false) => {
-      // 상점이 선택되지 않았으면 로딩하지 않음
-      if (!selectedShop) {
-        console.log('🏪 상점이 선택되지 않아 대시보드 데이터를 로딩하지 않습니다.');
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
+  // pull-to-refresh 시 오늘 요약을 force_refresh 로 1회 조회하기 위한 플래그.
+  const forceRefreshRef = useRef(false);
 
-      try {
-        // REQ-PERF-003-01: 상호 독립적인 두 요청을 병렬(Promise.all) 발행.
-        // 주간 실패는 loadWeeklyTreatments 내부에서 격리되므로(인증 오류만 재throw),
-        // 오늘 요약 성공이 주간 실패로 유실되지 않는다.
-        const [data] = await Promise.all([
-          dashboardApiService.getTodayDetailedSummary(forceRefresh),
-          loadWeeklyTreatments(),
-        ]);
-        setDashboardData(data);
-      } catch (error: any) {
-        console.error('대시보드 데이터 로딩 실패:', error);
-        // 인증 관련 에러는 상위로 전파 (API 인터셉터가 자동으로 로그인 페이지 이동 처리)
-        if (isAuthError(error)) {
-          console.log('🔐 인증 에러 감지 - 인터셉터가 로그인 페이지로 이동 처리');
-        } else {
-          Alert.alert('오류', '대시보드 데이터를 불러올 수 없습니다.');
-        }
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
+  // 오늘 요약 query — 상점 미선택 시 비활성(요청 스킵).
+  const todayQuery = useQuery<DashboardSummaryResponse>({
+    queryKey: queryKeys.dashboardToday(shopId, todayDate),
+    queryFn: async () => {
+      const force = forceRefreshRef.current;
+      forceRefreshRef.current = false;
+      return dashboardApiService.getTodayDetailedSummary(force);
     },
-    [loadWeeklyTreatments, selectedShop],
-  );
+    enabled: !!shopId,
+  });
 
-  // REQ-PERF-003-01: 마운트/상점 변경 트리거를 단일 effect 로 수렴(기존 이중 effect 제거).
+  // 주간 시술 query — 실패가 오늘 요약과 독립적으로 격리된다(별도 query).
+  const weeklyQuery = useQuery<Treatment[]>({
+    queryKey: queryKeys.treatmentsWeekly(shopId, weekRange),
+    queryFn: () => treatmentApiService.getWeeklyTreatments(),
+    enabled: !!shopId,
+  });
+
+  const dashboardData = todayQuery.data ?? null;
+  const weeklyTreatments = weeklyQuery.data ?? [];
+  // SPEC-UX-001 REQ-UX-007: 인증 오류는 인터셉터가 처리(상위 전파 의미론) — weeklyError 안내를 띄우지 않는다.
+  //   그 외 오류만 인라인 안내로 노출한다.
+  const weeklyError = weeklyQuery.isError && !isAuthError(weeklyQuery.error);
+  // 상점 미선택(비활성) 시 로딩 스킵 → isLoading=false.
+  const loading = todayQuery.isLoading;
+
+  // 오늘 요약 비인증 오류는 기존과 동일하게 Alert 로 안내(인증 오류는 인터셉터가 처리).
   useEffect(() => {
-    if (!shopLoading) {
-      loadDashboardData();
+    if (todayQuery.isError && !isAuthError(todayQuery.error)) {
+      console.error('대시보드 데이터 로딩 실패:', todayQuery.error);
+      Alert.alert('오류', '대시보드 데이터를 불러올 수 없습니다.');
     }
-  }, [shopLoading, selectedShop, loadDashboardData]);
+  }, [todayQuery.isError, todayQuery.errorUpdatedAt, todayQuery.error]);
 
-  // Dashboard refresh trigger 감지
+  // Dashboard refresh trigger 감지 — 관련 query refetch.
   useEffect(() => {
     if (refreshTrigger > 0) {
-      loadDashboardData();
+      todayQuery.refetch();
+      weeklyQuery.refetch();
     }
-  }, [refreshTrigger, loadDashboardData]);
+    // refetch 함수는 안정적이며, refreshTrigger 변화에만 반응해야 한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
 
-  const onRefresh = useCallback(() => {
+  // 주간만 재조회(인라인 재시도 버튼용).
+  const loadWeeklyTreatments = useCallback(() => weeklyQuery.refetch(), [weeklyQuery]);
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    loadDashboardData(true); // 새로고침 시 force_refresh=true
-  }, [loadDashboardData]);
+    forceRefreshRef.current = true; // 새로고침 시 force_refresh=true
+    try {
+      await Promise.all([todayQuery.refetch(), weeklyQuery.refetch()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [todayQuery, weeklyQuery]);
 
   const onHeaderRefresh = useCallback(() => {
-    loadDashboardData(true); // 헤더 새로고침 버튼 클릭 시 force_refresh=true
-  }, [loadDashboardData]);
+    forceRefreshRef.current = true; // 헤더 새로고침 버튼 클릭 시 force_refresh=true
+    todayQuery.refetch();
+    weeklyQuery.refetch();
+  }, [todayQuery, weeklyQuery]);
 
-  // 막다른 오류 화면 재시도(SPEC-UX-001 REQ-UX-006): 로딩 표시 후 강제 새로고침
+  // 막다른 오류 화면 재시도(SPEC-UX-001 REQ-UX-006): 강제 새로고침
   const retryDashboard = useCallback(() => {
-    setLoading(true);
-    loadDashboardData(true);
-  }, [loadDashboardData]);
+    forceRefreshRef.current = true;
+    todayQuery.refetch();
+    weeklyQuery.refetch();
+  }, [todayQuery, weeklyQuery]);
 
   return {
     dashboardData,

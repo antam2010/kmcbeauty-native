@@ -1,12 +1,12 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import InviteCodeGeneratorModal from '@/components/modals/InviteCodeGeneratorModal';
-import { StaffUser, userApiService } from '@/src/api/services/staff';
+import { useStaffUsersQuery } from '@/hooks/queries/useShopUsersQuery';
 import { useShopStore } from '@/src/stores/shopStore';
 import { Button } from '@/src/ui/atoms';
 import { ThemeColors as Colors, Colors as DesignColors, Spacing, Typography } from '@/src/ui/theme';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   SafeAreaView,
@@ -21,55 +21,32 @@ interface StaffManagementProps {
 }
 
 export default function StaffManagement({ onGoBack }: StaffManagementProps) {
-  const [staffList, setStaffList] = useState<StaffUser[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
   // REQ-PERF-003-08: 전체 구독 대신 필드 셀렉터로 무관 상태 변경 리렌더 차단.
   const selectedShop = useShopStore((s) => s.selectedShop);
   const colorScheme = useColorScheme() ?? 'light';
 
+  // SPEC-DATA-001 REQ-DATA-001-04 (F-12d): 예약 폼과 공유 key `['shopUsers', shopId]` + select 뷰모델.
+  // queryFn 은 throw 페처(shopApiService.getUsers)이므로 오류가 react-query 오류 상태로 노출된다.
+  const staffQuery = useStaffUsersQuery(selectedShop?.id);
+  const staffData = staffQuery.data;
+  const staffList = useMemo(() => staffData ?? [], [staffData]);
+  const loading = staffQuery.isLoading;
+
+  // 기존 동작 보존: 로드 실패 시 인라인 Alert.
   useEffect(() => {
-    const loadInitialData = async () => {
-      if (!selectedShop?.id) {
-        Alert.alert('오류', '선택된 상점이 없습니다.');
-        return;
-      }
+    if (staffQuery.isError) {
+      console.error('직원 데이터 로딩 중 오류:', staffQuery.error);
+      Alert.alert('오류', '직원 데이터를 불러오는 중 문제가 발생했습니다.');
+    }
+  }, [staffQuery.isError, staffQuery.errorUpdatedAt, staffQuery.error]);
 
-      try {
-        setLoading(true);
-        const staffData = await userApiService.getShopUsers(selectedShop.id);
-        setStaffList(staffData);
-      } catch (error) {
-        console.error('직원 데이터 로딩 중 오류:', error);
-        Alert.alert('오류', '직원 데이터를 불러오는 중 문제가 발생했습니다.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadInitialData();
-  }, [selectedShop?.id]);
-
-  const loadData = async () => {
+  const handleRefresh = () => {
     if (!selectedShop?.id) {
       Alert.alert('오류', '선택된 상점이 없습니다.');
       return;
     }
-
-    try {
-      setLoading(true);
-      const staffData = await userApiService.getShopUsers(selectedShop.id);
-      setStaffList(staffData);
-    } catch (error) {
-      console.error('직원 데이터 로딩 중 오류:', error);
-      Alert.alert('오류', '직원 데이터를 불러오는 중 문제가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRefresh = () => {
-    loadData();
+    staffQuery.refetch();
   };
 
   // REQ-PERF-003-09: 행 onPress 가 참조하는 핸들러를 useCallback 으로 안정화.

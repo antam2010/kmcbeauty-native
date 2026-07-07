@@ -4,9 +4,11 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import React from 'react';
+import { makeQueryWrapper } from './utils/queryTestUtils';
 
 const mockGetAllWithDetails = jest.fn();
 const mockGetCurrentShopUsers = jest.fn();
+const mockGetUsers = jest.fn();
 const mockPhonebookList = jest.fn();
 const mockPhonebookSearch = jest.fn();
 const mockCheckDuplicate = jest.fn();
@@ -18,7 +20,10 @@ jest.mock('@/src/api/services/treatmentMenu', () => ({
   treatmentMenuApiService: { getAllWithDetails: (...a: any[]) => mockGetAllWithDetails(...a) },
 }));
 jest.mock('@/src/api/services/shop', () => ({
-  shopApiService: { getCurrentShopUsers: (...a: any[]) => mockGetCurrentShopUsers(...a) },
+  shopApiService: {
+    getCurrentShopUsers: (...a: any[]) => mockGetCurrentShopUsers(...a),
+    getUsers: (...a: any[]) => mockGetUsers(...a),
+  },
 }));
 jest.mock('@/src/api/services/phonebook', () => ({
   phonebookApiService: {
@@ -65,6 +70,7 @@ const MENUS = [
 function setupMocks() {
   mockGetAllWithDetails.mockResolvedValue(MENUS);
   mockGetCurrentShopUsers.mockResolvedValue([]);
+  mockGetUsers.mockResolvedValue([]);
   mockPhonebookList.mockResolvedValue({ items: [], total: 0, page: 1, pages: 1, size: 10 });
   mockPhonebookSearch.mockResolvedValue([]);
   mockCheckDuplicate.mockResolvedValue({ exists: false });
@@ -81,12 +87,15 @@ function setupMocks() {
 async function renderForm() {
   const onBookingComplete = jest.fn();
   const onClose = jest.fn();
+  // SPEC-DATA-001: BookingForm 이 react-query 를 사용하므로 QueryClientProvider 로 래핑한다.
+  const { Wrapper, client } = makeQueryWrapper();
   const utils = render(
     <BookingForm selectedDate="2026-07-07" onClose={onClose} onBookingComplete={onBookingComplete} />,
+    { wrapper: Wrapper },
   );
   // 시술 메뉴 로드 완료 대기(로딩 게이트 해제)
   await waitFor(() => utils.getByText('젤네일'));
-  return { ...utils, onBookingComplete, onClose };
+  return { ...utils, onBookingComplete, onClose, client };
 }
 
 describe('BookingForm 흐름 (SPEC-BOOKING-001)', () => {
@@ -147,6 +156,24 @@ describe('BookingForm 흐름 (SPEC-BOOKING-001)', () => {
     expect(onBookingComplete).not.toHaveBeenCalled();
     // 선택한 시술이 폼에 그대로 유지됨(초기화되지 않음)
     expect(queryByText('✅ 선택된 시술')).toBeTruthy();
+  });
+
+  it('SPEC-DATA-001 AC-09: 예약 생성 성공 후 treatments·dashboard query 를 invalidate 한다', async () => {
+    mockTreatmentCreate.mockResolvedValue({ id: 1, created_at: '', updated_at: '' });
+    const { getByText, client } = await renderForm();
+    const invalidateSpy = jest.spyOn(client, 'invalidateQueries');
+
+    fireEvent.press(getByText('09:00'));
+    fireEvent.press(getByText('젤네일'));
+    await waitFor(() => getByText('✅ 선택된 시술'));
+    fireEvent.press(getByText('예약하기'));
+
+    await waitFor(() => expect(mockTreatmentCreate).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(invalidateSpy).toHaveBeenCalled());
+
+    const invalidatedKeys = invalidateSpy.mock.calls.map((c) => (c[0] as any)?.queryKey);
+    expect(invalidatedKeys).toContainEqual(['treatments']);
+    expect(invalidatedKeys).toContainEqual(['dashboard']);
   });
 
   it('AC-12: 오늘 날짜에서 첫 가용 슬롯이 강조되고, 강조 시점 selectedTime 은 미설정(탭 전)', async () => {

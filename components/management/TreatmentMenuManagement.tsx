@@ -1,4 +1,7 @@
-import { treatmentMenuAPI } from '@/src/services/api/treatment-menu';
+import { treatmentMenuApiService } from '@/src/api/services/treatmentMenu';
+import { queryKeyPrefix } from '@/src/api/queryKeys';
+import { useTreatmentMenusQuery } from '@/hooks/queries/useTreatmentMenusQuery';
+import { useShopStore } from '@/src/stores/shopStore';
 import {
     TreatmentMenu,
     TreatmentMenuCreate,
@@ -8,8 +11,9 @@ import {
 import { Button, TextInput as CustomTextInput } from '@/src/ui/atoms';
 import { Colors, Spacing, Typography } from '@/src/ui/theme';
 import { formatKoreanShortDate, formatKrwNumber } from '@/src/utils/intlFormat';
+import { useQueryClient } from '@tanstack/react-query';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Alert,
     FlatList,
@@ -32,11 +36,22 @@ type MenuRow = TreatmentMenu & { displayDate: string };
 type DetailRow = TreatmentMenuDetail & { displayPrice: string };
 
 export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManagementProps) {
-  const [menus, setMenus] = useState<TreatmentMenu[]>([]);
   const [selectedMenu, setSelectedMenu] = useState<TreatmentMenu | null>(null);
   const [menuDetails, setMenuDetails] = useState<TreatmentMenuDetail[]>([]);
-  const [loading, setLoading] = useState(true);
-  
+
+  // SPEC-DATA-001 REQ-06/04: 레거시 treatmentMenuAPI → 도메인 treatmentMenuApiService + react-query 캐싱.
+  // 예약 폼과 공유 key `['treatmentMenus', shopId]` 로 단일 캐시를 공유한다.
+  const shopId = useShopStore((s) => s.selectedShop?.id);
+  const queryClient = useQueryClient();
+  const menusQuery = useTreatmentMenusQuery(shopId);
+  const menus = useMemo<TreatmentMenu[]>(() => menusQuery.data ?? [], [menusQuery.data]);
+  const loading = menusQuery.isLoading;
+
+  const invalidateMenus = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: queryKeyPrefix.treatmentMenus }),
+    [queryClient],
+  );
+
   // 모달 관련 상태
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -51,26 +66,17 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
     base_price: 0,
   });
 
+  // 기존 동작 보존: 목록 로드 실패 시 인라인 Alert.
   useEffect(() => {
-    loadMenus();
-  }, []);
-
-  const loadMenus = async () => {
-    try {
-      setLoading(true);
-      const response = await treatmentMenuAPI.getMenus();
-      setMenus(response.items);
-    } catch (error) {
-      console.error('시술 메뉴 로딩 실패:', error);
+    if (menusQuery.isError) {
+      console.error('시술 메뉴 로딩 실패:', menusQuery.error);
       Alert.alert('오류', '시술 메뉴를 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [menusQuery.isError, menusQuery.errorUpdatedAt, menusQuery.error]);
 
   const loadMenuDetails = async (menuId: number) => {
     try {
-      const details = await treatmentMenuAPI.getMenuDetails(menuId);
+      const details = await treatmentMenuApiService.getDetails(menuId);
       setMenuDetails(details);
     } catch (error) {
       console.error('시술 상세 로딩 실패:', error);
@@ -104,16 +110,17 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
 
       if (editingMenu) {
         // 수정
-        await treatmentMenuAPI.updateMenu(editingMenu.id, menuForm);
+        await treatmentMenuApiService.update(editingMenu.id, menuForm);
         Alert.alert('성공', '시술 메뉴가 수정되었습니다.');
       } else {
         // 생성
-        await treatmentMenuAPI.createMenu(menuForm);
+        await treatmentMenuApiService.create(menuForm);
         Alert.alert('성공', '시술 메뉴가 생성되었습니다.');
       }
 
       setShowMenuModal(false);
-      await loadMenus();
+      // SPEC-DATA-001 REQ-05: 메뉴 CUD 성공 → 메뉴 query 무효화.
+      invalidateMenus();
     } catch (error) {
       console.error('시술 메뉴 저장 실패:', error);
       Alert.alert('오류', '시술 메뉴 저장에 실패했습니다.');
@@ -131,9 +138,10 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
           style: 'destructive',
           onPress: async () => {
             try {
-              await treatmentMenuAPI.deleteMenu(menu.id);
+              await treatmentMenuApiService.remove(menu.id);
               Alert.alert('성공', '시술 메뉴가 삭제되었습니다.');
-              await loadMenus();
+              // SPEC-DATA-001 REQ-05: 메뉴 삭제 성공 → 메뉴 query 무효화.
+              invalidateMenus();
               if (selectedMenu?.id === menu.id) {
                 setSelectedMenu(null);
                 setMenuDetails([]);
@@ -191,16 +199,18 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
 
       if (editingDetail) {
         // 수정
-        await treatmentMenuAPI.updateMenuDetail(selectedMenu.id, editingDetail.id, detailForm);
+        await treatmentMenuApiService.updateDetail(selectedMenu.id, editingDetail.id, detailForm);
         Alert.alert('성공', '시술 상세가 수정되었습니다.');
       } else {
         // 생성
-        await treatmentMenuAPI.createMenuDetail(selectedMenu.id, detailForm);
+        await treatmentMenuApiService.createDetail(selectedMenu.id, detailForm);
         Alert.alert('성공', '시술 상세가 생성되었습니다.');
       }
 
       setShowDetailModal(false);
       await loadMenuDetails(selectedMenu.id);
+      // SPEC-DATA-001 REQ-05: 상세 변경은 메뉴(details 포함) query 에도 반영되도록 무효화.
+      invalidateMenus();
     } catch (error) {
       console.error('시술 상세 저장 실패:', error);
       Alert.alert('오류', '시술 상세 저장에 실패했습니다.');
@@ -219,10 +229,12 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
           onPress: async () => {
             try {
               if (!selectedMenu) return;
-              
-              await treatmentMenuAPI.deleteMenuDetail(selectedMenu.id, detail.id);
+
+              await treatmentMenuApiService.removeDetail(selectedMenu.id, detail.id);
               Alert.alert('성공', '시술 상세가 삭제되었습니다.');
               await loadMenuDetails(selectedMenu.id);
+              // SPEC-DATA-001 REQ-05: 상세 삭제도 메뉴 query 무효화.
+              invalidateMenus();
             } catch (error) {
               console.error('시술 상세 삭제 실패:', error);
               Alert.alert('오류', '시술 상세 삭제에 실패했습니다.');
@@ -309,6 +321,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                     <MaterialIcons name="edit" size={18} color="#666" />
                   </TouchableOpacity>
                   <TouchableOpacity
+                    testID={`delete-menu-${menu.id}`}
                     onPress={() => handleDeleteMenu(menu)}
                     style={styles.actionButton}
                   >

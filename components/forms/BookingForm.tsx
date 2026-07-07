@@ -1,12 +1,17 @@
 import ContactSyncModal from '@/components/modals/ContactSyncModal';
 import CustomerRegistrationModal from '@/components/modals/CustomerRegistrationModal';
+import { useShopUsersQuery } from '@/hooks/queries/useShopUsersQuery';
+import { useTreatmentMenusQuery } from '@/hooks/queries/useTreatmentMenusQuery';
+import { queryKeyPrefix } from '@/src/api/queryKeys';
 import { phonebookApiService, type Phonebook } from '@/src/api/services/phonebook';
-import { shopApiService, type ShopUser } from '@/src/api/services/shop';
+import { type ShopUser } from '@/src/api/services/shop';
 import { treatmentApiService } from '@/src/api/services/treatment';
-import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
+import { type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import { type ContactSyncResult } from '@/src/services/contactSync';
+import { useShopStore } from '@/src/stores/shopStore';
 import type { TreatmentCreate } from '@/src/types';
 import { Button, TextInput as CustomTextInput, DatePicker } from '@/src/ui/atoms';
+import { useQueryClient } from '@tanstack/react-query';
 
 import {
   buildTreatmentPayload,
@@ -75,12 +80,25 @@ export default function BookingForm({
   
   // 로딩 상태
   const [isLoading, setIsLoading] = useState(false);
-  const [treatmentMenus, setTreatmentMenus] = useState<TreatmentMenu[]>([]);
-  const [staffUsers, setStaffUsers] = useState<ShopUser[]>([]);
-  const [isLoadingMenus, setIsLoadingMenus] = useState(true);
-  // SPEC-UX-001 REQ-UX-007: 직원 목록 로드 실패를 무음 처리하지 않고 인라인으로 안내
-  const [staffLoadError, setStaffLoadError] = useState(false);
-  
+
+  // SPEC-DATA-001 REQ-DATA-001-04/05: 서버-상태 캐싱 + mutation 무효화.
+  const queryClient = useQueryClient();
+  const shopId = useShopStore((s) => s.selectedShop?.id);
+
+  // 메뉴 공유 query(예약 폼·메뉴 관리 공유 key `['treatmentMenus', shopId]`).
+  const menusQuery = useTreatmentMenusQuery(shopId);
+  const treatmentMenus = menusQuery.data ?? [];
+  const isLoadingMenus = menusQuery.isLoading;
+
+  // 직원 공유 query(직원 관리 화면과 동일 key `['shopUsers', shopId]`).
+  // queryFn 은 throw 페처(getUsers)이므로, 기존 무음 `[]` 폴백과 달리 오류가 staffLoadError 인라인 안내로
+  // 노출된다 — SPEC-UX-001 REQ-UX-007 의 원래 의도를 회복하는 의도된 변경(SPEC 예외).
+  const staffQuery = useShopUsersQuery(shopId);
+  const staffUsers: ShopUser[] = staffQuery.data ?? [];
+  const staffLoadError = staffQuery.isError;
+  // 최근 사용 직원 복원을 최초 1회만 수행(사용자 수동 선택을 덮어쓰지 않도록).
+  const staffRestoredRef = useRef(false);
+
   const insets = useSafeAreaInsets();
 
   // 시간 슬롯 (30분 간격)
@@ -91,13 +109,35 @@ export default function BookingForm({
     '18:00', '18:30'
   ];
 
-  // 시술 메뉴와 직원 목록 로드
+  // 최근 고객 로드(F-12 5대상 외 부수 경로 — 현행 유지, 캐싱 대상 아님).
   useEffect(() => {
-    loadTreatmentMenus();
-    loadStaffUsers();
-    loadRecentCustomers(); // 최근 고객 로드 추가
+    loadRecentCustomers();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 컴포넌트 마운트 시 한 번만 실행
+
+  // 메뉴 로드 실패 시 기존과 동일하게 Alert 안내.
+  useEffect(() => {
+    if (menusQuery.isError) {
+      console.error('시술 메뉴 로드 실패:', menusQuery.error);
+      Alert.alert('오류', '시술 메뉴를 불러오는데 실패했습니다.');
+    }
+  }, [menusQuery.isError, menusQuery.errorUpdatedAt, menusQuery.error]);
+
+  // SPEC-BOOKING-001 REQ-05(F-11a): 직원 목록 로드 완료 후, 저장된 최근 직원이 목록에 있으면 기본 선택 복원.
+  // 최초 1회만(사용자 수동 선택 보존).
+  useEffect(() => {
+    if (staffRestoredRef.current) return;
+    const users = staffQuery.data;
+    if (!users) return;
+    staffRestoredRef.current = true;
+    (async () => {
+      const storedStaffId = await loadLastStaffUserId();
+      const restoredStaff = resolveRestoredStaff(storedStaffId, users);
+      if (restoredStaff) {
+        setSelectedStaff(restoredStaff);
+      }
+    })();
+  }, [staffQuery.data]);
 
   // 최근 등록된 고객들 로드
   const loadRecentCustomers = useCallback(async () => {
@@ -238,39 +278,6 @@ export default function BookingForm({
       selectedCustomer: selectedCustomer?.name || 'none'
     });
   }, [recentCustomers, showRecentCustomers, selectedCustomer]);
-
-  const loadTreatmentMenus = async () => {
-    try {
-      setIsLoadingMenus(true);
-      const menus = await treatmentMenuApiService.getAllWithDetails();
-      setTreatmentMenus(menus);
-    } catch (error) {
-      console.error('시술 메뉴 로드 실패:', error);
-      Alert.alert('오류', '시술 메뉴를 불러오는데 실패했습니다.');
-    } finally {
-      setIsLoadingMenus(false);
-    }
-  };
-
-  const loadStaffUsers = async () => {
-    try {
-      setStaffLoadError(false);
-      const users = await shopApiService.getCurrentShopUsers();
-      setStaffUsers(users);
-      // SPEC-BOOKING-001 REQ-05(F-11a): 직원 목록 로드 완료 후, 저장된 최근 직원이
-      // 목록에 존재하면 기본 선택 복원(목록에 없으면 "담당 직원 없음" 유지).
-      const storedStaffId = await loadLastStaffUserId();
-      const restoredStaff = resolveRestoredStaff(storedStaffId, users);
-      if (restoredStaff) {
-        setSelectedStaff(restoredStaff);
-      }
-    } catch (error) {
-      console.error('직원 목록 로드 실패:', error);
-      // SPEC-UX-001 REQ-UX-007: 무음 실패 대신 인라인 안내 상태를 설정한다.
-      // 직원 선택은 선택사항이므로 예약 흐름은 차단하지 않는다.
-      setStaffLoadError(true);
-    }
-  };
 
   const isTimeReserved = (time: string): boolean => {
     return reservedTimes.includes(time);
@@ -472,6 +479,11 @@ export default function BookingForm({
       });
 
       await treatmentApiService.create(treatmentData);
+
+      // SPEC-DATA-001 REQ-DATA-001-05: 예약 생성 성공 → 예약 목록·달력·대시보드 관련 query 무효화.
+      // (달력 ['treatments','monthly',...]·주간 ['treatments','weekly',...]·대시보드 ['dashboard',...])
+      queryClient.invalidateQueries({ queryKey: queryKeyPrefix.treatments });
+      queryClient.invalidateQueries({ queryKey: queryKeyPrefix.dashboard });
 
       // SPEC-BOOKING-001 REQ-04(F-17 + 햅틱): "확인" 탭 성공 Alert 제거.
       // 성공 햅틱 1회 + 폼 자동 닫힘(onBookingComplete) → 목록 갱신이 성공의 시각적 확인이 된다.
@@ -966,7 +978,7 @@ export default function BookingForm({
                   직원 목록을 불러오지 못했습니다
                 </Text>
                 <TouchableOpacity
-                  onPress={loadStaffUsers}
+                  onPress={() => staffQuery.refetch()}
                   style={bookingFormStyles.inlineRetryButton}
                   accessibilityRole="button"
                   accessibilityLabel="직원 목록 다시 시도"

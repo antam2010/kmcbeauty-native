@@ -1,8 +1,11 @@
-import { Phonebook, PhonebookCreate } from '@/src/api/services/phonebook';
-import { phonebookAPI } from '@/src/services/api/phonebook';
+import { Phonebook, PhonebookCreate, phonebookApiService } from '@/src/api/services/phonebook';
+import { queryKeyPrefix } from '@/src/api/queryKeys';
+import { usePhonebookQuery } from '@/hooks/queries/usePhonebookQuery';
+import { useShopStore } from '@/src/stores/shopStore';
 import { TextInput as CustomTextInput } from '@/src/ui/atoms';
 
 import { formatPhoneNumber, handlePhoneInputChange, unformatPhoneNumber } from '@/src/utils/phoneFormat';
+import { useQueryClient } from '@tanstack/react-query';
 import { MaterialIcons } from '@expo/vector-icons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -57,6 +60,7 @@ const ContactItem = memo(function ContactItem({ contact, onEdit, onDelete }: Con
           <MaterialIcons name="edit" size={20} color="#007AFF" />
         </TouchableOpacity>
         <TouchableOpacity
+          testID={`delete-contact-${contact.id}`}
           onPress={() => onDelete(contact)}
           style={styles.actionButton}
         >
@@ -68,15 +72,15 @@ const ContactItem = memo(function ContactItem({ contact, onEdit, onDelete }: Con
 });
 
 export default function PhonebookManagement({ onGoBack }: PhonebookManagementProps) {
-  const [phonebooks, setPhonebooks] = useState<Phonebook[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+  // SPEC-DATA-001 REQ-04: 검색은 기존 UX 대로 명시적 제출 시점에만 갱신한다(제출된 검색어를 query key 로 사용).
+  const [submittedSearch, setSubmittedSearch] = useState('');
+
   // 모달 관련 상태
   const [showModal, setShowModal] = useState(false);
   const [editingContact, setEditingContact] = useState<Phonebook | null>(null);
   const [showSyncModal, setShowSyncModal] = useState(false); // 동기화 모달 상태 추가
-  
+
   // 폼 상태
   const [contactForm, setContactForm] = useState<PhonebookCreate>({
     name: '',
@@ -85,26 +89,25 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
     memo: '',
   });
 
-  useEffect(() => {
-    loadPhonebooks();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // SPEC-DATA-001 REQ-06/04: 레거시 phonebookAPI → 도메인 phonebookApiService + react-query 캐싱.
+  const shopId = useShopStore((s) => s.selectedShop?.id);
+  const queryClient = useQueryClient();
+  const phonebooksQuery = usePhonebookQuery({ shopId, search: submittedSearch, page: 1 });
+  const phonebooks = useMemo(() => phonebooksQuery.data ?? [], [phonebooksQuery.data]);
+  const loading = phonebooksQuery.isLoading;
 
-  const loadPhonebooks = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await phonebookAPI.getPhonebooks({
-        search: searchTerm || undefined,
-        page: 1,
-        size: 100,
-      });
-      setPhonebooks(response.items);
-    } catch (error) {
-      console.error('전화번호부 로딩 실패:', error);
+  const invalidatePhonebook = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: queryKeyPrefix.phonebook }),
+    [queryClient],
+  );
+
+  // 기존 동작 보존(AC-12): 목록 로드 실패 시 인라인 Alert.
+  useEffect(() => {
+    if (phonebooksQuery.isError) {
+      console.error('전화번호부 로딩 실패:', phonebooksQuery.error);
       Alert.alert('오류', '전화번호부를 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
     }
-  }, [searchTerm]);
+  }, [phonebooksQuery.isError, phonebooksQuery.errorUpdatedAt, phonebooksQuery.error]);
 
   // REQ-PERF-003-04: 표시용 포맷 전화번호를 목록 수신(phonebooks 변경) 시점에 1회 계산한다.
   const contactRows = useMemo<ContactRow[]>(
@@ -113,7 +116,8 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
   );
 
   const handleSearch = () => {
-    loadPhonebooks();
+    // 제출된 검색어 갱신 → query key 변경 시 재조회(동일 검색어는 staleTime 내 캐시 사용).
+    setSubmittedSearch(searchTerm);
   };
 
   // 전화번호 입력 처리 함수
@@ -160,16 +164,17 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
 
       if (editingContact) {
         // 수정
-        await phonebookAPI.updatePhonebook(editingContact.id, dataToSave);
+        await phonebookApiService.update(editingContact.id, dataToSave);
         Alert.alert('성공', '연락처가 수정되었습니다.');
       } else {
         // 생성
-        await phonebookAPI.createPhonebook(dataToSave);
+        await phonebookApiService.create(dataToSave);
         Alert.alert('성공', '연락처가 추가되었습니다.');
       }
 
       setShowModal(false);
-      loadPhonebooks();
+      // SPEC-DATA-001 REQ-05: mutation 성공 → 전화번호부 query 무효화(재조회).
+      invalidatePhonebook();
     } catch (error) {
       console.error('연락처 저장 실패:', error);
       Alert.alert('오류', '연락처 저장에 실패했습니다.');
@@ -187,9 +192,10 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
           style: 'destructive',
           onPress: async () => {
             try {
-              await phonebookAPI.deletePhonebook(contact.id);
+              await phonebookApiService.remove(contact.id);
               Alert.alert('성공', '연락처가 삭제되었습니다.');
-              loadPhonebooks();
+              // SPEC-DATA-001 REQ-05: 삭제 성공 → 전화번호부 query 무효화.
+              invalidatePhonebook();
             } catch (error) {
               console.error('연락처 삭제 실패:', error);
               Alert.alert('오류', '연락처 삭제에 실패했습니다.');
@@ -198,12 +204,12 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
         },
       ]
     );
-  }, [loadPhonebooks]);
+  }, [invalidatePhonebook]);
 
   // 동기화 완료 후 콜백
   const handleSyncComplete = () => {
     setShowSyncModal(false);
-    loadPhonebooks(); // 동기화 후 연락처 목록 새로고침
+    invalidatePhonebook(); // 동기화 후 연락처 목록 새로고침(무효화)
   };
 
   // 동기화 모달 열기
