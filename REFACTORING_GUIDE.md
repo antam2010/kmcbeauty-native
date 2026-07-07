@@ -1,3 +1,7 @@
+> **[2026-07 로드맵 완료]** 이 문서에 기술된 UI 컴포넌트 시스템 구축(BaseModal·BaseButton·BaseInput·ImprovedCalendar) 및 API 아키텍처 리팩토링(SPEC-REFACTOR-001·SPEC-API-001·SPEC-PERF-001)은 모두 완료되었습니다. Phase 2/3의 잔여 체크리스트 항목은 후속 스프린트 과제이며, 현 브랜치(`feature/refactor-hardening-2026-07`) 기준 프로덕션 적용 완료 상태입니다.
+
+---
+
 # 🔧 리팩토링 완료 가이드
 
 ## 📋 완료된 작업 요약
