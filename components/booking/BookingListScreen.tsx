@@ -1,7 +1,7 @@
 import { treatmentApiService } from '@/src/api/services/treatment';
 import type { Treatment, TreatmentListParams } from '@/src/types';
-import { formatKoreanDate } from '@/src/utils/dateUtils';
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { toBookingRow, type BookingRow } from '@/src/utils/bookingFormat';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -38,27 +38,25 @@ export const statusColors: Record<string, string> = {
   'NO_SHOW': '#b45309'
 };
 
+// SPEC-PERF-003 REQ-PERF-003-03: 상태 필터를 모듈 상수로 승격(render 마다 배열 재생성 제거).
+const STATUS_FILTERS = [
+  { key: '', label: '전체' },
+  { key: 'RESERVED', label: '예약됨' },
+  { key: 'VISITED', label: '방문함' },
+  { key: 'COMPLETED', label: '완료' },
+  { key: 'CANCELLED', label: '취소됨' },
+  { key: 'NO_SHOW', label: '노쇼' }
+];
+
 interface BookingListItemProps {
-  item: Treatment;
+  row: BookingRow;
   onPress?: (booking: Treatment) => void;
 }
 
-// @MX:NOTE: [AUTO] FlatList 항목을 React.memo 로 메모화(REQ-PERF-005). 상위(BookingListScreen) 리렌더 시 props(item, onPress)가 불변인 행은 재렌더되지 않는다. 렌더 결과는 기존 인라인 renderBookingItem 과 동일.
-const BookingListItem = memo(function BookingListItem({ item, onPress }: BookingListItemProps) {
-  const formatDateTime = (dateTime: string) => {
-    const date = new Date(dateTime);
-    return {
-      date: formatKoreanDate(dateTime),
-      time: date.toLocaleTimeString('ko-KR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      })
-    };
-  };
-
-  const { date, time } = formatDateTime(item.reserved_at);
-  const totalPrice = item.treatment_items?.reduce((sum, ti) => sum + ti.base_price, 0) || 0;
+// @MX:NOTE: [AUTO] FlatList 항목을 React.memo 로 메모화(REQ-PERF-005). 상위(BookingListScreen) 리렌더 시 props(row, onPress)가 불변인 행은 재렌더되지 않는다.
+// REQ-PERF-003-03: 날짜/시간/합계 문자열은 목록 수신 시점에 파생된 BookingRow 로 전달되므로 행 render 경로에서 toLocale* 를 실행하지 않는다.
+const BookingListItem = memo(function BookingListItem({ row, onPress }: BookingListItemProps) {
+  const { booking: item, date, time, totalText } = row;
 
   return (
     <TouchableOpacity
@@ -98,7 +96,7 @@ const BookingListItem = memo(function BookingListItem({ item, onPress }: Booking
               {item.treatment_items.length > 1 && ` 외 ${item.treatment_items.length - 1}개`}
             </Text>
             <Text style={styles.priceText}>
-              💰 {totalPrice.toLocaleString()}원
+              💰 {totalText}원
             </Text>
           </View>
         )}
@@ -271,24 +269,17 @@ export default function BookingListScreen({
     }
   }, [searchQuery, selectedStatus, loadBookings]);
 
+  // REQ-PERF-003-03: 예약 표시 문자열을 목록 수신(bookings 변경) 시점에 1회 파생한다.
+  const bookingRows = useMemo(() => bookings.map(toBookingRow), [bookings]);
+
   // 예약 아이템 렌더링
   // @MX:NOTE: [AUTO] useCallback 으로 안정적 참조 유지(REQ-PERF-005). 항목 UI 는 React.memo 로 감싼 BookingListItem 으로 위임한다. 의존성은 onBookingPress 뿐이므로 상위 상태 변경 시에도 renderItem 참조가 안정적이다.
   const renderBookingItem = useCallback(
-    ({ item }: { item: Treatment }) => (
-      <BookingListItem item={item} onPress={onBookingPress} />
+    ({ item }: { item: BookingRow }) => (
+      <BookingListItem row={item} onPress={onBookingPress} />
     ),
     [onBookingPress]
   );
-
-  // 상태 필터 버튼들
-  const statusFilters = [
-    { key: '', label: '전체' },
-    { key: 'RESERVED', label: '예약됨' },
-    { key: 'VISITED', label: '방문함' },
-    { key: 'COMPLETED', label: '완료' },
-    { key: 'CANCELLED', label: '취소됨' },  
-    { key: 'NO_SHOW', label: '노쇼' }
-  ];
 
   return (
     <View style={styles.container}>
@@ -320,7 +311,7 @@ export default function BookingListScreen({
 
         {/* 상태 필터 */}
         <View style={styles.statusFilters}>
-          {statusFilters.map((filter) => (
+          {STATUS_FILTERS.map((filter) => (
             <TouchableOpacity
               key={filter.key}
               style={[
@@ -350,14 +341,18 @@ export default function BookingListScreen({
 
       {/* 예약 목록 */}
       <FlatList
-        data={bookings}
+        data={bookingRows}
         renderItem={renderBookingItem}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.booking.id.toString()}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
         onEndReached={loadMore}
         onEndReachedThreshold={0.1}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={11}
+        removeClippedSubviews={true}
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>

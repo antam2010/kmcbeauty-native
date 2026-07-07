@@ -19,7 +19,8 @@ export default function ShopSelectionScreen() {
   const [loading, setLoading] = useState(true);
   const [selecting, setSelecting] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
-  const { selectShop } = useShopStore(); // 상점 스토어 사용
+  // REQ-PERF-003-08: 액션 필드 셀렉터 구독(전체 구독 시 무관 상태 변경에도 리렌더됨).
+  const selectShop = useShopStore((s) => s.selectShop);
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,

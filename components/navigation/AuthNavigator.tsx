@@ -3,9 +3,13 @@ import { useAuthStore } from '@/src/stores/authStore';
 import { Stack } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 
 const AuthNavigator: React.FC = React.memo(() => {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  // REQ-PERF-003-08: 다중 필드 셀렉터 구독(useShallow).
+  const { isAuthenticated, isLoading } = useAuthStore(
+    useShallow((s) => ({ isAuthenticated: s.isAuthenticated, isLoading: s.isLoading })),
+  );
 
   console.log('🔐 AuthNavigator - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
 

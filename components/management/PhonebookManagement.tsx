@@ -4,9 +4,10 @@ import { TextInput as CustomTextInput } from '@/src/ui/atoms';
 
 import { formatPhoneNumber, handlePhoneInputChange, unformatPhoneNumber } from '@/src/utils/phoneFormat';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  FlatList,
   Keyboard,
   Modal,
   SafeAreaView,
@@ -23,6 +24,48 @@ import { PhonebookManagementStyles } from './PhonebookManagement.styles';
 interface PhonebookManagementProps {
   onGoBack?: () => void;
 }
+
+// SPEC-PERF-003 REQ-PERF-003-04: 표시용 포맷 전화번호를 수신 시점에 1회 계산해 보관한다.
+type ContactRow = Phonebook & { displayPhone: string };
+
+interface ContactItemProps {
+  contact: ContactRow;
+  onEdit: (contact: Phonebook) => void;
+  onDelete: (contact: Phonebook) => void;
+}
+
+// @MX:NOTE: [AUTO] FlatList 행을 React.memo 로 메모화(REQ-PERF-003-04). displayPhone 은 수신 시점에
+//   파생되므로 행 render 경로에서 formatPhoneNumber 를 재계산하지 않는다. 렌더 결과는 기존 renderContactItem 과 동일.
+const ContactItem = memo(function ContactItem({ contact, onEdit, onDelete }: ContactItemProps) {
+  return (
+    <View style={styles.contactCard}>
+      <View style={styles.contactInfo}>
+        <Text style={styles.contactName}>{contact.name}</Text>
+        <Text style={styles.contactPhone}>{contact.displayPhone}</Text>
+        {contact.group_name && (
+          <Text style={styles.contactGroup}>그룹: {contact.group_name}</Text>
+        )}
+        {contact.memo && (
+          <Text style={styles.contactMemo}>{contact.memo}</Text>
+        )}
+      </View>
+      <View style={styles.contactActions}>
+        <TouchableOpacity
+          onPress={() => onEdit(contact)}
+          style={styles.actionButton}
+        >
+          <MaterialIcons name="edit" size={20} color="#007AFF" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => onDelete(contact)}
+          style={styles.actionButton}
+        >
+          <MaterialIcons name="delete" size={20} color="#FF3B30" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
 
 export default function PhonebookManagement({ onGoBack }: PhonebookManagementProps) {
   const [phonebooks, setPhonebooks] = useState<Phonebook[]>([]);
@@ -46,7 +89,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
     loadPhonebooks();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadPhonebooks = async () => {
+  const loadPhonebooks = useCallback(async () => {
     try {
       setLoading(true);
       const response = await phonebookAPI.getPhonebooks({
@@ -61,7 +104,13 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm]);
+
+  // REQ-PERF-003-04: 표시용 포맷 전화번호를 목록 수신(phonebooks 변경) 시점에 1회 계산한다.
+  const contactRows = useMemo<ContactRow[]>(
+    () => phonebooks.map((c) => ({ ...c, displayPhone: formatPhoneNumber(c.phone_number) })),
+    [phonebooks],
+  );
 
   const handleSearch = () => {
     loadPhonebooks();
@@ -84,7 +133,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
     setShowModal(true);
   };
 
-  const handleEditContact = (contact: Phonebook) => {
+  const handleEditContact = useCallback((contact: Phonebook) => {
     setEditingContact(contact);
     setContactForm({
       name: contact.name,
@@ -93,7 +142,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
       memo: contact.memo || '',
     });
     setShowModal(true);
-  };
+  }, []);
 
   const handleSaveContact = async () => {
     if (!contactForm.name.trim() || !contactForm.phone_number.trim()) {
@@ -125,7 +174,9 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
       console.error('연락처 저장 실패:', error);
       Alert.alert('오류', '연락처 저장에 실패했습니다.');
     }
-  };  const handleDeleteContact = (contact: Phonebook) => {
+  };
+
+  const handleDeleteContact = useCallback((contact: Phonebook) => {
     Alert.alert(
       '연락처 삭제',
       `"${contact.name}"을(를) 삭제하시겠습니까?`,
@@ -147,7 +198,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
         },
       ]
     );
-  };
+  }, [loadPhonebooks]);
 
   // 동기화 완료 후 콜백
   const handleSyncComplete = () => {
@@ -160,33 +211,11 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
     setShowSyncModal(true);
   };
 
-  const renderContactItem = (contact: Phonebook) => (
-    <View key={contact.id} style={styles.contactCard}>
-      <View style={styles.contactInfo}>
-        <Text style={styles.contactName}>{contact.name}</Text>
-        <Text style={styles.contactPhone}>{formatPhoneNumber(contact.phone_number)}</Text>
-        {contact.group_name && (
-          <Text style={styles.contactGroup}>그룹: {contact.group_name}</Text>
-        )}
-        {contact.memo && (
-          <Text style={styles.contactMemo}>{contact.memo}</Text>
-        )}
-      </View>
-      <View style={styles.contactActions}>
-        <TouchableOpacity
-          onPress={() => handleEditContact(contact)}
-          style={styles.actionButton}
-        >
-          <MaterialIcons name="edit" size={20} color="#007AFF" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => handleDeleteContact(contact)}
-          style={styles.actionButton}
-        >
-          <MaterialIcons name="delete" size={20} color="#FF3B30" />
-        </TouchableOpacity>
-      </View>
-    </View>
+  const renderContactItem = useCallback(
+    ({ item }: { item: ContactRow }) => (
+      <ContactItem contact={item} onEdit={handleEditContact} onDelete={handleDeleteContact} />
+    ),
+    [handleEditContact, handleDeleteContact],
   );
 
   if (loading) {
@@ -247,10 +276,17 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
       </View>
 
       {/* 연락처 목록 */}
-      <ScrollView style={styles.contactList}>
-        {phonebooks.length > 0 ? (
-          phonebooks.map(renderContactItem)
-        ) : (
+      {/* REQ-PERF-003-04: ScrollView 전체 마운트 대신 FlatList 가상화 */}
+      <FlatList
+        style={styles.contactList}
+        data={contactRows}
+        renderItem={renderContactItem}
+        keyExtractor={(item) => String(item.id)}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={11}
+        removeClippedSubviews={true}
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <MaterialIcons name="contacts" size={64} color="#ccc" />
             <Text style={styles.emptyText}>등록된 연락처가 없습니다.</Text>
@@ -258,8 +294,8 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
               <Text style={styles.emptyAddButtonText}>첫 연락처 추가하기</Text>
             </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
+        }
+      />
 
       {/* 연락처 추가/수정 모달 */}
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet">

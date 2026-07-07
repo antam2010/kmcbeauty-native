@@ -8,12 +8,16 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Dimensions, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useShallow } from 'zustand/react/shallow';
 
 const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
-  const { logout, user } = useAuthStore();
-  const { selectedShop } = useShopStore();
+  // REQ-PERF-003-08: 필드 셀렉터 구독(다중 필드는 useShallow).
+  const { logout, user } = useAuthStore(
+    useShallow((s) => ({ logout: s.logout, user: s.user })),
+  );
+  const selectedShop = useShopStore((s) => s.selectedShop);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

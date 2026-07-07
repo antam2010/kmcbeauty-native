@@ -35,7 +35,8 @@ export default function StaffRegistrationModal({
   });
   const [loading, setLoading] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const { selectedShop } = useShopStore();
+  // REQ-PERF-003-08: 필드 셀렉터 구독.
+  const selectedShop = useShopStore((s) => s.selectedShop);
 
   const resetForm = () => {
     setFormData({ email: '', is_primary_owner: false });

@@ -1,7 +1,13 @@
 import { treatmentApiService } from '@/src/api/services/treatment';
 import { Treatment } from '@/src/types';
 import { BorderRadius, Colors, Shadow, Spacing, Typography } from '@/src/ui/theme';
-import React, { useCallback, useEffect, useState } from 'react';
+import {
+  buildBookingCountMap,
+  generateCalendarDates,
+  type CalendarDate,
+} from '@/src/utils/calendarUtils';
+import { formatKoreanMonthDayWeekday, formatKoreanYearMonth } from '@/src/utils/intlFormat';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
     StyleSheet,
     Text,
@@ -12,14 +18,54 @@ import {
 // 최소 셀 크기 설정 - 터치하기 편하도록 더 크게
 const MIN_CELL_SIZE = 68;
 
-interface CalendarDate {
-  date: string;
-  isToday: boolean;
-  isSelected: boolean;
-  hasBookings: boolean;
-  bookingCount: number;
-  isCurrentMonth: boolean;
+// SPEC-PERF-003 REQ-PERF-003-06: 메모화된 날짜 셀 컴포넌트.
+// onPress 는 date 인자를 받는 안정적 콜백으로 유지되어, 상위 리렌더 시에도 셀 props 가 불변이면 재렌더되지 않는다.
+interface CalendarCellProps {
+  dateData: CalendarDate;
+  index: number;
+  onPress: (dateData: CalendarDate) => void;
 }
+
+const CalendarCell = memo(function CalendarCell({ dateData, index, onPress }: CalendarCellProps) {
+  const cellStyle = [
+    styles.dateCell,
+    dateData.isToday && styles.todayCell,
+    dateData.isSelected && styles.selectedCell,
+    !dateData.isCurrentMonth && styles.inactiveCell,
+    dateData.hasBookings && styles.hasBookingsCell,
+  ];
+
+  const textStyle = [
+    styles.dateText,
+    dateData.isToday && styles.todayText,
+    dateData.isSelected && styles.selectedText,
+    !dateData.isCurrentMonth && styles.inactiveText,
+    dateData.hasBookings && styles.hasBookingsText,
+  ];
+
+  return (
+    <TouchableOpacity
+      key={`${dateData.date}-${index}`}
+      style={cellStyle}
+      onPress={() => onPress(dateData)}
+      activeOpacity={0.7}
+      disabled={!dateData.isCurrentMonth}
+    >
+      <Text style={textStyle}>{dateData.dayOfMonth}</Text>
+      {dateData.hasBookings && (
+        <View style={styles.bookingIndicator}>
+          <Text style={styles.bookingCount}>{dateData.bookingCount}</Text>
+        </View>
+      )}
+      {/* 예약이 있는 날짜에 리스트 아이콘 추가 */}
+      {dateData.hasBookings && (
+        <View style={styles.listIndicator}>
+          <Text style={styles.listIcon}>📋</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+});
 
 interface ImprovedCalendarProps {
   selectedDate?: string;
@@ -75,73 +121,14 @@ export const ImprovedCalendar: React.FC<ImprovedCalendarProps> = ({
     }
   }, [refreshTrigger, currentMonth, loadMonthlyTreatments]);
 
-  // 날짜별 예약 건수 계산
-  const getBookingCountByDate = (date: string): number => {
-    return treatments.filter(treatment => {
-      const treatmentDate = treatment.reserved_at.split('T')[0];
-      return treatmentDate === date;
-    }).length;
-  };
+  // REQ-PERF-003-06: 날짜→예약 건수 Map 을 useMemo 로 1회 구성하여 O(1) 조회.
+  const bookingCountMap = useMemo(() => buildBookingCountMap(treatments), [treatments]);
 
-  // 달력 데이터 생성
-  const generateCalendarDates = (): CalendarDate[] => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const startWeekday = firstDay.getDay();
-    
-    const dates: CalendarDate[] = [];
-    const today = new Date().toISOString().split('T')[0];
-    
-    // 이전 달 날짜들
-    for (let i = startWeekday - 1; i >= 0; i--) {
-      const date = new Date(year, month, -i);
-      const dateString = date.toISOString().split('T')[0];
-      dates.push({
-        date: dateString,
-        isToday: false,
-        isSelected: false,
-        hasBookings: false,
-        bookingCount: 0,
-        isCurrentMonth: false,
-      });
-    }
-    
-    // 현재 달 날짜들
-    for (let day = 1; day <= lastDay.getDate(); day++) {
-      const date = new Date(year, month, day);
-      const dateString = date.toISOString().split('T')[0];
-      const bookingCount = getBookingCountByDate(dateString);
-      
-      dates.push({
-        date: dateString,
-        isToday: dateString === today,
-        isSelected: dateString === selectedDate,
-        hasBookings: bookingCount > 0,
-        bookingCount,
-        isCurrentMonth: true,
-      });
-    }
-    
-    // 다음 달 날짜들
-    const remainingCells = 42 - dates.length; // 6주 × 7일
-    for (let day = 1; day <= remainingCells; day++) {
-      const date = new Date(year, month + 1, day);
-      const dateString = date.toISOString().split('T')[0];
-      dates.push({
-        date: dateString,
-        isToday: false,
-        isSelected: false,
-        hasBookings: false,
-        bookingCount: 0,
-        isCurrentMonth: false,
-      });
-    }
-    
-    return dates;
-  };
+  // REQ-PERF-003-06: 42셀 배열을 매 렌더 재생성하지 않고 의존값 변경 시에만 재계산.
+  const calendarDates = useMemo(
+    () => generateCalendarDates(currentMonth, selectedDate, bookingCountMap),
+    [currentMonth, selectedDate, bookingCountMap],
+  );
 
   // 이전/다음 달로 이동
   const navigateMonth = (direction: 'prev' | 'next') => {
@@ -157,75 +144,32 @@ export const ImprovedCalendar: React.FC<ImprovedCalendarProps> = ({
   };
 
   // 날짜 선택 핸들러
-  const handleDateSelect = (dateData: CalendarDate) => {
-    if (!dateData.isCurrentMonth) return;
-    
-    // 예약이 있는 날짜인 경우 예약 리스트 표시
-    if (dateData.hasBookings && dateData.bookingCount > 0) {
-      const dateTreatments = treatments.filter(treatment => {
-        const treatmentDate = treatment.reserved_at.split('T')[0];
-        return treatmentDate === dateData.date;
-      });
-      
-      if (dateTreatments.length > 0) {
-        onShowTreatmentsList?.(dateTreatments, dateData.date);
-        return;
+  // REQ-PERF-003-06: 셀에 전달할 안정적 참조 유지를 위해 useCallback 으로 메모화.
+  const handleDateSelect = useCallback(
+    (dateData: CalendarDate) => {
+      if (!dateData.isCurrentMonth) return;
+
+      // 예약이 있는 날짜인 경우 예약 리스트 표시
+      if (dateData.hasBookings && dateData.bookingCount > 0) {
+        const dateTreatments = treatments.filter(treatment => {
+          const treatmentDate = treatment.reserved_at.split('T')[0];
+          return treatmentDate === dateData.date;
+        });
+
+        if (dateTreatments.length > 0) {
+          onShowTreatmentsList?.(dateTreatments, dateData.date);
+          return;
+        }
       }
-    }
-    
-    // 예약이 없는 날짜인 경우 새 예약 요청
-    onDateSelect(dateData.date);
-  };
 
-  // 날짜 셀 렌더링
-  const renderDateCell = (dateData: CalendarDate, index: number) => {
-    const dayOfMonth = new Date(dateData.date).getDate();
-    
-    const cellStyle = [
-      styles.dateCell,
-      dateData.isToday && styles.todayCell,
-      dateData.isSelected && styles.selectedCell,
-      !dateData.isCurrentMonth && styles.inactiveCell,
-      dateData.hasBookings && styles.hasBookingsCell, // 예약이 있는 날짜 스타일 추가
-    ];
+      // 예약이 없는 날짜인 경우 새 예약 요청
+      onDateSelect(dateData.date);
+    },
+    [treatments, onShowTreatmentsList, onDateSelect],
+  );
 
-    const textStyle = [
-      styles.dateText,
-      dateData.isToday && styles.todayText,
-      dateData.isSelected && styles.selectedText,
-      !dateData.isCurrentMonth && styles.inactiveText,
-      dateData.hasBookings && styles.hasBookingsText, // 예약이 있는 날짜 텍스트 스타일
-    ];
-
-    return (
-      <TouchableOpacity
-        key={`${dateData.date}-${index}`}
-        style={cellStyle}
-        onPress={() => handleDateSelect(dateData)}
-        activeOpacity={0.7}
-        disabled={!dateData.isCurrentMonth}
-      >
-        <Text style={textStyle}>{dayOfMonth}</Text>
-        {dateData.hasBookings && (
-          <View style={styles.bookingIndicator}>
-            <Text style={styles.bookingCount}>{dateData.bookingCount}</Text>
-          </View>
-        )}
-        {/* 예약이 있는 날짜에 리스트 아이콘 추가 */}
-        {dateData.hasBookings && (
-          <View style={styles.listIndicator}>
-            <Text style={styles.listIcon}>📋</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  const calendarDates = generateCalendarDates();
-  const monthYearText = currentMonth.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: 'long',
-  });
+  // REQ-PERF-003-06: 파생 문자열(월/년 표기)을 useMemo 로 메모화(렌더마다 toLocale 재실행 제거).
+  const monthYearText = useMemo(() => formatKoreanYearMonth(currentMonth), [currentMonth]);
 
   const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -267,7 +211,14 @@ export const ImprovedCalendar: React.FC<ImprovedCalendarProps> = ({
 
       {/* 캘린더 그리드 */}
       <View style={styles.calendarGrid}>
-        {calendarDates.map((dateData, index) => renderDateCell(dateData, index))}
+        {calendarDates.map((dateData, index) => (
+          <CalendarCell
+            key={`${dateData.date}-${index}`}
+            dateData={dateData}
+            index={index}
+            onPress={handleDateSelect}
+          />
+        ))}
       </View>
 
       {/* 사용법 안내 */}
@@ -284,15 +235,11 @@ export const ImprovedCalendar: React.FC<ImprovedCalendarProps> = ({
       {selectedDate && (
         <View style={styles.selectedDateInfo}>
           <Text style={styles.selectedDateText}>
-            {new Date(selectedDate).toLocaleDateString('ko-KR', {
-              month: 'long',
-              day: 'numeric',
-              weekday: 'long',
-            })}
+            {formatKoreanMonthDayWeekday(selectedDate)}
           </Text>
-          {getBookingCountByDate(selectedDate) > 0 && (
+          {(bookingCountMap.get(selectedDate) ?? 0) > 0 && (
             <Text style={styles.bookingInfoText}>
-              예약 {getBookingCountByDate(selectedDate)}건
+              예약 {bookingCountMap.get(selectedDate) ?? 0}건
             </Text>
           )}
         </View>

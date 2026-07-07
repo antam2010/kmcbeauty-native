@@ -1,11 +1,10 @@
 import MonthlyDashboard from '@/components/dashboard/MonthlyDashboard';
 import ShopHeader from '@/components/navigation/ShopHeader';
-import { useDashboard } from '@/contexts/DashboardContext';
-import { useShopStore } from '@/src/stores/shopStore';
-import type { Treatment } from '@/src/types';
+import { useDashboardLoad } from '@/hooks/useDashboardLoad';
+import { formatKoreanFullDate, formatKrwNumber } from '@/src/utils/intlFormat';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -18,152 +17,63 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { dashboardApiService } from '../../src/api/services/dashboard';
-import { treatmentApiService } from '../../src/api/services/treatment';
-
-// 임시 타입 정의
-interface DashboardSummaryResponse {
-  target_date: string;
-  summary: any;
-  sales: any;
-  customer_insights: any[];
-  staff_summary: any;
-}
 
 export default function HomeScreen() {
-  const [dashboardData, setDashboardData] = useState<DashboardSummaryResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [weeklyTreatments, setWeeklyTreatments] = useState<Treatment[]>([]);
   const [showMonthlyModal, setShowMonthlyModal] = useState(false);
-  // SPEC-UX-001 REQ-UX-007: 주간 시술 로드 실패를 무음 처리하지 않고 인라인으로 안내
-  const [weeklyError, setWeeklyError] = useState(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { refreshTrigger } = useDashboard();
-  const { selectedShop, loading: shopLoading } = useShopStore();
 
-  const loadWeeklyTreatments = useCallback(async () => {
-    try {
-      // 새로운 주간 API 사용
-      const weeklyData = await treatmentApiService.getWeeklyTreatments();
-      setWeeklyTreatments(weeklyData);
-      setWeeklyError(false);
-    } catch (error: any) {
-      console.error('주간 시술 데이터 로딩 실패:', error);
+  // REQ-PERF-003-01/08: 대시보드 로드 로직·스토어 셀렉터 구독을 훅으로 위임(중복 요청 제거·병렬화).
+  const {
+    dashboardData,
+    loading,
+    refreshing,
+    weeklyTreatments,
+    weeklyError,
+    loadWeeklyTreatments,
+    onRefresh,
+    onHeaderRefresh,
+    retryDashboard,
+  } = useDashboardLoad();
 
-      // 인증 관련 에러는 상위로 전파 (인터셉터가 처리하도록)
-      if (error.message?.includes('인증이 만료') || error.message?.includes('권한이 없습니다')) {
-        throw error; // 인터셉터가 처리하도록 재throw
-      }
+  // REQ-PERF-003-07: 렌더마다 새 포맷터를 만들던 toLocaleString 을 모듈 캐시 포맷터로 대체.
+  const formatCurrency = (amount: number) => `₩${formatKrwNumber(amount)}`;
 
-      // SPEC-UX-001 REQ-UX-007: 그 외 에러는 무음 처리하지 않고 인라인 안내 상태를 설정한다.
-      setWeeklyError(true);
-    }
-  }, []);
-
-  const loadDashboardData = useCallback(async (forceRefresh: boolean = false) => {
-    // 상점이 선택되지 않았으면 로딩하지 않음
-    if (!selectedShop) {
-      console.log('🏪 상점이 선택되지 않아 대시보드 데이터를 로딩하지 않습니다.');
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
-
-    try {
-      const data = await dashboardApiService.getTodayDetailedSummary(forceRefresh);
-      setDashboardData(data);
-      await loadWeeklyTreatments();
-    } catch (error: any) {
-      console.error('대시보드 데이터 로딩 실패:', error);
-      
-      // 인증 관련 에러는 상위로 전파 (API 인터셉터가 자동으로 로그인 페이지 이동 처리)
-      if (error.message?.includes('인증이 만료') || error.message?.includes('권한이 없습니다')) {
-        console.log('🔐 인증 에러 감지 - 인터셉터가 로그인 페이지로 이동 처리');
-        // 에러를 재throw하지 않고 단순히 로딩 상태만 정리
-        // 인터셉터에서 이미 로그인 페이지로 이동 처리됨
-      } else {
-        // 일반 에러는 사용자에게 알림
-        Alert.alert('오류', '대시보드 데이터를 불러올 수 없습니다.');
-      }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [loadWeeklyTreatments, selectedShop]);
-
-  useEffect(() => {
-    // 상점 로딩이 완료되면 대시보드 데이터 로드
-    if (!shopLoading) {
-      loadDashboardData();
-    }
-  }, [loadDashboardData, shopLoading]);
-
-  // Dashboard refresh trigger 감지
-  useEffect(() => {
-    if (refreshTrigger > 0) {
-      loadDashboardData();
-    }
-  }, [refreshTrigger, loadDashboardData]);
-
-  // 상점 변경 감지 및 대시보드 데이터 로드
-  useEffect(() => {
-    if (!shopLoading) {
-      console.log('🏪 상점 로딩 완료, 대시보드 데이터 로드');
-      loadDashboardData();
-    }
-  }, [shopLoading, selectedShop, loadDashboardData]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadDashboardData(true); // 새로고침 시 force_refresh=true
-  };
-
-  const onHeaderRefresh = () => {
-    loadDashboardData(true); // 헤더 새로고침 버튼 클릭 시 force_refresh=true
-  };
-
-  const formatCurrency = (amount: number) => {
-    return `₩${amount.toLocaleString()}`;
-  };
-
-  // 주간 달력 위젯 함수들 (실제 예약 데이터 사용)
-  const getCurrentWeek = () => {
+  // REQ-PERF-003-07: 홈 주간 위젯 파생값을 useMemo 로 메모화(렌더마다 7일 배열·필터 재계산 제거).
+  const weekDays = useMemo(() => {
     const today = new Date();
     const currentDay = today.getDay(); // 0(일) ~ 6(토)
     const monday = new Date(today);
     monday.setDate(today.getDate() - currentDay + 1); // 월요일부터 시작
 
+    const todayString = today.toDateString();
     const week = [];
     for (let i = 0; i < 7; i++) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
-      week.push(date);
+      const dateString = date.toISOString().split('T')[0];
+
+      const dayTreatments = weeklyTreatments.filter(treatment => {
+        const treatmentDate = treatment.reserved_at.split('T')[0];
+        return treatmentDate === dateString;
+      });
+
+      week.push({
+        day: date.getDate(),
+        dayName: ['일', '월', '화', '수', '목', '금', '토'][date.getDay()],
+        isToday: date.toDateString() === todayString,
+        dateString,
+        bookingCount: dayTreatments.length,
+        hasBookings: dayTreatments.length > 0,
+        treatments: dayTreatments,
+      });
     }
     return week;
-  };
+  }, [weeklyTreatments]);
 
-  const formatDateForDisplay = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
-    
-    // 해당 날짜의 예약 수 계산
-    const dayTreatments = weeklyTreatments.filter(treatment => {
-      const treatmentDate = treatment.reserved_at.split('T')[0];
-      return treatmentDate === dateString;
-    });
-
-    return {
-      day: date.getDate(),
-      dayName: ['일', '월', '화', '수', '목', '금', '토'][date.getDay()],
-      isToday: date.toDateString() === new Date().toDateString(),
-      dateString: dateString,
-      bookingCount: dayTreatments.length,
-      hasBookings: dayTreatments.length > 0,
-      treatments: dayTreatments
-    };
-  };
+  // REQ-PERF-003-07: 헤더 날짜(오늘)를 렌더마다 재포맷하지 않고 마운트 시 1회 메모화.
+  const headerDateText = useMemo(() => formatKoreanFullDate(new Date()), []);
 
   const handleDateSelect = (dateString: string) => {
     setSelectedDate(dateString);
@@ -211,10 +121,7 @@ export default function HomeScreen() {
           {/* SPEC-UX-001 REQ-UX-006: 막다른 오류 화면에 재시도 수단 제공 */}
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={() => {
-              setLoading(true);
-              onHeaderRefresh();
-            }}
+            onPress={retryDashboard}
             accessibilityRole="button"
             accessibilityLabel="다시 시도"
           >
@@ -246,12 +153,7 @@ export default function HomeScreen() {
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>오늘의 현황</Text>
             <Text style={styles.headerDate}>
-              {new Date().toLocaleDateString('ko-KR', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                weekday: 'long'
-              })}
+              {headerDateText}
             </Text>
           </View>
           <View style={styles.headerActions}>
@@ -296,43 +198,40 @@ export default function HomeScreen() {
             </View>
           )}
           <View style={styles.weekCalendar}>
-            {getCurrentWeek().map((date) => {
-              const dateInfo = formatDateForDisplay(date);
-              return (
-                <TouchableOpacity 
-                  key={dateInfo.dateString}
-                  style={[
-                    styles.weekDay,
-                    dateInfo.isToday && styles.todayWeekDay,
-                    selectedDate === dateInfo.dateString && styles.selectedWeekDay,
-                    dateInfo.hasBookings && styles.hasBookingsWeekDay
-                  ]}
-                  onPress={() => handleDateSelect(dateInfo.dateString)}
-                >
-                  <Text style={[
-                    styles.weekDayName,
-                    dateInfo.isToday && styles.todayText,
-                    selectedDate === dateInfo.dateString && styles.selectedText,
-                    dateInfo.hasBookings && styles.hasBookingsText
-                  ]}>
-                    {dateInfo.dayName}
-                  </Text>
-                  <Text style={[
-                    styles.weekDayNumber,
-                    dateInfo.isToday && styles.todayText,
-                    selectedDate === dateInfo.dateString && styles.selectedText,
-                    dateInfo.hasBookings && styles.hasBookingsText
-                  ]}>
-                    {dateInfo.day}
-                  </Text>
-                  {dateInfo.hasBookings && (
-                    <View style={styles.bookingBadge}>
-                      <Text style={styles.bookingBadgeText}>{dateInfo.bookingCount}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+            {weekDays.map((dateInfo) => (
+              <TouchableOpacity
+                key={dateInfo.dateString}
+                style={[
+                  styles.weekDay,
+                  dateInfo.isToday && styles.todayWeekDay,
+                  selectedDate === dateInfo.dateString && styles.selectedWeekDay,
+                  dateInfo.hasBookings && styles.hasBookingsWeekDay
+                ]}
+                onPress={() => handleDateSelect(dateInfo.dateString)}
+              >
+                <Text style={[
+                  styles.weekDayName,
+                  dateInfo.isToday && styles.todayText,
+                  selectedDate === dateInfo.dateString && styles.selectedText,
+                  dateInfo.hasBookings && styles.hasBookingsText
+                ]}>
+                  {dateInfo.dayName}
+                </Text>
+                <Text style={[
+                  styles.weekDayNumber,
+                  dateInfo.isToday && styles.todayText,
+                  selectedDate === dateInfo.dateString && styles.selectedText,
+                  dateInfo.hasBookings && styles.hasBookingsText
+                ]}>
+                  {dateInfo.day}
+                </Text>
+                {dateInfo.hasBookings && (
+                  <View style={styles.bookingBadge}>
+                    <Text style={styles.bookingBadgeText}>{dateInfo.bookingCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
           </View>
           <TouchableOpacity 
             style={styles.calendarButton}
@@ -487,28 +386,31 @@ export default function HomeScreen() {
       </ScrollView>
       
       {/* 월별 대시보드 모달 */}
-      <Modal
-        visible={showMonthlyModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowMonthlyModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setShowMonthlyModal(false)}
-              accessibilityRole="button"
-              accessibilityLabel="닫기"
-            >
-              <MaterialIcons name="close" size={24} color="#007AFF" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>월별 현황</Text>
-            <View style={styles.modalPlaceholder} />
+      {/* REQ-PERF-003-02: 닫힌 동안 MonthlyDashboard 를 마운트하지 않아 월별 API 호출을 0회로 만든다. */}
+      {showMonthlyModal && (
+        <Modal
+          visible={showMonthlyModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowMonthlyModal(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowMonthlyModal(false)}
+                accessibilityRole="button"
+                accessibilityLabel="닫기"
+              >
+                <MaterialIcons name="close" size={24} color="#007AFF" />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>월별 현황</Text>
+              <View style={styles.modalPlaceholder} />
+            </View>
+            <MonthlyDashboard onClose={() => setShowMonthlyModal(false)} />
           </View>
-          <MonthlyDashboard onClose={() => setShowMonthlyModal(false)} />
-        </View>
-      </Modal>
+        </Modal>
+      )}
     </View>
   );
 }

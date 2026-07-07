@@ -7,14 +7,15 @@ import {
 } from '@/src/types';
 import { Button, TextInput as CustomTextInput } from '@/src/ui/atoms';
 import { Colors, Spacing, Typography } from '@/src/ui/theme';
+import { formatKoreanShortDate, formatKrwNumber } from '@/src/utils/intlFormat';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
+    FlatList,
     Keyboard,
     Modal,
     Platform,
-    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -25,6 +26,10 @@ import {
 interface TreatmentMenuManagementProps {
   onGoBack?: () => void;
 }
+
+// SPEC-PERF-003 REQ-PERF-003-05: 표시 문자열을 수신 시점에 파생해 render 경로 toLocale* 를 제거한다.
+type MenuRow = TreatmentMenu & { displayDate: string };
+type DetailRow = TreatmentMenuDetail & { displayPrice: string };
 
 export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManagementProps) {
   const [menus, setMenus] = useState<TreatmentMenu[]>([]);
@@ -228,6 +233,16 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
     );
   };
 
+  // REQ-PERF-003-05: 메뉴 생성일·상세 가격 표시 문자열을 목록 수신 시점에 1회 파생한다.
+  const menuRows = useMemo<MenuRow[]>(
+    () => menus.map((m) => ({ ...m, displayDate: formatKoreanShortDate(m.created_at) })),
+    [menus],
+  );
+  const detailRows = useMemo<DetailRow[]>(
+    () => menuDetails.map((d) => ({ ...d, displayPrice: formatKrwNumber(d.base_price) })),
+    [menuDetails],
+  );
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -264,10 +279,18 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.menuList}>
-            {menus.map((menu) => (
+          {/* REQ-PERF-003-05: 메뉴 목록 FlatList 가상화 + 수신 시점 파생 날짜(displayDate) 사용 */}
+          <FlatList
+            style={styles.menuList}
+            data={menuRows}
+            keyExtractor={(item) => String(item.id)}
+            extraData={selectedMenu?.id}
+            initialNumToRender={12}
+            maxToRenderPerBatch={12}
+            windowSize={11}
+            removeClippedSubviews={true}
+            renderItem={({ item: menu }) => (
               <TouchableOpacity
-                key={menu.id}
                 style={[
                   styles.menuItem,
                   selectedMenu?.id === menu.id && styles.selectedMenuItem,
@@ -276,9 +299,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
               >
                 <View style={styles.menuInfo}>
                   <Text style={styles.menuName}>{menu.name}</Text>
-                  <Text style={styles.menuDate}>
-                    {new Date(menu.created_at).toLocaleDateString('ko-KR')}
-                  </Text>
+                  <Text style={styles.menuDate}>{menu.displayDate}</Text>
                 </View>
                 <View style={styles.menuActions}>
                   <TouchableOpacity
@@ -295,8 +316,8 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            )}
+          />
         </View>
 
         {/* 시술 상세 목록 */}
@@ -310,13 +331,21 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={styles.detailList}>
-                {menuDetails.map((detail) => (
-                  <View key={detail.id} style={styles.detailItem}>
+              {/* REQ-PERF-003-05: 상세 목록 FlatList 가상화 + 수신 시점 파생 가격(displayPrice) 사용 */}
+              <FlatList
+                style={styles.detailList}
+                data={detailRows}
+                keyExtractor={(item) => String(item.id)}
+                initialNumToRender={12}
+                maxToRenderPerBatch={12}
+                windowSize={11}
+                removeClippedSubviews={true}
+                renderItem={({ item: detail }) => (
+                  <View style={styles.detailItem}>
                     <View style={styles.detailInfo}>
                       <Text style={styles.detailName}>{detail.name}</Text>
                       <Text style={styles.detailPrice}>
-                        {detail.base_price.toLocaleString()}원 • {detail.duration_min}분
+                        {detail.displayPrice}원 • {detail.duration_min}분
                       </Text>
                     </View>
                     <View style={styles.detailActions}>
@@ -334,15 +363,14 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
                       </TouchableOpacity>
                     </View>
                   </View>
-                ))}
-                
-                {menuDetails.length === 0 && (
+                )}
+                ListEmptyComponent={
                   <View style={styles.emptyState}>
                     <Text style={styles.emptyText}>등록된 상세가 없습니다.</Text>
                     <Text style={styles.emptySubtext}>상단의 + 버튼을 눌러 상세를 추가해보세요.</Text>
                   </View>
-                )}
-              </ScrollView>
+                }
+              />
             </>
           ) : (
             <View style={styles.emptyState}>
@@ -355,6 +383,8 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
       </View>
 
       {/* 메뉴 생성/수정 모달 */}
+      {/* REQ-PERF-003-05: 닫힌 동안 모달 하위 트리를 마운트하지 않는다(조건부 마운트). */}
+      {showMenuModal && (
       <Modal visible={showMenuModal} animationType="slide" presentationStyle="pageSheet">
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalContainer}>
@@ -401,8 +431,11 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+      )}
 
       {/* 상세 생성/수정 모달 */}
+      {/* REQ-PERF-003-05: 닫힌 동안 모달 하위 트리를 마운트하지 않는다(조건부 마운트). */}
+      {showDetailModal && (
       <Modal visible={showDetailModal} animationType="slide" presentationStyle="pageSheet">
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalContainer}>
@@ -487,6 +520,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+      )}
     </View>
   );
 }

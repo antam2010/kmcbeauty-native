@@ -6,7 +6,7 @@ import { useShopStore } from '@/src/stores/shopStore';
 import { Button } from '@/src/ui/atoms';
 import { ThemeColors as Colors, Colors as DesignColors, Spacing, Typography } from '@/src/ui/theme';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   SafeAreaView,
@@ -24,7 +24,8 @@ export default function StaffManagement({ onGoBack }: StaffManagementProps) {
   const [staffList, setStaffList] = useState<StaffUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const { selectedShop } = useShopStore();
+  // REQ-PERF-003-08: 전체 구독 대신 필드 셀렉터로 무관 상태 변경 리렌더 차단.
+  const selectedShop = useShopStore((s) => s.selectedShop);
   const colorScheme = useColorScheme() ?? 'light';
 
   useEffect(() => {
@@ -71,22 +72,23 @@ export default function StaffManagement({ onGoBack }: StaffManagementProps) {
     loadData();
   };
 
-  const handleAddStaff = () => {
+  // REQ-PERF-003-09: 행 onPress 가 참조하는 핸들러를 useCallback 으로 안정화.
+  const handleAddStaff = useCallback(() => {
     setShowInviteModal(true);
-  };
+  }, []);
 
-  const handleEditStaff = (staffId: number) => {
+  const handleEditStaff = useCallback((staffId: number) => {
     Alert.alert('직원 수정', `직원 ID: ${staffId}의 정보를 수정합니다.`);
-  };
+  }, []);
 
   // @MX:NOTE: [AUTO] 상태(활성/비활성) 토글은 개발 중 스텁이다.
   // 백엔드에는 직원 status 계약이 없어(UserResponse 미반환) API 호출 없이 안내만 표시한다.
-  const toggleStaffStatus = (staffId: number) => {
+  const toggleStaffStatus = useCallback((staffId: number) => {
     const staff = staffList.find(s => s.id === staffId);
     if (!staff) return;
 
     Alert.alert('알림', '직원 상태 변경 기능은 현재 개발 중입니다. 곧 제공될 예정입니다.');
-  };
+  }, [staffList]);
 
   if (loading) {
     return (
@@ -136,11 +138,11 @@ export default function StaffManagement({ onGoBack }: StaffManagementProps) {
         <ThemedView style={styles.listContainer}>
           {staffList.length > 0 ? (
             staffList.map((staff, index) => (
-              <ThemedView 
-                key={staff.id} 
+              <ThemedView
+                key={staff.id}
                 style={[
                   styles.card,
-                  index === staffList.length - 1 ? { marginBottom: 0 } : {}
+                  index === staffList.length - 1 && styles.lastCard
                 ]}
               >
                 <ThemedView style={styles.cardInfo}>
@@ -151,9 +153,10 @@ export default function StaffManagement({ onGoBack }: StaffManagementProps) {
                   <ThemedText style={styles.cardDetails}>
                     이메일: {staff.email}
                   </ThemedText>
-                  <ThemedText style={[styles.cardDetails, {
-                    color: staff.status === 'active' ? '#4CAF50' : '#FF9800'
-                  }]}>
+                  <ThemedText style={[
+                    styles.cardDetails,
+                    staff.status === 'active' ? styles.statusActiveText : styles.statusInactiveText
+                  ]}>
                     상태: {staff.status === 'active' ? '활성' : '비활성'}
                   </ThemedText>
                 </ThemedView>
@@ -269,6 +272,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: Spacing.sm, // gap 대신 marginBottom 사용
+  },
+  // REQ-PERF-003-09: 마지막 카드 여백 제거를 정적 스타일로(인라인 객체 리터럴 대체).
+  lastCard: {
+    marginBottom: 0,
+  },
+  // REQ-PERF-003-09: 직원 상태 색상을 정적 스타일로(인라인 객체 리터럴 대체).
+  statusActiveText: {
+    color: '#4CAF50',
+  },
+  statusInactiveText: {
+    color: '#FF9800',
   },
   cardInfo: {
     flex: 1,

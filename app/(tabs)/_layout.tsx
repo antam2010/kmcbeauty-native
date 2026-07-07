@@ -8,10 +8,14 @@ import { DashboardProvider } from '@/contexts/DashboardContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore } from '@/src/stores/authStore';
 import { ThemeColors as Colors } from '@/src/ui/theme';
+import { useShallow } from 'zustand/react/shallow';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { isAuthenticated, isLoading } = useAuthStore();
+  // REQ-PERF-003-08: 다중 필드 셀렉터 구독(useShallow).
+  const { isAuthenticated, isLoading } = useAuthStore(
+    useShallow((s) => ({ isAuthenticated: s.isAuthenticated, isLoading: s.isLoading })),
+  );
 
   // 인증 상태 로딩 중
   if (isLoading) {
