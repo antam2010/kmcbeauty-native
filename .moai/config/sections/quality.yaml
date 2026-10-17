@@ -1,7 +1,7 @@
 constitution:
   # Development methodology selection
   # Options: ddd (Domain-Driven Development), tdd (Test-Driven Development)
-  development_mode: "ddd"
+  development_mode: "tdd"
   # Default session effort level for Opus models supporting effort control.
   # Applied when no agent-specific effort override exists.
   # Valid values: "low", "medium", "high", "xhigh", "max"

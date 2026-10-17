@@ -1,0 +1,20 @@
+# .moai/project/harness-spec.yaml — 하네스 생성용 기계 판독 입력
+# /moai project Phase 8이 .moai/project/interview.md(2026-10-16)의 답변으로 생성했다.
+# 다시 실행하면 최신 인터뷰 답변으로 덮어쓴다.
+
+# --- 필수 기본 필드 (인터뷰 Stage A)
+domain: beauty-salon-booking-mobile
+goal: "뷰티샵 운영(예약·시술·고객·직원·매출)을 관리하는 모바일 앱을 계속 개발하고, 문서는 현재 코드와 로드맵 기준으로 유지한다."
+constraints:
+  - "보안·개인정보 보호: 액세스 토큰은 SecureStore에 저장하고, 로그에 토큰·비밀번호 등 민감 정보를 남기지 않는다 (SPEC-SECURITY-001)"
+  - "시니어 친화 화면: 고대비·큰 글씨 등 가독성 규칙을 지킨다 (SPEC-UX-001)"
+  - "목록 렌더링 성능: 예약 목록·달력의 렌더링 최적화 규칙을 지킨다 (SPEC-PERF-001, SPEC-PERF-003)"
+scope: "포함: app/, components/, hooks/, contexts/, src/, __tests__/, scripts/, 빌드 설정(EAS 프로필·npm 스크립트). 제외: .claude/·.moai/(MoAI 도구), node_modules/, 백엔드 내부 구현(백엔드는 연동 대상으로만 기술)."
+
+# --- 확장 필드 (인터뷰 Stage B)
+verification: "npm test, npm run lint, npx tsc --noEmit"
+external_systems:
+  - "KMC Beauty 백엔드 REST API (EXPO_PUBLIC_API_BASE_URL)"
+  - "기기 연락처 (expo-contacts)"
+ui_surface: has-ui
+team_sharing: solo
