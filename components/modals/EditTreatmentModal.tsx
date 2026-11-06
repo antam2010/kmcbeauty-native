@@ -907,6 +907,7 @@ export default function EditTreatmentModal({
               <View style={styles.statusSelection}>
                 {[
                   { key: 'RESERVED', label: '예약됨' },
+                  { key: 'VISITED', label: '방문함' },
                   { key: 'COMPLETED', label: '완료' },
                   { key: 'CANCELLED', label: '취소됨' },
                   { key: 'NO_SHOW', label: '노쇼' }
@@ -1322,7 +1323,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 8,
     alignItems: 'center',
-    minWidth: '22%',
+    minWidth: '30%',
   },
   selectedStatusOption: {
     backgroundColor: '#667eea',

@@ -81,8 +81,8 @@ export default function InviteSignupForm({
       return false;
     }
 
-    if (password.length < 4) {
-      Alert.alert('알림', '비밀번호는 4자 이상이어야 합니다.');
+    if (password.length < 8) {
+      Alert.alert('알림', '비밀번호는 8자 이상이어야 합니다.');
       return false;
     }
 
