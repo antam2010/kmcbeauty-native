@@ -11,7 +11,299 @@
 
 ## §E.2 Run-phase Evidence
 
-_<pending run-phase>_
+### M1 — RED (2026-11-09, manager-develop)
+
+- 기준: HEAD `bc692d4`(브랜치 `feature/refactor-hardening-2026-07`)에 커밋하지 않은 M1 파일 5개를 더한 작업 트리. 운영 코드는 바꾸지 않았고 커밋하지 않았다(D-C3).
+- 산출물: 새 테스트 4개(`__tests__/baseServiceLogging.test.ts`, `__tests__/authStoreLogging.test.ts`, `__tests__/profilePasswordLogging.test.tsx`, `__tests__/refreshLogging.test.ts`)와 판정 도구 `__tests__/utils/consoleArgs.ts`(D-C4).
+- 원문 증거 위치(gitignore 대상): `.moai/state/verify/SPEC-SECURITY-002/M1/`. 전체 출력은 `red.txt`, JSON은 `red.json`이다. 상태 목록 `red-status.txt`, AC별 첫 실패 블록 `red-first-failures.txt`, 실패 38건의 실패 줄 `red-faillines.txt`, C-M1-02 기계 판정 `c-m1-02-check.txt`, C-M1-03 grep `c-m1-03-grep.txt`, 해시 `sha256.txt`가 함께 있다.
+
+RED 명령(저장소 루트에서 `LC_ALL=C.UTF-8`로 실행, contract.md C-M1-02의 두 명령):
+
+```bash
+npx jest __tests__/baseServiceLogging.test.ts __tests__/authStoreLogging.test.ts __tests__/profilePasswordLogging.test.tsx __tests__/refreshLogging.test.ts --json --outputFile=.moai/state/verify/SPEC-SECURITY-002/M1/red.json > .moai/state/verify/SPEC-SECURITY-002/M1/red.txt 2>&1; echo "exit=$?"
+node -e "const r=require(process.argv[1]); console.log('runtimeError='+r.numRuntimeErrorTestSuites+' pending='+r.numPendingTests+' todo='+r.numTodoTests); for (const s of r.testResults) for (const a of s.assertionResults) console.log(a.status+' | '+require('path').basename(s.name)+' | '+a.fullName)" /home/antam2010/workSpace/_myproject/kmcbeauty/kmcbeauty-native/.moai/state/verify/SPEC-SECURITY-002/M1/red.json
+```
+
+- 종료 코드: `exit=1`(jest). `red.txt` 끝부분: `Test Suites: 4 failed, 4 total`, `Tests:       38 failed, 20 passed, 58 total`, `Snapshots:   0 total`.
+
+상태 목록(위 node 명령의 출력 원문):
+
+```text
+runtimeError=0 pending=0 todo=0
+failed | refreshLogging.test.ts | SPEC-SECURITY-002 client.ts 토큰 갱신 실패 로그 AC-SEC-002-10 운영 모드 토큰 갱신 실패: console.error 0건 경우 a: AxiosError 401 (응답 detail, request에 XHR 표식)
+failed | refreshLogging.test.ts | SPEC-SECURITY-002 client.ts 토큰 갱신 실패 로그 AC-SEC-002-10 운영 모드 토큰 갱신 실패: console.error 0건 경우 b: 응답 없이 request만 있는 AxiosError (ERR_NETWORK, XHR 표식)
+failed | refreshLogging.test.ts | SPEC-SECURITY-002 client.ts 토큰 갱신 실패 로그 AC-SEC-002-10 운영 모드 토큰 갱신 실패: console.error 0건 경우 c: 응답도 요청도 없는 Error
+failed | refreshLogging.test.ts | SPEC-SECURITY-002 client.ts 토큰 갱신 실패 로그 AC-SEC-002-11 개발 모드 토큰 갱신 실패: 에러 객체·XHR 없음 경우 a: AxiosError 401 (응답 detail, request에 XHR 표식)
+failed | refreshLogging.test.ts | SPEC-SECURITY-002 client.ts 토큰 갱신 실패 로그 AC-SEC-002-11 개발 모드 토큰 갱신 실패: 에러 객체·XHR 없음 경우 b: 응답 없이 request만 있는 AxiosError (ERR_NETWORK, XHR 표식)
+failed | refreshLogging.test.ts | SPEC-SECURITY-002 client.ts 토큰 갱신 실패 로그 AC-SEC-002-11 개발 모드 토큰 갱신 실패: 에러 객체·XHR 없음 경우 c: 응답도 요청도 없는 Error
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-01 운영 모드에서 base.ts는 콘솔을 호출하지 않는다 post() 성공
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-01 운영 모드에서 base.ts는 콘솔을 호출하지 않는다 post() 실패 500
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-01 운영 모드에서 base.ts는 콘솔을 호출하지 않는다 post() 실패 422 (detail 문자열, errors 객체)
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-01 운영 모드에서 base.ts는 콘솔을 호출하지 않는다 post() 실패 401
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-01 운영 모드에서 base.ts는 콘솔을 호출하지 않는다 get() 성공
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-01 운영 모드에서 base.ts는 콘솔을 호출하지 않는다 get() 실패 500
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-01 운영 모드에서 base.ts는 콘솔을 호출하지 않는다 get() 실패 401
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-02 개발 모드 실패 로그: 표식 없음, 진단 정보 유지 가. post() 응답 500
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-02 개발 모드 실패 로그: 표식 없음, 진단 정보 유지 가. post() 응답 422 (detail 배열, errors 객체, input 없음)
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-02 개발 모드 실패 로그: 표식 없음, 진단 정보 유지 가. post() 응답 401
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-02 개발 모드 실패 로그: 표식 없음, 진단 정보 유지 나. get() 응답 500 (params.q에 표식)
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-02 개발 모드 실패 로그: 표식 없음, 진단 정보 유지 나. get() 응답 401 (params.q에 표식)
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-02 개발 모드 실패 로그: 표식 없음, 진단 정보 유지 다. post() 응답 없는 Error
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-02 개발 모드 실패 로그: 표식 없음, 진단 정보 유지 다. get() 응답 없는 Error
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-02 개발 모드 실패 로그: 표식 없음, 진단 정보 유지 가. post() 응답 500, Authorization이 든 요청 설정 (선택 보강 X2)
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-03 개발 모드 요청·성공 로그: 표식 없음 로그인 형태 post(): URLSearchParams 본문, Authorization이 든 요청 설정
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-03 개발 모드 요청·성공 로그: 표식 없음 가입 형태 post()
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-03 개발 모드 요청·성공 로그: 표식 없음 조회 get(): params와 Authorization이 든 요청 설정
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (개발 모드) [a] get() AxiosError 500
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (개발 모드) [a] post() AxiosError 500
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (개발 모드) [b] get() 응답 없는 Error
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (개발 모드) [b] post() 응답 없는 Error
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (개발 모드) [c] post() AxiosError 422, detail 문자열
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (개발 모드) [d] post() AxiosError 422, detail 배열
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (개발 모드) [e] post() AxiosError 422, detail 객체
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (개발 모드) [f] get() AxiosError 401
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (개발 모드) [f] post() AxiosError 401
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (개발 모드) [g] get() Axios가 아닌 TypeError
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (개발 모드) [g] post() Axios가 아닌 TypeError
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (운영 모드) [a] get() AxiosError 500
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (운영 모드) [a] post() AxiosError 500
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (운영 모드) [b] get() 응답 없는 Error
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (운영 모드) [b] post() 응답 없는 Error
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (운영 모드) [c] post() AxiosError 422, detail 문자열
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (운영 모드) [d] post() AxiosError 422, detail 배열
+failed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (운영 모드) [e] post() AxiosError 422, detail 객체
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (운영 모드) [f] get() AxiosError 401
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (운영 모드) [f] post() AxiosError 401
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (운영 모드) [g] get() Axios가 아닌 TypeError
+passed | baseServiceLogging.test.ts | SPEC-SECURITY-002 base.ts 로그 AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (운영 모드) [g] post() Axios가 아닌 TypeError
+failed | authStoreLogging.test.ts | SPEC-SECURITY-002 authStore 인증 경로 로그 AC-SEC-002-06 로그인 실패: 메시지·상태만 남기고 같은 에러를 다시 던진다 (개발 모드) 토큰을 받은 뒤 getMe()가 AxiosError 500으로 거부한다
+failed | authStoreLogging.test.ts | SPEC-SECURITY-002 authStore 인증 경로 로그 AC-SEC-002-06 로그인 실패: 메시지·상태만 남기고 같은 에러를 다시 던진다 (운영 모드) 토큰을 받은 뒤 getMe()가 AxiosError 500으로 거부한다
+failed | authStoreLogging.test.ts | SPEC-SECURITY-002 authStore 인증 경로 로그 AC-SEC-002-07 로그아웃·사용자 조회 실패: 메시지·상태만 남긴다 (개발 모드) logout(): 로그아웃 API가 AxiosError 500으로 거부한다
+failed | authStoreLogging.test.ts | SPEC-SECURITY-002 authStore 인증 경로 로그 AC-SEC-002-07 로그아웃·사용자 조회 실패: 메시지·상태만 남긴다 (개발 모드) loadUser(): getMe()가 AxiosError 401로 거부한다
+failed | authStoreLogging.test.ts | SPEC-SECURITY-002 authStore 인증 경로 로그 AC-SEC-002-07 로그아웃·사용자 조회 실패: 메시지·상태만 남긴다 (개발 모드) loadUser(): getMe()가 응답 없는 Error로 거부한다
+failed | authStoreLogging.test.ts | SPEC-SECURITY-002 authStore 인증 경로 로그 AC-SEC-002-07 로그아웃·사용자 조회 실패: 메시지·상태만 남긴다 (운영 모드, 선택 보강 X4) logout(): 로그아웃 API가 AxiosError 500으로 거부한다
+failed | authStoreLogging.test.ts | SPEC-SECURITY-002 authStore 인증 경로 로그 AC-SEC-002-07 로그아웃·사용자 조회 실패: 메시지·상태만 남긴다 (운영 모드, 선택 보강 X4) loadUser(): getMe()가 AxiosError 401로 거부한다
+failed | authStoreLogging.test.ts | SPEC-SECURITY-002 authStore 인증 경로 로그 AC-SEC-002-07 로그아웃·사용자 조회 실패: 메시지·상태만 남긴다 (운영 모드, 선택 보강 X4) loadUser(): getMe()가 응답 없는 Error로 거부한다
+failed | profilePasswordLogging.test.tsx | SPEC-SECURITY-002 프로필 비밀번호 변경 실패 로그 AC-SEC-002-08 비밀번호 변경 실패: 메시지·상태만 남기고 알림은 그대로다 (개발 모드) 경우 a: AxiosError 422 (요청 본문, Authorization, 응답의 input에 표식)
+failed | profilePasswordLogging.test.tsx | SPEC-SECURITY-002 프로필 비밀번호 변경 실패 로그 AC-SEC-002-08 비밀번호 변경 실패: 메시지·상태만 남기고 알림은 그대로다 (개발 모드) 경우 b: 응답 없는 Error
+failed | profilePasswordLogging.test.tsx | SPEC-SECURITY-002 프로필 비밀번호 변경 실패 로그 AC-SEC-002-08 비밀번호 변경 실패: 메시지·상태만 남기고 알림은 그대로다 (운영 모드, 선택 보강 X4) 경우 a: AxiosError 422 (요청 본문, Authorization, 응답의 input에 표식)
+failed | profilePasswordLogging.test.tsx | SPEC-SECURITY-002 프로필 비밀번호 변경 실패 로그 AC-SEC-002-08 비밀번호 변경 실패: 메시지·상태만 남기고 알림은 그대로다 (운영 모드, 선택 보강 X4) 경우 b: 응답 없는 Error
+```
+
+C-M1-02 하위 조건의 기계 판정(`c-m1-02-check.txt` 원문):
+
+```text
+(1) runtimeError=0 pending=0 todo=0 -> OK
+(2) AC-SEC-002-01: total=7 failed=7 -> OK
+(2) AC-SEC-002-02: total=8 failed=8 -> OK
+(2) AC-SEC-002-03: total=3 failed=3 -> OK
+(2) AC-SEC-002-06: total=2 failed=2 -> OK
+(2) AC-SEC-002-07: total=6 failed=6 -> OK
+(2) AC-SEC-002-08: total=4 failed=4 -> OK
+(2) AC-SEC-002-10: total=3 failed=3 -> OK
+(2) AC-SEC-002-11: total=3 failed=3 -> OK
+(3) AC-SEC-002-05: total=22 [e]=2 (failed dev=1, prod=1) others=20 passed=20 -> OK
+(4) tests without AC ID: 0 (all passed=true) -> OK
+(5) every ID in its designated file -> OK
+totals: tests=58 failed=38 passed=20
+C-M1-02 overall: PASS
+```
+
+AC별 첫 실패 발췌(`red.txt` 원문에서 제목, 판정 줄, 기대·실제 값, 실패 줄만 옮겼다. 블록 전체는 `red-first-failures.txt`):
+
+```text
+  ● SPEC-SECURITY-002 base.ts 로그 › AC-SEC-002-01 운영 모드에서 base.ts는 콘솔을 호출하지 않는다 › post() 성공
+    expect(received).toBe(expected) // Object.is equality
+    Expected: 0
+    Received: 2
+    > 116 |       expect(totalCalls(spies)).toBe(0);
+
+  ● SPEC-SECURITY-002 base.ts 로그 › AC-SEC-002-02 개발 모드 실패 로그: 표식 없음, 진단 정보 유지 › 가. post() 응답 500
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: true
+    > 242 |       expect(includesText(args, PW_SENTINEL)).toBe(false);
+
+  ● SPEC-SECURITY-002 base.ts 로그 › AC-SEC-002-03 개발 모드 요청·성공 로그: 표식 없음 › 로그인 형태 post(): URLSearchParams 본문, Authorization이 든 요청 설정
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: true
+    > 260 |       expect(includesText(args, PW_SENTINEL)).toBe(false);
+
+  ● SPEC-SECURITY-002 base.ts 로그 › AC-SEC-002-05 잡은 에러를 같은 참조로 다시 던진다 (개발 모드) › [e] post() AxiosError 422, detail 객체
+    expect(received).rejects.toBe(expected) // Object.is equality
+    Expected: [AxiosError: Request failed with status code 422]
+    Received: [TypeError: errorMessage.includes is not a function]
+    > 335 |       await expect(method === 'post' ? callPostUsers() : callGetMe()).rejects.toBe(error);
+
+  ● SPEC-SECURITY-002 authStore 인증 경로 로그 › AC-SEC-002-06 로그인 실패: 메시지·상태만 남기고 같은 에러를 다시 던진다 (개발 모드) › 토큰을 받은 뒤 getMe()가 AxiosError 500으로 거부한다
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: true
+    > 78 |       expect(includesText(args, TOKEN_SENTINEL)).toBe(false);
+
+  ● SPEC-SECURITY-002 authStore 인증 경로 로그 › AC-SEC-002-07 로그아웃·사용자 조회 실패: 메시지·상태만 남긴다 (개발 모드) › logout(): 로그아웃 API가 AxiosError 500으로 거부한다
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: true
+    > 108 |       expect(includesText(args, TOKEN_SENTINEL)).toBe(false);
+
+  ● SPEC-SECURITY-002 프로필 비밀번호 변경 실패 로그 › AC-SEC-002-08 비밀번호 변경 실패: 메시지·상태만 남기고 알림은 그대로다 (개발 모드) › 경우 a: AxiosError 422 (요청 본문, Authorization, 응답의 input에 표식)
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: true
+    > 113 |       expect(includesText(args, PW_SENTINEL)).toBe(false);
+
+  ● SPEC-SECURITY-002 client.ts 토큰 갱신 실패 로그 › AC-SEC-002-10 운영 모드 토큰 갱신 실패: console.error 0건 › 경우 a: AxiosError 401 (응답 detail, request에 XHR 표식)
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+    Expected number of calls: 0
+    Received number of calls: 3
+    > 101 |       expect(spies.error).toHaveBeenCalledTimes(0);
+
+  ● SPEC-SECURITY-002 client.ts 토큰 갱신 실패 로그 › AC-SEC-002-11 개발 모드 토큰 갱신 실패: 에러 객체·XHR 없음 › 경우 a: AxiosError 401 (응답 detail, request에 XHR 표식)
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: true
+    > 124 |       expect(containsRef(args, error)).toBe(false);
+```
+
+실패 사유(C-M1-03):
+
+- 금지 문구 grep(contract.md C-M1-03 명령, `red.txt` 대상) → `0`.
+- 실패 38건의 실패 줄(`red-faillines.txt`의 실패 줄을 AC ID와 짝지어 `sort | uniq -c`로 센 값):
+  - 콘솔 호출 수(기대 0): `expect(totalCalls(spies)).toBe(0)` 7건(AC-01), `expect(spies.error).toHaveBeenCalledTimes(0)` 3건(AC-10)
+  - `includesText(args, PW_SENTINEL)` 거짓 기대 9건: AC-02 5건, AC-03 2건, AC-08 2건
+  - `includesText(args, TOKEN_SENTINEL)` 거짓 기대 7건: AC-03 1건, AC-06 2건, AC-07 4건
+  - `includesText(args, PII_SENTINEL)` 거짓 기대 3건: AC-02 3건
+  - `containsRef(args, error)` 거짓 기대 7건: AC-07 2건, AC-08 2건, AC-11 3건
+  - `rejects.toBe(error)` 2건: AC-05 `[e]` 두 모드. 거부값은 `TypeError: errorMessage.includes is not a function`
+- 각 테스트는 긍정 단언(진단 정보 유지, 같은 참조로 다시 던지기, 알림·상태 갱신)을 부정 단언보다 먼저 둔다. 그래서 위 실패는 앞선 긍정 단언이 지금 코드에서 모두 통과한 뒤에 났다.
+- 통과 20건은 AC-05의 `[e]` 외 경우 전부다. AC ID가 없는 보조 테스트는 두지 않았다.
+
+새 테스트 파일과 판정 도구 파일의 `sha256sum`(C-M1-10, RED 직후 측정):
+
+```text
+b51a418e7205d4e67f452f816300677280aa778a9308c1c053b634226b3a49f6  __tests__/baseServiceLogging.test.ts
+92356bf92e40ea460b1d4441e6ae24fc00990e825c4ace81bafdb1e182ac0960  __tests__/authStoreLogging.test.ts
+c3740f79515a87e5684572a2f25e80d4511da483d7a1e2a22f637810956db22c  __tests__/profilePasswordLogging.test.tsx
+1ebbbe7cb3e21c3bfa1bcf98750ccc224bcef60938044975b069885d1791d34c  __tests__/refreshLogging.test.ts
+c6400e2ded381276fd82d4f6d56e9cb9875b93002a74131e79518d84f7274bb6  __tests__/utils/consoleArgs.ts
+```
+
+### M1 — 계약 기준 자체 점검 (같은 작업 트리, 구현 에이전트 판정)
+
+acceptance.md·contract.md의 bash 블록은 글자 그대로 뽑아 `bash <파일>`로 돌렸다. jest·tsc·lint는 하나씩 따로 돌렸다(B-10). 원문은 모두 `.moai/state/verify/SPEC-SECURITY-002/M1/`에 있다.
+
+| 기준 | 판정 | 명령 → 출력 원문 | 증거 파일 |
+|------|------|------------------|-----------|
+| C-CM-01 | PASS | `git diff --stat 71b0455 -- …/plan.md …/acceptance.md` → 출력 없음. `sha256sum` 앞 16자리 → `4ce63ed0f3a76741 plan.md`, `fea860dfa63bdeb5 acceptance.md`, `79a9cc9482a717d7 spec.md` | `static-checks.txt` |
+| C-CM-03 | PASS | AC-SEC-002-13의 `git diff`·`git ls-files` 다섯 명령 → 모두 출력 없음. client.ts 변경 범위 awk → `0` | `static-checks.txt` |
+| C-CM-04 | PASS | 제외·스냅숏 grep → 출력 없음(exit 1). 자격 증명 형태 grep(보안 판정 기준, 새 파일 5개)도 출력 없음 | `static-greps.txt` |
+| C-CM-05 | PASS | 헬퍼·정제·직렬화 명령 → `0` | `static-checks.txt` |
+| C-M1-01 | PASS | `git diff --name-only 80b5e8a -- app components src hooks contexts babel.config.js __tests__` → 출력 없음. `git ls-files --others --exclude-standard -- __tests__` → 새 테스트 4개와 `__tests__/utils/consoleArgs.ts` 다섯 줄 | `static-checks.txt` |
+| C-M1-02 | PASS | 위 상태 목록과 기계 판정 | `red.json`, `red-status.txt`, `c-m1-02-check.txt` |
+| C-M1-03 | PASS | 금지 문구 grep → `0`. 실패 줄 분포는 위 "실패 사유" | `c-m1-03-grep.txt`, `red-faillines.txt` |
+| C-M1-04 | PASS | AC-SEC-002-12 표 첫 행 jest → `Test Suites: 7 passed, 7 total`, `Tests:       23 passed, 23 total` | `c-m1-04-preserved.txt` |
+| C-M1-05 | PASS | AC-SEC-002-14 명령 2 → `2`, 명령 3 → `components/modals/EditTreatmentModal.tsx`, 명령 4 → `✖ 7 problems (2 errors, 5 warnings)`. `command grep -nE '\bglobal(This)?\.__DEV__'`(새 테스트 4개) → 출력 없음 | `c-m1-05-ac14-cmd2.txt`, `c-m1-05-ac14-cmd3.txt`, `c-m1-05-ac14-cmd4-lint.txt` |
+| C-M1-06 | 자체 판정 PASS(읽기 기준) | `consoleArgs.ts`: 다섯 메서드 :14, `mockImplementation(() => {})` :22, `jest.restoreAllMocks()` :29, 함수·`null`·`undefined` 건너뛰기 :53, 방문 집합 :57-58, 예외를 잡은 `String(value)` :71, 예외를 잡은 `JSON.stringify` :80, Map·Set 항목 :89-90, `Reflect.ownKeys` :93, getter 예외 건너뛰기 :101, `includesText` :108, `containsRef`(`===`, 렌더링 없음) :119-121, `hasExactValue`(문자열·숫자, 렌더링 없음) :126-130. `__DEV__`를 바꾸는 세 파일과 refreshLogging 모두 최상위 `afterEach`에서 원래 값으로 되돌린다. `JSON.stringify(…mock…)` grep → 출력 없음 | 판정 도구 파일 |
+| C-M1-07 | PASS | 아래 프로브 표 15행이 모두 기대와 같다 | `probe/probe-result.json`, `probe/probe-run.txt` |
+| C-M1-08 | PASS | 표식 grep → `PII-SENTINEL-4b2d`, `PW-SENTINEL-7f3a`, `TOKEN-SENTINEL-9c1e`, `XHR-SENTINEL-1d8e` 네 줄. 에러는 `makeAxiosError`가 `new AxiosError(message, code, config, request, response)`로 만들고 응답이 `config`·`request`를 품는다. 메시지는 `Request failed with status code <status>`나 `Network Error`, 그 밖의 `Error`는 고정 문구이며 표식이 없다 | `c-m1-08-reading.txt` |
+| C-M1-09 | 자체 판정 PASS(읽기 기준) | 아래 경우표 대응 | 새 테스트 4개 |
+| C-M1-10 | 이 기록 | RED 명령, 종료 코드, 상태 목록, AC별 첫 실패 발췌, 전체 출력 경로, `sha256sum`이 위에 있다 | — |
+
+C-M1-07 프로브: 저장소를 스크래치패드로 `rsync -a --exclude node_modules --exclude .git --exclude .moai --exclude .claude`로 복사하고 `node_modules`를 심볼릭 링크로 이었다. 프로브 원본(`probe/consoleArgs.probe.test.ts.txt`)을 복사본의 `__tests__/consoleArgs.probe.test.ts`로 두고 `npx jest __tests__/consoleArgs.probe.test.ts --runInBand --cacheDirectory <스크래치>/jest-cache`로 돌렸다(exit 0, `Tests: 1 passed`). 복사본의 판정 도구 해시는 저장소 파일과 같은 `c6400e2d…74bb6`이었다(`probe/probe-helper-hash.txt`). H-7은 테스트용 빌더를 쓰지 않고 §1.7 모양을 프로브 안에서 직접 만들었다. 실행 뒤 복사본은 지웠다.
+
+| ID | 호출 | 기대 | 실제 |
+|----|------|------|------|
+| H-1 | `includesText([new URLSearchParams({ username: 'u', password: PW })], PW)` | 참 | 참 |
+| H-2 | 열거 불가 심볼 키에 PW를 둔 객체 | 참 | 참 |
+| H-3 | 열거 불가 속성 `detail`에 PII를 둔 `Error` | 참 | 참 |
+| H-4 | `new Map([['k', TOKEN]])` / `new Map([[TOKEN, 1]])` / `new Set([XHR])` | 참·참·참 | 참·참·참 |
+| H-5 | `{ a: PW, self }`에 PW / `'absent'` | 참 / 거짓, 끝까지 돈다 | 참 / 거짓, 예외 없이 끝남 |
+| H-6 | 예외를 던지는 getter와 `ok: PW` | 참, 예외 없음 | 참, 예외 없음 |
+| H-7 | §1.7 모양 AxiosError(`config.data`에 PW) | 참 | 참 |
+| H-8 | `[{ a: 'safe' }, 'x', 1, null, undefined, () => 'PW-SENTINEL-7f3a']` | 거짓 | 거짓 |
+| H-9 | `hasExactValue(['Request failed with status code 422'], '422')` / `hasExactValue([{ status: 422 }], '422')` | 거짓 / 참 | 거짓 / 참 |
+| H-10 | `containsRef([{ nested: [t] }], t)` / `containsRef([{ ...t }], t)` | 참 / 거짓 | 참 / 거짓 |
+
+참고: 같은 프로브에서 jest-expo 환경의 `URLSearchParams`는 `[object URLSearchParams]`, 자기 키는 `Symbol(impl)` 하나, `String()` 결과는 `username=u&password=PW-SENTINEL-7f3a`였다. plan.md §H.4가 확인하지 않았다고 적은 구현은 whatwg-url 계열이며, 판정 도구는 `String()` 렌더링으로 폼 내용을 본다.
+
+경우표 대응(C-M1-09):
+
+- AC-01(운영): `post()` 성공·500·422(detail 문자열, errors 객체)·401, `get()` 성공·500·401의 7개 테스트가 다섯 스파이 호출 합 `totalCalls(spies)`이 0인지 본다.
+- AC-02(개발): 필수 경우 7개와 선택 보강 X2 1개다.
+  - 가: `post()` 500·422(배열 detail과 errors, `input` 없음)·401
+  - 나: `get()` 500·401(`params.q`에 PII)
+  - 다: `post()`·`get()` 각각 응답 없는 `Error`
+  - 모든 경우에 메시지·경로가 참이고 표식 4종이 거짓이다. 응답이 있으면 `hasExactValue(String(status))`가 참이고, 422는 서버 문구 두 개가 참이다.
+- AC-03(개발): URLSearchParams 로그인 `post()`(Authorization이 든 요청 설정), 가입 `post()`, `get()`(`params`·Authorization)의 3개 테스트다. `defaults.headers`와 두 성공 응답에 표식을 넣었고, 표식 3종이 거짓인지 본다.
+- AC-05: 경우·모드·메서드마다 테스트를 나눴다(두 모드 × 11개 = 22개). 이름에 `[a]`~`[g]`가 들고, `a·b·f·g`는 `get()`·`post()`, `c·d·e`는 `post()`에서 `rejects.toBe(error)`를 본다.
+- AC-06(두 모드): 토큰을 받은 뒤 `getMe()`가 AxiosError 500(Bearer 표식, 응답 본문 PII)으로 거부하는 경우다.
+  - `rejects.toBe(error)`가 성립한다.
+  - `console.error` 인자에 메시지와 `'500'`이 있다.
+  - `error` 상태가 메시지와 같고 `isLoading`이 `false`다.
+  - 표식 3종, `containsRef(error)`, `containsRef(error.config)`가 거짓이다.
+- AC-07: 호출 전마다 스토어를 정해진 상태로 둔다. 개발 모드 3개에 선택 보강 X4(운영 모드) 3개를 더했다.
+  - `logout()`(AxiosError 500): 거부되지 않고, 끝난 뒤 `isAuthenticated`가 `false`, `accessToken`이 `null`이다.
+  - `loadUser()`(AxiosError 401 / 응답 없는 `Error`): 거부되지 않고, 끝난 뒤 `error`가 메시지와 같다.
+  - 모든 경우에 TOKEN·PII·`containsRef(error)`가 거짓이고 메시지가 참이다. AxiosError면 상태도 참이다.
+- AC-08: 화면을 그리고 '비밀번호 변경'을 누른 뒤 두 입력란에 PW를 넣고 '변경'을 누른다. 개발 모드 2개에 선택 보강 X4(운영 모드) 2개를 더했다.
+  - a(422, `config.data`·Bearer·응답 `input`에 표식): `Alert.alert('오류', '입력한 정보가 올바르지 않습니다.')`가 1회 불리고 `'422'`가 참이다.
+  - b(응답 없는 `Error`): 제목 '오류'인 알림이 없다.
+  - 두 경우 모두 PW·TOKEN·`containsRef(error)`가 거짓이고 메시지가 참이다.
+- AC-10(운영, 모듈을 불러온 뒤 스파이): 경우 a 401(`detail`, XHR), b `ERR_NETWORK`(응답 없이 request), c 응답·요청 없는 `Error`의 3개 테스트다. `testRefreshToken()` 동안 `console.error` 호출 수가 0인지 본다.
+- AC-11(개발): 같은 세 경우다.
+  - `containsRef`(error·request·config)와 XHR 표식이 거짓이다.
+  - 메시지가 참이고, a는 `'401'`과 'Refresh token expired'도 참이다.
+  - 선택 보강 X3으로 TOKEN 표식이 거짓인지도 본다.
+
+선택 보강 X6: 새 테스트 4개를 `--randomize --seed=1`과 `--seed=2`로 두 번 더 돌렸다. 두 번 모두 `tests=58 failed=38 passed=20 runtimeError=0`이고 `red.json`과 상태가 다른 테스트는 0개였다(`x6-compare.txt`). 테스트 사이 `__DEV__`·스파이 누수(B-7)는 관찰되지 않았다.
+
+기록해 둘 점:
+
+- `npm run lint`(`expo lint`)는 `src`, `app`, `components`만 린트한다(`DEBUG=expo:*lint*`로 인자를 확인). 그래서 AC-SEC-002-14 명령 4는 `__tests__`를 세지 않는다. 새 파일 5개는 `npx eslint`로 따로 돌려 문제 0건을 확인했다. 초안의 profilePasswordLogging에는 기존 `profileDeadMenu.test.tsx`와 같은 경고 2건(`@typescript-eslint/no-require-imports`, `import/first`)이 있었다. 공식 RED 실행과 해시 측정 전에 `jest.requireActual`로 바꾸고 import를 맨 위로 옮겨 고쳤다.
+- 판정 도구 파일에는 §1.1 표식과 §1.7 AxiosError 빌더 `makeAxiosError`도 함께 두었다. 네 테스트가 같은 모양의 에러를 쓰게 하려는 것이다.
+- M1 검토(sync-auditor strict, `.moai/reports/sync-audit/SPEC-SECURITY-002-M1-review.md`)는 PASS였다. 차단 결함은 없고 선택 관찰 O-1·O-2는 조치하지 않는다.
+
+### M2 — GREEN: `src/api/services/base.ts` (2026-11-09, manager-develop)
+
+- 기준: HEAD `bc692d4`에 M1 파일 5개와 이 변경을 더한 작업 트리. 테스트 파일 5개는 M1 해시 그대로다(C-CM-02).
+- 변경: `get()`·`post()`의 진단 로그 전부를 `if (__DEV__)` 블록 6개 안으로 옮겼다(GET 요청·성공·실패, POST 요청·성공·실패).
+- 뺀 값:
+  - `get()` 요청 로그의 `config`
+  - `post()` 요청 로그의 `headers`(`this.client.defaults.headers`)·`data`·`config`
+  - `post()` 성공 로그의 응답 본문 `data`
+  - 실패 로그의 요청 본문과 스택
+  - 422 블록의 요청 본문 직렬화 줄('📝 요청 데이터:')
+  - 401 로그의 요청 본문
+- 남긴 값(개발 빌드만): 실패 로그의 url·method·status·statusText·서버 오류 응답 본문·message, 422의 서버 응답·`detail`·`errors`, 401의 Authorization 유무 표시. 기존 로그 문구는 바꾸지 않았다.
+- 422 누락 필드 추정은 게이트 안에 두고 `typeof errorMessage === 'string'`일 때만 `includes`를 부른다. 객체 `detail`에서 `TypeError`가 원래 에러를 가리던 문제(AC-05 `[e]`)를 이렇게 고쳤다.
+- `throw error;` 두 줄과 `put`·`patch`·`delete`·`buildQueryString`은 그대로다. MX 태그는 M5에서 단다(plan.md §F.1).
+- 원문 증거(gitignore 대상): `.moai/state/verify/SPEC-SECURITY-002/M2/`. 결과는 아래와 같다.
+
+| 기준 | 판정 | 명령 → 출력 원문 | 증거 파일 |
+|------|------|------------------|-----------|
+| C-M2-01 | PASS | `npx jest __tests__/baseServiceLogging.test.ts` → exit 0, `Tests:       40 passed, 40 total`. `-t "AC-SEC-002-01"` → `Tests:       33 skipped, 7 passed, 40 total`, `-02` → `32 skipped, 8 passed`, `-03` → `37 skipped, 3 passed`, `-05` → `18 skipped, 22 passed`(모두 exit 0) | `c-m2-01-file.txt`, `c-m2-01-t-ac01.txt`~`ac05.txt`, `c-m2-01-t-summary.txt` |
+| C-M2-02 | PASS | AC-SEC-002-04의 다섯 명령 → `0`, `0`, `0`, `0`, `6` | `static-m2.txt` |
+| C-M2-03 | PASS | 계약 블록 → `0`(M1 시점 `7`) | `static-m2.txt` |
+| C-M2-04 | PASS | → `0` | `static-m2.txt` |
+| C-M2-05 | PASS | `command grep -c 'throw error;' src/api/services/base.ts` → `2`. diff를 읽어 콘솔 호출이 모두 `if (__DEV__)` 안에 있고 422 추정 분기가 게이트 안에서 문자열일 때만 `includes`를 부르는 것을 확인했다 | `static-m2.txt`, `base-diff.txt` |
+| C-M2-06 | PASS | 계약 블록 → 출력 없음 | `static-m2.txt` |
+| C-M2-07 | PASS | C-CM-05 → `0`. `command grep -cE '^  [A-Za-z_$]' src/api/services/base.ts` → `8` | `static-m2.txt` |
+| C-M2-08 | PASS | 범위 awk → `0`. `git diff --name-only 80b5e8a -- app components src hooks contexts babel.config.js` → `src/api/services/base.ts` | `static-m2.txt` |
+| C-M2-09 | PASS | HT-05 base.ts 부분(M2 규칙대로 refreshLogging과 client.ts 수집을 뺐다): `G=8 P=129`, `UNCOVERED` 출력 없음(구간 DA 35줄). 참고: 파일 전체 `LF:48 LH:36 BRF:45 BRH:28` | `ht-05-base.txt`, `cov/lcov.info` |
+| C-M2-10 | 자체 점검(검토자 판정) | 스크래치 복사본에 변이를 하나씩 넣고 `-t`로 돌렸다. MU-01 → AC-05 `14 failed`, MU-02 → AC-05 `8 failed`, MU-03 → AC-02 `5 failed`, MU-04 → AC-02 `1 failed`. 변이 전 복사본은 `40 passed`였고, 끝난 뒤 복사본을 지웠다 | `mu-01-04-selfcheck.txt` |
+| C-CM-01 | PASS | plan.md·acceptance.md는 `71b0455`와 같고 해시 앞 16자리는 `4ce63ed0f3a76741`·`fea860dfa63bdeb5`다. spec.md는 `git diff -U0 71b0455` 기준으로 `status` 한 줄만 바뀌었다(`-status: draft`, `+status: in-progress`). 판정 명령 → `0`, `^status: in-progress$` → `1`. `updated:`는 이미 오늘 날짜(2026-11-09)라 두었다 | `c-cm-01-spec.txt` |
+| C-CM-02 | PASS | `sha256sum -c M1/sha256.txt` → 5개 모두 `OK` | `static-m2.txt` |
+| C-CM-03 | PASS | AC-SEC-002-13의 git 명령 5개 → 출력 없음, client.ts 범위 awk → `0` | `static-m2.txt` |
+| C-CM-04 | PASS | 제외·스냅숏 grep → 출력 없음. 자격 증명 형태 grep(새 파일 5개와 base.ts) → 출력 없음 | `static-m2.txt` |
+| C-CM-05 | PASS | → `0` | `static-m2.txt` |
+| AC-SEC-002-12(보존 스위트) | PASS | `Test Suites: 7 passed, 7 total`, `Tests:       23 passed, 23 total` | `ac12-preserved.txt` |
+| AC-SEC-002-14 명령 2·3·4 | PASS | `2` / `components/modals/EditTreatmentModal.tsx` / `✖ 7 problems (2 errors, 5 warnings)`. 린트 출력에 base.ts 문제는 없다 | `ac14-cmd2.txt`, `ac14-cmd3.txt`, `ac14-cmd4-lint.txt` |
+
+M3·M4 대상 테스트 3개(authStoreLogging, profilePasswordLogging, refreshLogging)를 한 번 돌린 결과는 `Tests:       18 failed, 18 total`, `runtimeError=0`이다. M1 RED와 비교해 상태가 다른 테스트는 0개였다(`others-compare.txt`). 실패 줄도 RED와 같았다(`others-faillines.txt`). AC-06은 TOKEN 2건, AC-07은 TOKEN 4건과 `containsRef` 2건, AC-08은 PW 2건과 `containsRef` 2건, AC-10은 호출 수 3건, AC-11은 `containsRef` 3건이다. 금지 문구 grep은 `0`이다.
+
+C-CM-06(커밋 형식과 파일 목록)은 커밋을 만든 뒤에야 잴 수 있다. 그래서 이 파일이 아니라 M2 완료 보고에 적는다.
 
 ## §E.3 Run-phase Audit-Ready Signal
 

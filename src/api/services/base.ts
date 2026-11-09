@@ -12,41 +12,46 @@ export abstract class BaseApiService {
     const fullUrl = `${this.basePath}${endpoint}`;
     
     try {
-      console.log('🔄 API GET 요청:', {
-        url: fullUrl,
-        method: 'GET',
-        timestamp: new Date().toISOString(),
-        config: config
-      });
+      if (__DEV__) {
+        console.log('🔄 API GET 요청:', {
+          url: fullUrl,
+          method: 'GET',
+          timestamp: new Date().toISOString()
+        });
+      }
       
       const response = await this.client.get(fullUrl, config);
       
-      console.log('✅ API GET 성공:', {
-        url: fullUrl,
-        status: response.status,
-        dataType: typeof response.data,
-        timestamp: new Date().toISOString()
-      });
+      if (__DEV__) {
+        console.log('✅ API GET 성공:', {
+          url: fullUrl,
+          status: response.status,
+          dataType: typeof response.data,
+          timestamp: new Date().toISOString()
+        });
+      }
       
       return response.data as T;
     } catch (error: any) {
-      console.error('❌ API GET 실패:', {
-        url: fullUrl,
-        method: 'GET',
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        errorData: error.response?.data,
-        message: error.message,
-        timestamp: new Date().toISOString()
-      });
-      
-      // 401 에러 특별 처리
-      if (error.response?.status === 401) {
-        console.error('🔐 401 Unauthorized 에러 - 인증 만료:', {
+      if (__DEV__) {
+        console.error('❌ API GET 실패:', {
           url: fullUrl,
-          accessToken: error.config?.headers?.Authorization ? '있음' : '없음',
-          errorDetail: error.response?.data
+          method: 'GET',
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          errorData: error.response?.data,
+          message: error.message,
+          timestamp: new Date().toISOString()
         });
+
+        // 401 에러 특별 처리
+        if (error.response?.status === 401) {
+          console.error('🔐 401 Unauthorized 에러 - 인증 만료:', {
+            url: fullUrl,
+            accessToken: error.config?.headers?.Authorization ? '있음' : '없음',
+            errorDetail: error.response?.data
+          });
+        }
       }
       
       throw error;
@@ -59,64 +64,62 @@ export abstract class BaseApiService {
     config?: any
   ): Promise<T> {
     try {
-      console.log('🔄 API POST 요청:', {
-        url: `${this.basePath}${endpoint}`,
-        method: 'POST',
-        headers: this.client.defaults.headers,
-        data: data,
-        config: config
-      });
+      if (__DEV__) {
+        console.log('🔄 API POST 요청:', {
+          url: `${this.basePath}${endpoint}`,
+          method: 'POST'
+        });
+      }
       
       const response = await this.client.post(`${this.basePath}${endpoint}`, data, config);
       
-      console.log('✅ API POST 성공:', {
-        status: response.status,
-        statusText: response.statusText,
-        data: response.data
-      });
+      if (__DEV__) {
+        console.log('✅ API POST 성공:', {
+          status: response.status,
+          statusText: response.statusText
+        });
+      }
       
       return response.data as T;
     } catch (error: any) {
-      console.error('❌ API POST 실패:', {
-        url: `${this.basePath}${endpoint}`,
-        method: 'POST',
-        requestData: data,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        errorData: error.response?.data,
-        message: error.message,
-        stack: error.stack?.split('\n').slice(0, 3) // 스택 트레이스 일부만
-      });
-      
-      // 422 에러의 경우 상세한 유효성 검사 오류 정보 출력
-      if (error.response?.status === 422) {
-        console.error('🔍 422 Unprocessable Entity - 상세 오류 정보:');
-        console.error('📝 요청 데이터:', JSON.stringify(data, null, 2));
-        console.error('🚫 서버 응답:', JSON.stringify(error.response.data, null, 2));
-        
-        if (error.response.data?.detail) {
-          console.error('💡 오류 세부사항:', error.response.data.detail);
-        }
-        
-        if (error.response.data?.errors) {
-          console.error('📋 필드별 오류:', error.response.data.errors);
-        }
-        
-        // 누락된 필드 정보 추출 시도
-        const errorMessage = error.response.data?.detail || error.response.data?.message || '';
-        if (errorMessage.includes('required') || errorMessage.includes('missing')) {
-          console.error('⚠️ 필수 필드 누락 의심:', errorMessage);
-        }
-      }
-      
-      // 401 에러 특별 처리
-      if (error.response?.status === 401) {
-        console.error('🔐 401 Unauthorized 에러 - 인증 만료:', {
+      if (__DEV__) {
+        console.error('❌ API POST 실패:', {
           url: `${this.basePath}${endpoint}`,
-          accessToken: error.config?.headers?.Authorization ? '있음' : '없음',
-          errorDetail: error.response?.data,
-          requestData: data
+          method: 'POST',
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          errorData: error.response?.data,
+          message: error.message
         });
+
+        // 422 에러의 경우 상세한 유효성 검사 오류 정보 출력
+        if (error.response?.status === 422) {
+          console.error('🔍 422 Unprocessable Entity - 상세 오류 정보:');
+          console.error('🚫 서버 응답:', JSON.stringify(error.response.data, null, 2));
+
+          if (error.response.data?.detail) {
+            console.error('💡 오류 세부사항:', error.response.data.detail);
+          }
+
+          if (error.response.data?.errors) {
+            console.error('📋 필드별 오류:', error.response.data.errors);
+          }
+
+          // 누락된 필드 정보 추출 시도
+          const errorMessage = error.response.data?.detail || error.response.data?.message || '';
+          if (typeof errorMessage === 'string' && (errorMessage.includes('required') || errorMessage.includes('missing'))) {
+            console.error('⚠️ 필수 필드 누락 의심:', errorMessage);
+          }
+        }
+
+        // 401 에러 특별 처리
+        if (error.response?.status === 401) {
+          console.error('🔐 401 Unauthorized 에러 - 인증 만료:', {
+            url: `${this.basePath}${endpoint}`,
+            accessToken: error.config?.headers?.Authorization ? '있음' : '없음',
+            errorDetail: error.response?.data
+          });
+        }
       }
       
       throw error;
