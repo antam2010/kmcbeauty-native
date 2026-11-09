@@ -94,25 +94,28 @@ const refreshAccessToken = async (): Promise<string | null> => {
     
     return access_token;
   } catch (error: any) {
-    console.error('❌ 리프레시 토큰 갱신 실패:', error);
-    
-    // 상세한 에러 로깅과 분류
-    if (error.response) {
-      const status = error.response.status;
-      console.error('응답 상태:', status);
-      console.error('응답 데이터:', error.response.data);
-      
-      // 401/403 에러는 리프레시 토큰이 만료되었거나 유효하지 않음을 의미
-      if (status === 401 || status === 403) {
-        console.log('🚪 리프레시 토큰 만료 또는 유효하지 않음 - 완전 로그아웃 필요');
+    // SPEC-SECURITY-002 REQ-SEC-002-008·009: 운영 빌드에서는 남기지 않는다. 개발 빌드에서도 에러 객체와 XHR 객체는 넘기지 않는다.
+    if (__DEV__) {
+      console.error('❌ 리프레시 토큰 갱신 실패:', error.message);
+
+      // 상세한 에러 로깅과 분류
+      if (error.response) {
+        const status = error.response.status;
+        console.error('응답 상태:', status);
+        console.error('응답 데이터:', error.response.data);
+
+        // 401/403 에러는 리프레시 토큰이 만료되었거나 유효하지 않음을 의미
+        if (status === 401 || status === 403) {
+          console.log('🚪 리프레시 토큰 만료 또는 유효하지 않음 - 완전 로그아웃 필요');
+        } else {
+          console.log('🔄 일시적인 서버 에러 가능성 - 네트워크 확인 필요');
+        }
+      } else if (error.request) {
+        console.error('네트워크 요청 실패:', error.message);
+        console.log('🌐 네트워크 연결 상태를 확인해주세요');
       } else {
-        console.log('🔄 일시적인 서버 에러 가능성 - 네트워크 확인 필요');
+        console.error('에러 메시지:', error.message);
       }
-    } else if (error.request) {
-      console.error('네트워크 요청 실패:', error.request);
-      console.log('🌐 네트워크 연결 상태를 확인해주세요');
-    } else {
-      console.error('에러 메시지:', error.message);
     }
     
     return null;

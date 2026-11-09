@@ -305,6 +305,43 @@ M3·M4 대상 테스트 3개(authStoreLogging, profilePasswordLogging, refreshLo
 
 C-CM-06(커밋 형식과 파일 목록)은 커밋을 만든 뒤에야 잴 수 있다. 그래서 이 파일이 아니라 M2 완료 보고에 적는다.
 
+- M2 커밋은 `2ff4a65`이고, M2 검토(sync-auditor strict, `.moai/reports/sync-audit/SPEC-SECURITY-002-M2-review.md`)는 PASS였다. 선택 관찰 O-1(base.ts가 `error` 자체에는 선택적 체이닝 없이 `error.response`를 읽음)은 기존 동작이라 고치지 않는다.
+- 커밋 직전 `.git/index.lock`(2026-11-09 16:39:52, 0바이트)이 남아 있어 `git add`가 실패했다. WSL과 Windows 양쪽에 실행 중인 git 프로세스가 없었다. 진행 중인 merge·rebase·cherry-pick도 없었다. 이를 확인한 뒤 이 파일 하나만 지웠다(`.moai/state/verify/SPEC-SECURITY-002/M2/index-lock-recovery.txt`).
+
+### M3 — GREEN: `src/api/client.ts` `refreshAccessToken()` catch 블록 (2026-11-10, manager-develop)
+
+- 기준: HEAD `2ff4a65`에 이 변경을 더한 작업 트리. 커밋하지 않은 테스트 파일 3개는 M1 해시 그대로다(C-CM-02).
+- 변경: catch 블록(`80b5e8a` 기준 :96-119)의 로깅 분기 전체를 `if (__DEV__)` 하나로 감싸고, 그 위에 한 줄 주석을 달았다.
+  - 다섯 줄의 문구는 그대로다. 줄 번호는 :97→:99, :102→:104, :103→:105, :112→:114, :115→:117로 바뀌었다.
+  - 값: :97과 :112 자리는 `error.message`로 바꿨다. :102는 `status`, :103은 `error.response.data`, :115는 `error.message`로 그대로 남겼다.
+  - `return null;`과 분기 구조는 그대로다.
+  - `console.log` 세 줄(:107, :109, :113)은 내용을 바꾸지 않고 게이트 안으로 들어갔다. 운영 빌드에서는 babel이 어차피 지우는 줄이다.
+  - 분기 전체가 게이트 안에 있으므로, `null` 거부가 운영 빌드에서 `error.response`를 읽다 `TypeError`를 내던 경로(M2 검토 메모 7)도 운영 빌드에서는 실행되지 않는다.
+- 원문 증거(gitignore 대상): `.moai/state/verify/SPEC-SECURITY-002/M3/`.
+
+| 기준 | 판정 | 명령 → 출력 원문 | 증거 파일 |
+|------|------|------------------|-----------|
+| C-M3-01 | PASS | `npx jest __tests__/refreshLogging.test.ts` → exit 0, `Tests:       6 passed, 6 total`. `-t "AC-SEC-002-10"` → `Tests:       3 skipped, 3 passed, 6 total`, `-t "AC-SEC-002-11"` → `Tests:       3 skipped, 3 passed, 6 total`(둘 다 exit 0) | `c-m3-01-file.txt`, `c-m3-01-t-ac10.txt`, `c-m3-01-t-ac11.txt` |
+| C-M3-02 | PASS | AC-SEC-002-13 client.ts 범위 awk → `0`(덩어리 머리 `@@ -97,11 +97,19 @@`, `@@ -109 +117 @@`, `@@ -111,5 +118,0 @@`). `git diff --name-only 80b5e8a -- app components src hooks contexts babel.config.js` → `src/api/client.ts`, `src/api/services/base.ts` | `static-m3.txt` |
+| C-M3-03 | PASS | `<블록> \| command grep -cE 'toJSON\|JSON\.stringify\|\bconfig\b\|\bheaders\b'` → `0`. 콘솔 줄 검사 → `0`(M2 시점 `2`) | `static-m3.txt` |
+| C-M3-04 | PASS | 다섯 문구 → `5`. `<블록>`을 읽어 다섯 줄이 모두 `if (__DEV__)` 안에 있고 값이 위와 같음을 확인했다. 다섯 문구는 client.ts 전체에서도 이 다섯 줄에만 있다 | `static-m3.txt`, `client-diff.txt` |
+| C-M3-05 | PASS | AC-SEC-002-12 jest → `Test Suites: 7 passed, 7 total`, `Tests:       23 passed, 23 total`. 정적 행: 보존 테스트 diff 출력 없음, `@MX:ANCHOR` → `src/api/client.ts:1`·`src/stores/authStore.ts:1`, `@MX:WARN` → `1`, `export const authDebugUtils` → `1`, 스토어 훅 grep 출력 없음 | `ac12-preserved.txt`, `ac12-static.txt` |
+| C-M3-06 | PASS | C-M2-06 블록 → 출력 없음. HT-05 client.ts 부분(M3 규칙대로 refreshLogging만 돌리고 client.ts만 수집) → `99 3`, `104 1`, `105 1`, `114 1`, `117 1` | `static-m3.txt`, `ht-05-client.txt`, `cov/lcov.info` |
+| C-M3-07 | 자체 점검(검토자 판정) | 스크래치 복사본에서 MU-05('응답 데이터:' 줄 삭제) → AC-11 `1 failed`(실패 줄 `expect(includesText(args, serverText)).toBe(true)`). MU-06('응답 상태:' 줄 삭제) → AC-11 `1 failed`(실패 줄 `expect(hasExactValue(args, status)).toBe(true)`). 변이 전 복사본은 `6 passed`였고, 끝난 뒤 복사본을 지웠다 | `mu-05-06-selfcheck.txt` |
+| C-CM-01 | PASS | plan.md·acceptance.md는 `71b0455`와 같고 해시 앞 16자리는 `4ce63ed0f3a76741`·`fea860dfa63bdeb5`다. spec.md 판정 → `0`, `^status: in-progress$` → `1`. M3에서는 spec.md를 바꾸지 않았다 | `static-m3.txt` |
+| C-CM-02 | PASS | `sha256sum -c M1/sha256.txt` → 5개 모두 `OK` | `static-m3.txt` |
+| C-CM-03 | PASS | AC-SEC-002-13 git 명령 5개 → 출력 없음, client.ts 범위 awk → `0` | `static-m3.txt` |
+| C-CM-04 | PASS | 제외·스냅숏 grep → 출력 없음. 자격 증명 형태 grep → 출력 없음 | `static-m3.txt` |
+| C-CM-05 | PASS | → `0` | `static-m3.txt` |
+
+회귀 확인 결과는 다음과 같다.
+
+- baseServiceLogging → `Tests:       40 passed, 40 total`(`base-suite.txt`).
+- M4 대상 두 파일(authStoreLogging, profilePasswordLogging) → `Tests:       12 failed, 12 total`, `runtimeError=0`. M1 RED와 비교해 상태가 다른 테스트는 0개이고, 실패 줄은 AC-06·07·08의 누출 단언뿐이다(`m4-suites-compare.txt`, `m4-suites-faillines.txt`). 금지 문구 grep은 `0`이다.
+- tsc(선택) → `2`이고 파일은 `components/modals/EditTreatmentModal.tsx`뿐이다(`tsc-summary.txt`).
+
+C-CM-06은 커밋을 만든 뒤에 재고 M3 완료 보고에 적는다.
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 _<pending run-phase>_
