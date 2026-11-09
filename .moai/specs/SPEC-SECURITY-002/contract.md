@@ -1,8 +1,8 @@
 # SPEC-SECURITY-002 평가 계약 (Phase 10)
 
-> 대상: `spec.md` v0.1.2 · `plan.md` · `acceptance.md`. plan.md와 acceptance.md는 바꾸지 않고, spec.md는 frontmatter 상태 전환만 허용한다(결정 D-C1). 하네스 thorough, 평가 프로필 strict, 협상 1회차와 오케스트레이터 결정으로 합의했다. 모든 기준의 상태는 `new`다.
+> 대상: `spec.md` v0.1.3 · `plan.md` · `acceptance.md`(2026-11-09 수정본, `71b0455`). plan.md와 acceptance.md는 바꾸지 않고, spec.md는 frontmatter 상태 전환만 허용한다(결정 D-C1). 하네스 thorough, 평가 프로필 strict, 협상 1회차와 오케스트레이터 결정으로 합의했다. 모든 기준의 상태는 `new`다.
 > 이 계약은 수용 기준을 보충한다. 수용 기준과 이 계약이 같은 대상을 함께 재면 둘 다 만족해야 한다.
-> 실행 규칙: 저장소 루트에서 `LC_ALL=C.UTF-8`로 실행하고 `grep`은 `command grep`(GNU grep)으로 부른다. acceptance.md의 bash 블록은 글자 그대로 뽑아 `bash <파일>`로 돌린다. 코드·테스트 비교 기준은 `5731c73`, SPEC 산출물 비교 기준은 `da308ad`이고 줄 번호는 `5731c73` 기준이다. `<증거>`는 구현 에이전트에게는 `.moai/state/verify/SPEC-SECURITY-002/<마일스톤>/`, 검토자에게는 자기 세션의 스크래치패드다.
+> 실행 규칙: 저장소 루트에서 `LC_ALL=C.UTF-8`로 실행하고 `grep`은 `command grep`(GNU grep)으로 부른다. acceptance.md의 bash 블록은 글자 그대로 뽑아 `bash <파일>`로 돌린다. 코드·테스트 비교 기준은 `80b5e8a`, SPEC 산출물 비교 기준은 `71b0455`이고 줄 번호는 `5731c73` 기준이다(인용한 줄은 `80b5e8a`에서도 같다, D-C6). `<증거>`는 구현 에이전트에게는 `.moai/state/verify/SPEC-SECURITY-002/<마일스톤>/`, 검토자에게는 자기 세션의 스크래치패드다.
 
 ## 협상 결과 (오케스트레이터 결정)
 
@@ -11,6 +11,7 @@
 - **D-C3** 구현 에이전트는 M1이 끝나면 멈춘다. 새 테스트는 M1 검토를 통과하기 전까지 커밋하지 않고, 이후 테스트 파일을 바꾸면 보고한다.
 - **D-C4** 판정 함수(`includesText`, `containsRef`, `hasExactValue`, 콘솔 스파이 도구)는 `__tests__/utils/consoleArgs.ts` 한 곳에 둔다.
 - **D-C5** 첫 커밋 제목은 `M1+M2`로 시작한다. 이후 커밋은 마일스톤 번호(`M3`, `M4`, `M5`)로 시작한다.
+- **D-C6** (2026-11-09, 사용자 결정) plan을 확정한 뒤 이 SPEC 밖의 커밋 `a53f3b3`(비밀번호 최소 길이 4자→8자)과 `80b5e8a`(입력란 안내 문구 8자)가 범위 파일 두 개를 바꿨다. 그래서 옛 기준 `5731c73`으로 재면 구현 전부터 AC-SEC-002-09 명령 6이 `12`를 내고 C-CM-01·C-M1-01이 실패했다. 수용 기준을 `71b0455`에서 정식으로 고쳤고(비교 기준 `80b5e8a`로 통일, plan 재감사 review-4 PASS 0.96), 이 계약의 비교 기준과 C-CM-01 해시도 같이 옮겼다.
 
 ## 공통 기준
 
@@ -21,13 +22,13 @@
 - M1의 선택 보강 X1~X6은 판정 대상이 아니다. 없어도 검증하지 않은 경계 사례로 세지 않는다.
 
 모든 마일스톤에서 확인하는 기준
-- **C-CM-01** `new` SPEC 산출물 무변경. `git diff --stat da308ad -- .moai/specs/SPEC-SECURITY-002/plan.md .moai/specs/SPEC-SECURITY-002/acceptance.md` → 출력 없음. 두 파일의 `sha256sum` 앞 16자리 → `000b0af961bd259e`, `a5e502deff4ea29d`. spec.md는 M1에서 `sha256sum` 앞 16자리가 `d42953c4a9ab3e94` 그대로이고, 첫 커밋(M1+M2)부터는 frontmatter의 `status`와 `updated` 두 줄만 바뀐다: `git diff -U0 da308ad -- .moai/specs/SPEC-SECURITY-002/spec.md | command grep -E '^[+-][^+-]' | command grep -vcE '^[+-](status|updated): '` → `0`, `command grep -c '^status: in-progress$' .moai/specs/SPEC-SECURITY-002/spec.md` → `1`.
-- **C-CM-02** `new` (M2~M5) 테스트 고정. 새 테스트 파일과 판정 도구 파일의 `sha256sum`이 M1 기록(C-M1-10)과 같다. 바뀌었다면 바뀐 파일로 C-M1-02·03을 기준 코드에서 다시 통과시킨다(스크래치 복사본의 운영 파일을 `git show 5731c73:<경로>`로 되돌린다). 그리고 diff에 단언·경우 삭제, 표식 값 변경, 조건 완화가 없음을 읽어 확인한다.
+- **C-CM-01** `new` SPEC 산출물 무변경. `git diff --stat 71b0455 -- .moai/specs/SPEC-SECURITY-002/plan.md .moai/specs/SPEC-SECURITY-002/acceptance.md` → 출력 없음. 두 파일의 `sha256sum` 앞 16자리 → `4ce63ed0f3a76741`, `fea860dfa63bdeb5`. spec.md는 M1에서 `sha256sum` 앞 16자리가 `79a9cc9482a717d7` 그대로이고, 첫 커밋(M1+M2)부터는 frontmatter의 `status`와 `updated` 두 줄만 바뀐다: `git diff -U0 71b0455 -- .moai/specs/SPEC-SECURITY-002/spec.md | command grep -E '^[+-][^+-]' | command grep -vcE '^[+-](status|updated): '` → `0`, `command grep -c '^status: in-progress$' .moai/specs/SPEC-SECURITY-002/spec.md` → `1`.
+- **C-CM-02** `new` (M2~M5) 테스트 고정. 새 테스트 파일과 판정 도구 파일의 `sha256sum`이 M1 기록(C-M1-10)과 같다. 바뀌었다면 바뀐 파일로 C-M1-02·03을 기준 코드에서 다시 통과시킨다(스크래치 복사본의 운영 파일을 `git show 80b5e8a:<경로>`로 되돌린다). 그리고 diff에 단언·경우 삭제, 표식 값 변경, 조건 완화가 없음을 읽어 확인한다.
 - **C-CM-03** `new` AC-SEC-002-13의 네 검사가 기대값을 낸다.
 - **C-CM-04** `new` 테스트 제외·스냅숏 금지. `command grep -nE '\b(it|test|describe)\.(only|skip|todo)\b|\b(xit|xtest|xdescribe|fit|fdescribe)\(|toMatch(Inline)?Snapshot' __tests__/baseServiceLogging.test.ts __tests__/authStoreLogging.test.ts __tests__/profilePasswordLogging.test.tsx __tests__/refreshLogging.test.ts` → 출력 없음.
 - **C-CM-05** `new` 헬퍼·정제·직렬화 금지. 아래 명령 → `0`(지금 `0`).
   ```bash
-  git diff -U0 5731c73 -- src/api/services/base.ts src/api/client.ts app/login.tsx components/forms/InviteSignupForm.tsx components/forms/LoginForm.tsx src/stores/authStore.ts 'app/(tabs)/profile.tsx' | command grep -E '^\+[^+]' | command grep -vE '^\+[[:space:]]*//' | command grep -cE '\bfunction\b|=>|redact|sanitize|toJSON|JSON\.stringify\([[:space:]]*error[[:space:]]*[,)]'
+  git diff -U0 80b5e8a -- src/api/services/base.ts src/api/client.ts app/login.tsx components/forms/InviteSignupForm.tsx components/forms/LoginForm.tsx src/stores/authStore.ts 'app/(tabs)/profile.tsx' | command grep -E '^\+[^+]' | command grep -vE '^\+[[:space:]]*//' | command grep -cE '\bfunction\b|=>|redact|sanitize|toJSON|JSON\.stringify\([[:space:]]*error[[:space:]]*[,)]'
   ```
 - **C-CM-06** `new` (M2~M5) 커밋. 마일스톤마다 새 커밋이 하나 이상 있다. 각 커밋의 제목은 `^[a-z]+\(SPEC-SECURITY-002\): M[1-5]` 꼴의 한국어이고(첫 커밋은 `M1+M2`로 시작), 메시지 마지막 줄은 `🗿 MoAI <email@mo.ai.kr>`다. `git show --name-only --format= <sha>`는 아래 목록 안에 있다. `git branch -r --contains HEAD`는 출력이 없다(push 안 함).
   - M1+M2: `src/api/services/base.ts`, `__tests__/baseServiceLogging.test.ts`, `__tests__/utils/consoleArgs.ts`, `.moai/specs/SPEC-SECURITY-002/spec.md`(frontmatter `status`·`updated`만)
@@ -40,7 +41,7 @@
 
 산출물은 새 테스트 4개와 판정 도구 파일 `__tests__/utils/consoleArgs.ts`다(D-C4). 운영 코드는 바꾸지 않고 커밋도 하지 않는다.
 
-- **C-M1-01** `new` 범위. `git diff --name-only 5731c73 -- app components src hooks contexts babel.config.js __tests__` → 출력 없음. `git ls-files --others --exclude-standard -- __tests__` → 새 테스트 4개와 `__tests__/utils/consoleArgs.ts`뿐이다.
+- **C-M1-01** `new` 범위. `git diff --name-only 80b5e8a -- app components src hooks contexts babel.config.js __tests__` → 출력 없음. `git ls-files --others --exclude-standard -- __tests__` → 새 테스트 4개와 `__tests__/utils/consoleArgs.ts`뿐이다.
 - **C-M1-02** `new` RED 결과. 아래 실행 결과가 다음을 모두 만족한다.
   - (1) `runtimeError=0 pending=0 todo=0`이다.
   - (2) AC-SEC-002-01·02·03·06·07·08·10·11의 테스트는 모두 `failed`이고, ID마다 1개 이상이다.
@@ -126,19 +127,19 @@
   command grep -nE '((^|[^.?[:alnum:]_])|\.\.\.)(data|config)\b' src/api/services/base.ts | command grep -vE '^[0-9]+:[[:space:]]*//' | command grep -vcE '(data|config)\?: any|this\.client\.(get|post|put|patch|delete)\('
   ```
 - **C-M2-04** `new` Authorization 값과 `error.config`(REQ-SEC-002-002 3·8번)는 유무 표시 삼항식에만 쓴다. `command grep -nE 'Authorization|\berror\??\.config\b' src/api/services/base.ts | command grep -vE '^[0-9]+:[[:space:]]*//' | command grep -vcF "Authorization ? '있음' : '없음'"` → `0`.
-- **C-M2-05** `new` 게이트와 다시 던지기. `git diff 5731c73 -- src/api/services/base.ts`를 읽어 다음을 확인한다.
+- **C-M2-05** `new` 게이트와 다시 던지기. `git diff 80b5e8a -- src/api/services/base.ts`를 읽어 다음을 확인한다.
   - get()·post()의 콘솔 호출은 모두 `if (__DEV__)` 블록 안에 있다.
   - 422 누락 필드 추정 분기는 게이트 안에 있고, 값이 문자열일 때만 `includes`를 부른다.
   - `command grep -c 'throw error;' src/api/services/base.ts` → `2`.
 - **C-M2-06** `new` 기존 로그 문구 유지(acceptance.md §4). 아래 명령 → 출력 없음.
   ```bash
-  git diff -U0 5731c73 -- src/api/services/base.ts src/api/client.ts | command grep -E '^\+[^+]' | command grep -oE "console\.[a-z]+\('[^']*'" | sed -E "s/^console\.[a-z]+\(//" | sort -u | while IFS= read -r p; do git show 5731c73:src/api/services/base.ts 5731c73:src/api/client.ts | command grep -qF -- "$p" || echo "NEW $p"; done
+  git diff -U0 80b5e8a -- src/api/services/base.ts src/api/client.ts | command grep -E '^\+[^+]' | command grep -oE "console\.[a-z]+\('[^']*'" | sed -E "s/^console\.[a-z]+\(//" | sort -u | while IFS= read -r p; do git show 80b5e8a:src/api/services/base.ts 80b5e8a:src/api/client.ts | command grep -qF -- "$p" || echo "NEW $p"; done
   ```
 - **C-M2-07** `new` 운영 코드에 로그용 함수를 만들지 않는다(같은 파일 안의 지역 함수 포함). C-CM-05 → `0`, `command grep -cE '^  [A-Za-z_$]' src/api/services/base.ts` → `8`.
 - **C-M2-08** `new` 범위.
   - 아래 awk → `0`(`put`·`patch`·`delete`·`buildQueryString`은 바꾸지 않는다):
-    `git diff -U0 5731c73 -- src/api/services/base.ts | awk '/^@@/ { split($2,a,","); s=substr(a[1],2)+0; n=(a[2]==""?1:a[2]+0); e=(n==0?s:s+n-1); if (e>=126) bad++ } END { print bad+0 }'`
-  - `git diff --name-only 5731c73 -- app components src hooks contexts babel.config.js` → `src/api/services/base.ts`.
+    `git diff -U0 80b5e8a -- src/api/services/base.ts | awk '/^@@/ { split($2,a,","); s=substr(a[1],2)+0; n=(a[2]==""?1:a[2]+0); e=(n==0?s:s+n-1); if (e>=126) bad++ } END { print bad+0 }'`
+  - `git diff --name-only 80b5e8a -- app components src hooks contexts babel.config.js` → `src/api/services/base.ts`.
 - **C-M2-09** `new` HT-05의 base.ts 부분을 만족한다.
 - **C-M2-10** `new` 변이 MU-01~04가 모두 잡힌다(HT-06).
 
@@ -147,7 +148,7 @@
 `<블록>`은 `sed -n '/^const refreshAccessToken/,/^};/p' src/api/client.ts | sed -n '/} catch (error/,$p'`의 출력이다.
 
 - **C-M3-01** `new` `npx jest __tests__/refreshLogging.test.ts 2>&1 | tail -n 5` → 실패 0. AC-SEC-002-10·11의 확인 명령 → 각각 실패 0, 통과 1개 이상.
-- **C-M3-02** `new` 범위. AC-SEC-002-13의 client.ts 변경 범위 검사 → `0`. `git diff --name-only 5731c73 -- app components src hooks contexts babel.config.js` → `src/api/client.ts`, `src/api/services/base.ts`.
+- **C-M3-02** `new` 범위. AC-SEC-002-13의 client.ts 변경 범위 검사 → `0`. `git diff --name-only 80b5e8a -- app components src hooks contexts babel.config.js` → `src/api/client.ts`, `src/api/services/base.ts`.
 - **C-M3-03** `new` catch 블록에 금지 값이 없다(REQ-SEC-002-009).
   - `<블록> | command grep -cE 'toJSON|JSON\.stringify|\bconfig\b|\bheaders\b'` → `0`(지금 `0`)
   - `<블록> | command grep -E 'console\.[a-z]+\(' | command grep -cE ',[[:space:]]*error[[:space:]]*[,)]|\berror\??\.request\b|\{[^}]*\berror\b[[:space:]]*[,}]'` → `0`(지금 `2`)
@@ -184,9 +185,9 @@
   ```
 - **C-M4-04** `new` catch 줄은 annotation만 바꾼다(REQ-SEC-002-007). 아래 명령 → `0`(지금 `0`).
   ```bash
-  git diff -U0 5731c73 -- app/login.tsx components/forms/InviteSignupForm.tsx components/forms/LoginForm.tsx src/stores/authStore.ts 'app/(tabs)/profile.tsx' | command grep -E '^\+[[:space:]]*\}?[[:space:]]*catch' | command grep -vcE '^\+[[:space:]]*\}[[:space:]]*catch \(error: any\) \{[[:space:]]*$'
+  git diff -U0 80b5e8a -- app/login.tsx components/forms/InviteSignupForm.tsx components/forms/LoginForm.tsx src/stores/authStore.ts 'app/(tabs)/profile.tsx' | command grep -E '^\+[[:space:]]*\}?[[:space:]]*catch' | command grep -vcE '^\+[[:space:]]*\}[[:space:]]*catch \(error: any\) \{[[:space:]]*$'
   ```
-- **C-M4-05** `new` 범위와 계약. `git diff --name-only 5731c73 -- app components src hooks contexts babel.config.js` → spec.md §3.4의 운영 파일 7개. AC-SEC-002-12 전체 → 기대값. C-CM-05 → `0`.
+- **C-M4-05** `new` 범위와 계약. `git diff --name-only 80b5e8a -- app components src hooks contexts babel.config.js` → spec.md §3.4의 운영 파일 7개. AC-SEC-002-12 전체 → 기대값. C-CM-05 → `0`.
 - **C-M4-06** `new` 변이 MU-07~10이 모두 잡힌다.
 
 ## M5
@@ -204,7 +205,7 @@
 - **C-M5-04** `new` AC-SEC-002-01~15를 적힌 명령으로 실행해 모두 PASS다. progress.md §E.2에는 AC마다 명령, 출력 원문(50줄을 넘으면 종료 코드·끝부분·전체 출력 경로), 판정이 있고 §E.3이 채워져 있다.
 - **C-M5-05** `new` 최종 트리에서 C-CM-01~05, C-M2-02~08, C-M3-02~04·06, C-M4-02~05를 다시 돌려 모두 PASS다.
 - **C-M5-06** `new` 최종 파일 집합.
-  - `git diff --name-only 5731c73 HEAD -- app components src hooks contexts __tests__ babel.config.js` → 운영 파일 7개, 새 테스트 4개, `__tests__/utils/consoleArgs.ts`.
+  - `git diff --name-only 80b5e8a HEAD -- app components src hooks contexts __tests__ babel.config.js` → 운영 파일 7개, 새 테스트 4개, `__tests__/utils/consoleArgs.ts`.
   - `git status --short -- app components src hooks contexts __tests__ babel.config.js` → 출력 없음.
 - **C-M5-07** `new` 변이 재실행. 아래 명령이 `0`이 아니면 MU-01~10을 모두 다시 돌린다. `0`이면 M2~M4의 결과를 당시 커밋 SHA와 함께 인용한다.
   ```bash
@@ -268,7 +269,7 @@
   - 8곳 가운데 한 곳이라도 에러 객체, 에러 객체를 담은 객체·배열, `toJSON()`, `JSON.stringify(error)`, `error.config`·`error.request`·`error.response`를 넘긴다.
 - M5: 다음 가운데 하나라도 해당하면 FAIL이다.
   - 위 조건 가운데 하나가 최종 트리에서 성립한다.
-  - 검토자가 `git diff 5731c73 HEAD -- <운영 파일 7개>`를 위 기준으로 읽다가 새 누출 경로를 찾는다.
+  - 검토자가 `git diff 80b5e8a HEAD -- <운영 파일 7개>`를 위 기준으로 읽다가 새 누출 경로를 찾는다.
   - 자격 증명 형태 검사에 출력이 있다.
 
 발견으로 세지 않는 것(SPEC이 받아들인 위험)
@@ -283,7 +284,7 @@
 ## 마일스톤별 검토 절차
 
 공통
-1. 읽을 것: 이 계약, acceptance.md §1과 해당 AC, plan.md §B와 §F의 해당 마일스톤, progress.md §E.2의 해당 기록, `git diff 5731c73 -- <해당 파일>`. 이전 마일스톤 검토 보고서의 판정은 근거로 쓰지 않는다.
+1. 읽을 것: 이 계약, acceptance.md §1과 해당 AC, plan.md §B와 §F의 해당 마일스톤, progress.md §E.2의 해당 기록, `git diff 80b5e8a -- <해당 파일>`. 이전 마일스톤 검토 보고서의 판정은 근거로 쓰지 않는다.
 2. grep·git·`sha256sum` 같은 가벼운 검사는 한 번에 묶어 돌린다. jest·tsc·lint는 서로 겹치지 않게 하나씩 돌린다(plan.md B-10).
 3. 출력 원문은 `<증거>`에 저장한다. 출력이 50줄이나 2KB를 넘으면 보고서에는 종료 코드와 끝부분만 옮긴다.
 4. 변이와 프로브는 스크래치패드의 복사본에서만 한다.

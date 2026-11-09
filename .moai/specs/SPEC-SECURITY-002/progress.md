@@ -27,6 +27,7 @@ _<pending sync-phase>_
 - 하네스: thorough(2026-10-19 착수 승인에서 사용자 선택). Phase 10 계약 협상과 마일스톤별 sync-auditor(strict) 검토를 한다.
 - 진행 방식: 자율(사용자 선택). `/moai goal`은 걸지 않는다. 백그라운드 서브에이전트를 기다리는 동안 턴 종료가 막혀 빈 턴이 반복될 수 있기 때문이다.
 - Phase 10 평가 계약: `.moai/specs/SPEC-SECURITY-002/contract.md`(sync-auditor 1회차 초안 + 오케스트레이터 결정 D-C1~D-C5, 약 0.51M 토큰). 저장 위치는 run 워크플로 문서를 따랐다(에이전트 정의의 `.moai/state/evaluation/`은 gitignore 대상이라 SPEC과 함께 추적되지 않는다).
+- 2026-11-09 재확인: 범위와 입력이 그대로라(파일 12개, 도메인 1개, 코딩 위주) serial을 유지한다. 실행 위치는 primary checkout의 현재 브랜치이고 worktree 격리는 쓰지 않는다(2026-10-19 L1 worktree 시도가 worktree 가드에 막혔다, §G).
 
 | 모드 | 판정 | 근거 |
 |------|------|------|
@@ -49,3 +50,16 @@ Decision: serial (scale envelope: Standard/Full Pipeline 경계, files: 12, doma
 - skip_basis: 최종 회차 PASS, 점수 기준 이상, 판정 이후 계획 산출물 변경 없음(review-3 작성 02:52:06가 spec.md 01:36 · acceptance.md 02:32 · plan.md 02:33보다 뒤이고, 이후 da308ad에 그대로 커밋됨)
 - plan_artifact_sha256(원시 파일 기준이며 ComputeHash 값은 아니다): spec.md `d42953c4a9ab3e94`, plan.md `000b0af961bd259e`, acceptance.md `a5e502deff4ea29d`
 - kickoff_approved_at: 2026-10-19T11:03:41+09:00 (Implementation Kickoff Approval: 시작 · thorough 전체 · 자율)
+- 2026-10-19 착수 시도: L1 worktree `agent-afa58e37a777d3c13`에서 시작한 manager-develop이 공유 checkout에 `git -C`를 쓰려다 worktree 가드에 거부된 뒤(11:46) 결과 없이 중단됐다. 코드·테스트 변경은 없었다(2026-11-09 diff로 확인). worktree는 2026-11-09에 지웠다.
+
+### 2026-11-09 재진입 (위 캐시 판정은 무효)
+
+- audit_cache_hit: false. 비교 기준 갱신 커밋 `71b0455`로 plan 산출물 해시가 바뀌어 Phase 1을 다시 실행했다.
+- audit_verdict: plan-auditor review-4 PASS 0.96(Tier M 기준 0.80). 보고서 `.moai/reports/plan-audit/SPEC-SECURITY-002-review-4.md`, 증거 `.moai/state/verify/SPEC-SECURITY-002/plan-audit-review-4/`(둘 다 gitignore 대상).
+- plan_artifact_sha256(원시 파일 기준이며 ComputeHash 값은 아니다): spec.md `79a9cc9482a717d7`, plan.md `4ce63ed0f3a76741`, acceptance.md `fea860dfa63bdeb5`
+- 착수 조건 D1(contract.md의 비교 기준과 해시가 옛 값): contract.md 결정 D-C6과 함께 반영했다.
+- 남은 선택 결함(다음 plan 갱신이나 sync에서 처리):
+  - D2: acceptance.md §6 수동 확인의 '짧은 비밀번호로 422'는 `a53f3b3` 이후 요청 전에 막혀 재현되지 않는다. 8자 이상 비밀번호에 서버가 거절할 입력(예: 없는 초대 코드)을 넣는 방식으로 바꾸기를 권고받았다.
+  - D3: acceptance.md:4와 spec.md:24의 "두 커밋 모두 한 줄을 한 줄로 바꿨다"는 과장이다. EditTreatmentModal.tsx와 eas.json에는 줄 추가가 있다. 다만 인용한 줄 번호가 그대로라는 결론은 맞다.
+  - D4: 착수 직전 `git diff --stat 80b5e8a HEAD -- . ':!.moai'`가 출력 없음인지 확인한다.
+- kickoff_reapproved_at: 2026-11-09 (Implementation Kickoff Approval 재확인: 시작 · thorough 전체 · 자율)
