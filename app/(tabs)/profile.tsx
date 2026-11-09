@@ -251,7 +251,7 @@ export default function ProfileScreen() {
                   value={newPassword}
                   onChangeText={setNewPassword}
                   secureTextEntry
-                  placeholder="새 비밀번호를 입력하세요 (4자 이상)"
+                  placeholder="새 비밀번호를 입력하세요 (8자 이상)"
                   placeholderTextColor="#6b7280"
                 />
               </View>

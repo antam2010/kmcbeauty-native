@@ -205,7 +205,7 @@ export default function InviteSignupForm({
                   style={[styles.textInput, styles.passwordInput]}
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="비밀번호를 입력하세요 (4자 이상)"
+                  placeholder="비밀번호를 입력하세요 (8자 이상)"
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
