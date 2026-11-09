@@ -19,3 +19,32 @@ _<pending run-phase>_
 ## §E.4 Sync-phase Audit-Ready Signal
 
 _<pending sync-phase>_
+
+## §F Phase 4 Mode Selection
+
+- 입력: tier M · 범위 약 12개 파일(운영 코드 수정 7, 새 테스트 4, 테스트 전용 판정 도구 1) · 도메인 1개(클라이언트 로그 위생: API 서비스 계층과 인증 화면·스토어) · 언어 100% TypeScript/TSX · 병렬 이득 낮음(코딩 위주, 새 테스트 4개가 판정 도구를 공유)
+- 하네스: thorough(2026-10-19 착수 승인에서 사용자 선택). Phase 10 계약 협상과 마일스톤별 sync-auditor(strict) 검토를 한다.
+- 진행 방식: 자율(사용자 선택). `/moai goal`은 걸지 않는다. 백그라운드 서브에이전트를 기다리는 동안 턴 종료가 막혀 빈 턴이 반복될 수 있기 때문이다.
+- Phase 10 평가 계약: `.moai/specs/SPEC-SECURITY-002/contract.md`(sync-auditor 1회차 초안 + 오케스트레이터 결정 D-C1~D-C5, 약 0.51M 토큰). 저장 위치는 run 워크플로 문서를 따랐다(에이전트 정의의 `.moai/state/evaluation/`은 gitignore 대상이라 SPEC과 함께 추적되지 않는다).
+
+| 모드 | 판정 | 근거 |
+|------|------|------|
+| direct | 선택 안 함 | 파일 12개, 동작이 바뀌는 변경 |
+| serial | 선택 | 코딩 위주 TDD. manager-develop 하나가 M1→M5를 진행하고 마일스톤 사이에 sync-auditor가 검토한다 |
+| fanout | 선택 안 함 | 조사가 아니라 구현 작업. RED 테스트들이 판정 도구를 공유해 FO-RUN-2의 독립 대상 조건을 채우지 못한다 |
+| sweep | 선택 안 함 | 균일한 기계적 변환이 아니고 파일이 30개에 못 미친다 |
+| agent-team | 선택 안 함 | 명시적 요청 없음 |
+
+Decision: serial (scale envelope: Standard/Full Pipeline 경계, files: 12, domains: 1)
+
+판단 근거: 변경은 base.ts의 로그 게이팅, client.ts catch 블록 한 곳, 인증 경로 8곳의 한 줄 수정으로 서로 순서가 정해진 코딩 작업이다. Anthropic의 코딩 작업 병렬화 주의(코딩은 조사보다 병렬로 나눌 몫이 적다)에 따라 단일 구현 에이전트가 맞다. 독립 검토는 하네스 thorough에 따라 마일스톤마다 새 문맥의 sync-auditor가 맡는다.
+
+경계 사례: 파일 수 12개로 Full Pipeline 기준(10개 이상)을 조금 넘는다. 계획(manager-spec)은 plan 단계에서 끝났고 문서 동기화는 sync 단계 몫이라 어느 쪽 envelope로 읽어도 실제 구성은 manager-develop + sync-auditor로 같다. Phase 5·6(재분석, tasks.md)은 plan.md §F가 이미 마일스톤과 파일 분해를 담고 있고 tasks.md가 계획 산출물 해시 대상이라 만들지 않는다.
+
+## §G Run-phase Plan Audit Gate
+
+- audit_cache_hit: true
+- cached_audit_at: 2026-10-18T02:52:06+09:00 (review-3, PASS 0.97, Tier M 기준 0.80)
+- skip_basis: 최종 회차 PASS, 점수 기준 이상, 판정 이후 계획 산출물 변경 없음(review-3 작성 02:52:06가 spec.md 01:36 · acceptance.md 02:32 · plan.md 02:33보다 뒤이고, 이후 da308ad에 그대로 커밋됨)
+- plan_artifact_sha256(원시 파일 기준이며 ComputeHash 값은 아니다): spec.md `d42953c4a9ab3e94`, plan.md `000b0af961bd259e`, acceptance.md `a5e502deff4ea29d`
+- kickoff_approved_at: 2026-10-19T11:03:41+09:00 (Implementation Kickoff Approval: 시작 · thorough 전체 · 자율)
