@@ -1,7 +1,7 @@
 # SPEC-SECURITY-002 수용 기준
 
-> 대상: `spec.md` v0.1.2. 모든 명령은 저장소 루트에서 적힌 그대로 실행한다. `grep`은 GNU grep 3.x 기준이며, `grep`이 별칭이나 다른 구현을 가리키는 셸에서는 `command grep`으로 실행한다.
-> "지금 값"은 기준 커밋 `5731c73`에서 2026-10-17에 측정했다. v0.1.2에서 새로 넣은 AC-SEC-002-09 명령 5의 값은 2026-10-18에 같은 커밋에서 다시 쟀다.
+> 대상: `spec.md` v0.1.3. 모든 명령은 저장소 루트에서 적힌 그대로 실행한다. `grep`은 GNU grep 3.x 기준이며, `grep`이 별칭이나 다른 구현을 가리키는 셸에서는 `command grep`으로 실행한다.
+> 코드·테스트 비교 기준 커밋은 `80b5e8a`다. `git diff`와 복사본(`git show <커밋>:<경로>`)은 모두 이 커밋을 쓰고, §2의 "지금 값"은 2026-11-09에 이 커밋에서 다시 쟀다(§4의 커버리지는 product.md에서 옮긴 값이라 다시 재지 않았다). 처음 기준은 `5731c73`이었다. 그 뒤 이 SPEC 밖의 커밋 두 개가 인증 경로 파일을 고쳤다. `a53f3b3`은 비밀번호 최소 길이를 4자에서 8자로 올렸고(`app/(tabs)/profile.tsx:56-57`, `components/forms/InviteSignupForm.tsx:84-85`), `80b5e8a`는 입력란 안내 문구를 '(4자 이상)'에서 '(8자 이상)'으로 맞췄다(`app/(tabs)/profile.tsx:254`, `components/forms/InviteSignupForm.tsx:208`). `5731c73`과 비교하면 AC-SEC-002-09 명령 6이 이 SPEC과 관계없는 이 12줄을 세므로 비교 기준을 옮겼다. 기준을 옮긴 곳은 AC-SEC-002-09 명령 6과 그 복사본 확인, AC-SEC-002-12의 `git diff`, AC-SEC-002-13의 `git diff` 세 줄과 client.ts 변경 범위 검사다. 두 커밋은 모두 한 줄을 한 줄로 바꿔 줄 수가 그대로다. 그래서 이 문서와 spec.md·plan.md·spec-compact.md에 적힌 줄 번호는 `5731c73` 기준 그대로이며 `80b5e8a`에서도 같다.
 > 이 문서는 검증 계층이다. 요구사항 문장은 spec.md §4에만 있고 여기서는 Given/When/Then으로 판정 방법만 정한다.
 
 ## 0. 한눈에 보기
@@ -193,7 +193,7 @@ M2와 M5에서 base.ts에 다는 주석(MX 태그 설명 포함)에는 위 판�
 
 - 관련 요구사항: REQ-SEC-002-005, REQ-SEC-002-006, REQ-SEC-002-007
 - **Given** `profileDeadMenu.test.tsx:11-25`와 같은 방식으로 스토어, `@/src/api/services/auth`(`changePassword: jest.fn()`), `ShopHeader`, `react-native-safe-area-context`를 모킹했다. `Alert.alert`와 콘솔에 스파이를 걸었다
-- **When** 프로필 화면을 그리고 '비밀번호 변경'을 누른다. 두 입력란(placeholder '새 비밀번호를 입력하세요 (4자 이상)', '새 비밀번호를 다시 입력하세요')에 `PW_SENTINEL`을 넣고 '변경'을 누른다. `changePassword`는 경우에 따라 다음 에러로 거부한다
+- **When** 프로필 화면을 그리고 '비밀번호 변경'을 누른다. 두 입력란(placeholder '새 비밀번호를 입력하세요 (8자 이상)', '새 비밀번호를 다시 입력하세요')에 `PW_SENTINEL`을 넣고 '변경'을 누른다. `changePassword`는 경우에 따라 다음 에러로 거부한다
   - 경우 a: AxiosError 422. `config.data`는 `'{"name":"홍길동","email":"a@b.com","role":"OWNER","password":"PW-SENTINEL-7f3a"}'`이고 Authorization에 Bearer 표식이 있다. 응답 본문은 서버가 제출값을 되돌려 준 형태 `{ detail: [{ loc: ['body', 'password'], msg: 'String should have at least 8 characters', type: 'string_too_short', input: PW_SENTINEL }] }`다
   - 경우 b: 응답 없는 `new Error('인증이 만료되었습니다. 다시 로그인해주세요.')`
 - **Then** 다음이 성립한다
@@ -267,16 +267,16 @@ grep -hE "console\.error\('(🔴 LoginScreen: (로그인|회원가입) 에러|�
 - 지금 값: `0`. 첫 인자(기존 문구)만으로 고른 줄은 지금도 8줄이다(파일 순서대로 2·1·1·3·1)
 - 정규식에 이모지와 한글이 들어 있어 UTF-8 로케일(`LC_ALL=C.UTF-8`)에서 쟀다. `LC_ALL=C`에서도 지금 값과 아래 복사본 결과가 모두 같았다
 
-명령 6. 다섯 파일에서 `5731c73` 이후 바뀐 줄 가운데 `console.error` 줄도 catch 절 줄도 아닌 줄을 센다. 0이면 Alert 문구, 다시 던지기, `setError`·`clearAuth`·`setLoading`, 화면 이동과 spec.md §5 C-8~C-10의 대상 줄이 그대로다. 그래서 이 명령은 C-8~C-10의 확인 수단도 겸한다.
+명령 6. 다섯 파일에서 `80b5e8a` 이후 바뀐 줄 가운데 `console.error` 줄도 catch 절 줄도 아닌 줄을 센다. 0이면 Alert 문구, 다시 던지기, `setError`·`clearAuth`·`setLoading`, 화면 이동과 spec.md §5 C-8~C-10의 대상 줄이 그대로다. 그래서 이 명령은 C-8~C-10의 확인 수단도 겸한다.
 
 ```bash
-git diff -U0 5731c73 -- app/login.tsx components/forms/InviteSignupForm.tsx components/forms/LoginForm.tsx src/stores/authStore.ts 'app/(tabs)/profile.tsx' | grep -E '^[+-]' | grep -cvE '^(\+\+\+ |--- |[+-][[:space:]]*console\.error\(|[+-][[:space:]]*\}?[[:space:]]*catch[[:space:]]*\()'
+git diff -U0 80b5e8a -- app/login.tsx components/forms/InviteSignupForm.tsx components/forms/LoginForm.tsx src/stores/authStore.ts 'app/(tabs)/profile.tsx' | grep -E '^[+-]' | grep -cvE '^(\+\+\+ |--- |[+-][[:space:]]*console\.error\(|[+-][[:space:]]*\}?[[:space:]]*catch[[:space:]]*\()'
 ```
 
 - 기대: `0`
 - 지금 값: `0`(변경 없음)
 
-명령 5와 6은 출력된 숫자로 판정한다. 명령 6 끝의 `grep -c`는 `0`을 출력할 때 exit 1로 끝난다. 복사본(다섯 파일을 `git show 5731c73:<경로>`로 꺼낸 임시 저장소)에서 확인한 결과는 다음과 같다. 8곳만 고치고 두 catch 절에 annotation을 붙이거나, annotation 대신 두 로그 줄 안에서 `(error as any)`로 좁히면 명령 5는 `8`, 명령 6은 `0`이다. 여기에 인자를 하나 덧붙이면(`app/login.tsx:49`에 `error as any`, `components/forms/InviteSignupForm.tsx:122`에 `(error as any)`, `app/login.tsx:91`에 `error.response?.data`) 명령 5가 `7`이 되고, 이때 명령 1은 2줄, 명령 6은 `0` 그대로다. `app/login.tsx:91`의 메시지 인자를 `String(error.response?.data) + error.message`로 바꿔 응답 본문을 이어 붙여도 명령 5가 `7`이다. 이 경우 명령 1은 2줄, 명령 6은 `0`으로 다른 명령은 잡지 못한다. 상태 자리에 `?? ''`를 붙여도 명령 5가 `7`이다. Alert 문구를 바꾸면 명령 6이 `2`, `throw error`를 지우면 `1`, 로그 줄을 `if (__DEV__)`로 가리면 `1`, catch 변수를 별도 줄에서 좁히면 `1`(이때 명령 5도 `7`), `secureHybridStorage` 줄을 바꾸면 `2`다. 로그에서 에러 정보를 빼면 명령 5가 `7`이고, 호출을 세 줄로 나누면 명령 5가 `7`, 명령 6이 `2`다.
+명령 5와 6은 출력된 숫자로 판정한다. 명령 6 끝의 `grep -c`는 `0`을 출력할 때 exit 1로 끝난다. 복사본(다섯 파일을 `git show 80b5e8a:<경로>`로 꺼낸 임시 저장소)에서 확인한 결과는 다음과 같다. 8곳만 고치고 두 catch 절에 annotation을 붙이거나, annotation 대신 두 로그 줄 안에서 `(error as any)`로 좁히면 명령 5는 `8`, 명령 6은 `0`이다. 여기에 인자를 하나 덧붙이면(`app/login.tsx:49`에 `error as any`, `components/forms/InviteSignupForm.tsx:122`에 `(error as any)`, `app/login.tsx:91`에 `error.response?.data`) 명령 5가 `7`이 되고, 이때 명령 1은 2줄, 명령 6은 `0` 그대로다. `app/login.tsx:91`의 메시지 인자를 `String(error.response?.data) + error.message`로 바꿔 응답 본문을 이어 붙여도 명령 5가 `7`이다. 이 경우 명령 1은 2줄, 명령 6은 `0`으로 다른 명령은 잡지 못한다. 상태 자리에 `?? ''`를 붙여도 명령 5가 `7`이다. Alert 문구를 바꾸면 명령 6이 `2`, `throw error`를 지우면 `1`, 로그 줄을 `if (__DEV__)`로 가리면 `1`, catch 변수를 별도 줄에서 좁히면 `1`(이때 명령 5도 `7`), `secureHybridStorage` 줄을 바꾸면 `2`다. 로그에서 에러 정보를 빼면 명령 5가 `7`이고, 호출을 세 줄로 나누면 명령 5가 `7`, 명령 6이 `2`다.
 
 ### AC-SEC-002-10 — 운영 모드 토큰 갱신 실패: `console.error` 0건
 
@@ -312,7 +312,7 @@ git diff -U0 5731c73 -- app/login.tsx components/forms/InviteSignupForm.tsx comp
 | 명령 | 기대값 | 지금 값 |
 |------|--------|---------|
 | `npx jest __tests__/clientInterceptors.test.ts __tests__/api-client.test.ts __tests__/storeLoaders.test.ts __tests__/profileDeadMenu.test.tsx __tests__/loginFormDemo.test.tsx __tests__/treatmentPagination.test.ts __tests__/store-selector.test.tsx` | `Test Suites: 7 passed, 7 total`, `Tests: 23 passed, 23 total` | 기대와 같다 |
-| `git diff --name-only 5731c73 -- __tests__/clientInterceptors.test.ts __tests__/api-client.test.ts __tests__/storeLoaders.test.ts __tests__/profileDeadMenu.test.tsx __tests__/loginFormDemo.test.tsx __tests__/treatmentPagination.test.ts __tests__/store-selector.test.tsx` | 출력 없음 | 출력 없음 |
+| `git diff --name-only 80b5e8a -- __tests__/clientInterceptors.test.ts __tests__/api-client.test.ts __tests__/storeLoaders.test.ts __tests__/profileDeadMenu.test.tsx __tests__/loginFormDemo.test.tsx __tests__/treatmentPagination.test.ts __tests__/store-selector.test.tsx` | 출력 없음 | 출력 없음 |
 | `grep -c '@MX:ANCHOR' src/api/client.ts src/stores/authStore.ts` | `src/api/client.ts:1`, `src/stores/authStore.ts:1` | 기대와 같다 |
 | `grep -c '@MX:WARN' src/api/client.ts` | `1` | `1` |
 | `grep -c 'export const authDebugUtils' src/api/client.ts` | `1` | `1` |
@@ -332,18 +332,18 @@ grep -nE 'use(Auth|Shop)Store\(\)' app/login.tsx 'app/(tabs)/profile.tsx'
 
 | 명령 | 기대값 | 지금 값 |
 |------|--------|---------|
-| `git diff --stat 5731c73 -- src/api/services/auth.ts src/api/services/invite.ts babel.config.js` | 출력 없음 | 출력 없음 |
-| `git diff --name-only --diff-filter=A 5731c73 -- app components src hooks contexts`, `git ls-files --others --exclude-standard -- app components src hooks contexts` | 둘 다 출력 없음(아직 커밋하지 않은 파일을 포함해 운영 코드에 새 파일 없음) | 둘 다 출력 없음 |
-| `git diff --stat 5731c73 -- .moai/specs/SPEC-UX-001`, `git ls-files --others --exclude-standard -- .moai/specs/SPEC-UX-001` | 둘 다 출력 없음 | 둘 다 출력 없음 |
+| `git diff --stat 80b5e8a -- src/api/services/auth.ts src/api/services/invite.ts babel.config.js` | 출력 없음 | 출력 없음 |
+| `git diff --name-only --diff-filter=A 80b5e8a -- app components src hooks contexts`, `git ls-files --others --exclude-standard -- app components src hooks contexts` | 둘 다 출력 없음(아직 커밋하지 않은 파일을 포함해 운영 코드에 새 파일 없음) | 둘 다 출력 없음 |
+| `git diff --stat 80b5e8a -- .moai/specs/SPEC-UX-001`, `git ls-files --others --exclude-standard -- .moai/specs/SPEC-UX-001` | 둘 다 출력 없음 | 둘 다 출력 없음 |
 | 아래 client.ts 변경 범위 검사 | `0` | `0` |
 
-client.ts 변경 범위 검사는 `5731c73` 기준 줄 번호로 각 변경 덩어리(hunk)가 `refreshAccessToken()` catch 블록(:96-119) 안에 있는지 센다. 밖에 있는 덩어리 수를 출력한다.
+client.ts 변경 범위 검사는 비교 기준 `80b5e8a`의 줄 번호(`5731c73`과 같다)로 각 변경 덩어리(hunk)가 `refreshAccessToken()` catch 블록(:96-119) 안에 있는지 센다. 밖에 있는 덩어리 수를 출력한다.
 
 ```bash
-git diff -U0 5731c73 -- src/api/client.ts | awk '/^@@/ { split($2,a,","); s=substr(a[1],2)+0; n=(a[2]==""?1:a[2]+0); e=(n==0?s:s+n-1); if (s<96 || e>119) bad++ } END { print bad+0 }'
+git diff -U0 80b5e8a -- src/api/client.ts | awk '/^@@/ { split($2,a,","); s=substr(a[1],2)+0; n=(a[2]==""?1:a[2]+0); e=(n==0?s:s+n-1); if (s<96 || e>119) bad++ } END { print bad+0 }'
 ```
 
-이 검사는 catch 블록 안을 고친 경우 `0`, 블록 밖(예: :406)을 고친 경우 `1` 이상을 출력하는 것을 복사본으로 확인했다.
+이 검사는 catch 블록 안을 고친 경우 `0`, 블록 밖(예: :406)을 고친 경우 `1` 이상을 출력하는 것을 복사본(`git show 80b5e8a:src/api/client.ts`)으로 확인했다.
 
 ### AC-SEC-002-14 — 전체 회귀 기준
 

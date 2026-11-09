@@ -1,7 +1,7 @@
 # SPEC-SECURITY-002 구현 계획
 
-> 대상 SPEC: `spec.md` v0.1.2 · Tier M · 개발 방식 TDD(`.moai/config/sections/quality.yaml`의 `constitution.development_mode: tdd`)
-> 기준 커밋 `5731c73` · 브랜치 `feature/refactor-hardening-2026-07`
+> 대상 SPEC: `spec.md` v0.1.3 · Tier M · 개발 방식 TDD(`.moai/config/sections/quality.yaml`의 `constitution.development_mode: tdd`)
+> 비교 기준 커밋 `80b5e8a`(줄 번호는 `5731c73` 기준이며 `80b5e8a`에서도 같다. acceptance.md 머리말) · 브랜치 `feature/refactor-hardening-2026-07`
 > 표시 ✔는 이번 plan 단계에서 명령 실행이나 파일 읽기로 다시 확인한 사실이다. 표시가 없는 근거는 조사 보고서의 렌즈 결과(정적 읽기·Node 시뮬레이션, 기기 재현 없음)다.
 
 ## §A 맥락과 결정
@@ -49,7 +49,7 @@
 | B-8 | 타입 검사 기준선. `tsconfig.json`이 `strict: true`라 annotation 없는 catch 변수는 `unknown`이다(`app/login.tsx:48`, `src/stores/authStore.ts:179` ✔). 그대로 `error?.message`를 쓰면 tsc 오류가 늘어난다. 새 테스트 파일도 `tsc --noEmit` 대상이다(`include`가 `**/*.ts`, `**/*.tsx`) | catch 절에 annotation을 붙이거나 로그 줄 안에서 `(error as any)`로 좁힌다. 별도 줄에서 좁히면 AC-SEC-002-09 명령 6이 실패한다. 테스트도 타입 오류 없이 쓴다 | AC-SEC-002-09, -14 |
 | B-9 | 린트 기준선. 경고 5건 중 4건이 authStore.ts의 쓰지 않는 catch 변수다(:26, :47, :75, :78 ✔). 새 코드가 같은 경고를 늘릴 수 있다 | 린트 결과가 오류 2건·경고 5건을 넘지 않게 한다 | AC-SEC-002-14 |
 | B-10 | 부하 중 jest 타임아웃. tsc·lint와 jest를 동시에 돌리면 일부 테스트가 5초 타임아웃으로 실패한 기록이 있다(tech.md §5.4) | jest는 다른 무거운 명령 없이 단독으로 돌린다 | AC-SEC-002-14 |
-| B-11 | 줄 번호 이동. spec.md의 file:line은 `5731c73` 기준이며 M2~M4에서 줄이 밀린다 | 정적 검사는 줄 번호 대신 패턴과 개수로 판정한다. client.ts 변경 범위 검사만 `5731c73` 기준 줄 번호를 쓴다 | AC-SEC-002-04, -09, -13 |
+| B-11 | 줄 번호 이동. spec.md의 file:line은 `5731c73` 기준이며 M2~M4에서 줄이 밀린다 | 정적 검사는 줄 번호 대신 패턴과 개수로 판정한다. client.ts 변경 범위 검사만 비교 기준 `80b5e8a`의 줄 번호(`5731c73`과 같다)를 쓴다 | AC-SEC-002-04, -09, -13 |
 | B-12 | 포매터 의존. 지금 8곳이 운영 빌드에서 메시지만 남기는 것은 RN 포매터가 에러를 줄여 주기 때문이다. 크래시 SDK를 붙이거나 포매터가 바뀌면 보호가 사라진다 | 원시 인자에서 에러 객체를 없앤다(REQ-SEC-002-006). 포매터 동작에 기대지 않는다 | AC-SEC-002-06~09 |
 
 ## §C 시작 전 확인
@@ -57,7 +57,7 @@
 ```bash
 git branch --show-current                     # 기대: feature/refactor-hardening-2026-07
 git status --short                            # .moai/harness/, .moai/lessons-inbox.jsonl은 이 SPEC과 무관하다. 건드리지 않는다
-npx jest --silent 2>&1 | tail -n 5            # 기준(5731c73): Test Suites 24 passed, Tests 112 passed, Snapshots 1 passed
+npx jest --silent 2>&1 | tail -n 5            # 기준(80b5e8a): Test Suites 24 passed, Tests 112 passed, Snapshots 1 passed
 npx tsc --noEmit 2>&1 | grep -c "error TS"    # 기준: 2
 npm run lint 2>&1 | command grep -E '^✖ [0-9]+ problems?'   # 기준: ✖ 7 problems (2 errors, 5 warnings). 문제 0건이면 출력 없음
 ```
@@ -229,7 +229,7 @@ jest는 tsc·lint와 동시에 돌리지 않는다(B-10). 기준값과 다르면
 - base.ts, auth.ts, invite.ts, `authStore.login`, app/login.tsx를 실행하는 테스트는 없다. 서비스를 쓰는 테스트는 서비스 모듈을 mock한다.
 - jest-expo가 `ExpoSecureStore` 네이티브 모듈을 mock한다(`node_modules/jest-expo/src/preset/moduleMocks/expoModules.js:602`, `:1237`). 그래서 authStore를 실제로 불러 테스트할 수 있다.
 - `axios`는 `AxiosError` 클래스와 `toJSON`을 export한다(`node -e`로 확인).
-- 기준선(`5731c73`, 2026-10-17 측정):
+- 기준선(`5731c73`, 2026-10-17 측정. 2026-11-09에 비교 기준 `80b5e8a`에서 다시 재도 아래 값과 같았다):
   - `npx jest --silent` → `Test Suites: 24 passed, 24 total`, `Tests: 112 passed, 112 total`, `Snapshots: 1 passed, 1 total`
   - 보존 대상 7개 파일(clientInterceptors, api-client, storeLoaders, profileDeadMenu, loginFormDemo, treatmentPagination, store-selector) → `Test Suites: 7 passed`, `Tests: 23 passed`. clientInterceptors는 11개다
   - `npx tsc --noEmit` → `error TS` 2건(`components/modals/EditTreatmentModal.tsx(123,11)`, `(395,9)`), exit 2
