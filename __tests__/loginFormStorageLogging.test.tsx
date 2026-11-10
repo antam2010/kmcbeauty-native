@@ -59,13 +59,17 @@ function expectOnlyMessage(label: string, error: Error) {
 }
 
 // 이메일과 비밀번호를 넣고 로그인을 누른다. remember가 참이면 '아이디 기억하기'를 먼저 켠다.
-async function submitLogin(onLogin: jest.Mock, remember: boolean) {
+function pressLogin(onLogin: jest.Mock, remember: boolean) {
   const screen = render(<LoginForm onLogin={onLogin} />);
   fireEvent.changeText(screen.getByPlaceholderText('이메일을 입력하세요'), EMAIL);
   fireEvent.changeText(screen.getByPlaceholderText('비밀번호를 입력하세요'), PASSWORD);
   if (remember) fireEvent.press(screen.getByText('아이디 기억하기'));
   fireEvent.press(screen.getByText('로그인'));
-  // 저장 실패 로그가 남은 뒤에 onLogin이 불린다.
+}
+
+// 로그인을 누르고 onLogin이 불릴 때까지 기다린다. 저장 실패 로그는 onLogin보다 먼저 남는다.
+async function submitLogin(onLogin: jest.Mock, remember: boolean) {
+  pressLogin(onLogin, remember);
   await waitFor(() => expect(onLogin).toHaveBeenCalledWith({ email: EMAIL, password: PASSWORD }));
 }
 
@@ -108,5 +112,33 @@ describe('SPEC-SECURITY-002 후속 LoginForm 아이디 기억하기 저장소 �
     expect(mockedStorage.removeItem).toHaveBeenCalledWith(EMAIL_KEY);
     expectOnlyMessage(SAVE_FAILED, error);
     expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  // Error가 아닌 값으로 거부돼도 catch는 예외 없이 끝나고, 실패 뒤 동작은 수정 전과 같다.
+  // catch의 로그 한 줄이 끝까지 실행됐는지는 메시지 자리가 undefined인 로그로 확인한다.
+  describe('Error가 아닌 값(null)으로 거부', () => {
+    it('getItem: catch에서 예외가 나지 않고 빈 입력란으로 그린다', async () => {
+      mockedStorage.getItem.mockRejectedValueOnce(null);
+
+      const screen = render(<LoginForm onLogin={jest.fn()} />);
+      await waitFor(() => expect(spies.error).toHaveBeenCalledWith(LOAD_FAILED, undefined));
+
+      expect(mockedStorage.getItem).toHaveBeenCalledWith(EMAIL_KEY);
+      expect(screen.getByPlaceholderText('이메일을 입력하세요').props.value).toBe('');
+      expect(screen.queryByText('✓')).toBeNull();
+    });
+
+    it('setItem(아이디 기억하기 켬): catch에서 예외가 나지 않고 로그인을 계속하며 실패 알림이 없다', async () => {
+      mockedStorage.setItem.mockRejectedValueOnce(null);
+      const onLogin = jest.fn(async () => {});
+
+      pressLogin(onLogin, true);
+      // catch에서 예외가 나면 이 로그 대신 로그인 에러 로그가 남고 onLogin은 불리지 않는다.
+      await waitFor(() => expect(spies.error).toHaveBeenCalledWith(SAVE_FAILED, undefined));
+      await waitFor(() => expect(onLogin).toHaveBeenCalledWith({ email: EMAIL, password: PASSWORD }));
+
+      expect(mockedStorage.setItem).toHaveBeenCalledWith(EMAIL_KEY, EMAIL);
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
   });
 });
