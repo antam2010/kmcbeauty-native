@@ -471,7 +471,7 @@ SPEC-DATA-001은 캐시 대상으로 정한 다섯 가지 읽기 경로(홈 대�
 ### 8.2 `BaseApiService`(`src/api/services/base.ts`)
 
 - `get`·`post`·`put`·`patch`·`delete`와 `buildQueryString`(값이 `undefined`·`null`인 파라미터는 뺀다)을 제공한다. 모두 응답 본문(`response.data`)을 돌려준다.
-- `get`·`post`는 요청과 실패 내용을 콘솔에 자세히 남긴다. 이 파일에는 `__DEV__` 가드가 없어서 운영 빌드에도 `console.error` 10곳이 남는다(`product.md` 로드맵 1번). `put`·`patch`·`delete`는 로그를 남기지 않는다.
+- `get`·`post`는 요청·성공·실패 로그를 `if (__DEV__)` 안에서만 남긴다. 운영 빌드에는 남지 않고, 개발 빌드에서도 요청 본문·헤더·토큰·에러 객체 전체는 넣지 않는다(SPEC-SECURITY-002). `put`·`patch`·`delete`는 로그를 남기지 않는다.
 
 ### 8.3 도메인 서비스
 

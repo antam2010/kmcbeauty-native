@@ -280,7 +280,10 @@ npx jest --ci --coverage --coverageReporters=text-summary \
 - 개발 모드 요청 로그는 `Authorization` 값 대신 `PRESENT`/`NONE`만 찍는다. 토큰 원문이나 일부를 남기지 않는다(REQ-SEC-005).
 - `invite.ts`의 `signupWithInviteCode`는 자기 로그에서 비밀번호를 `***`로 가린다.
 - 운영 빌드에서는 `console.error`만 남는다(4.3절). 그래서 `console.error`에 넘기는 값에 요청 본문·토큰·비밀번호가 담기지 않아야 한다.
-- **알려진 위험**: `src/api/services/base.ts`의 `post()`는 실패 시 요청 본문을 `console.error`로 남긴다. 이 파일에는 `__DEV__` 가드가 없다. 로그인과 초대 가입이 이 경로를 지나므로 운영 빌드 로그에 비밀번호가 남을 위험이 있다. 코드 경로만 확인했고 기기 로그로 재현하지는 않았다(`product.md` 로드맵 1번).
+- **해소됨(SPEC-SECURITY-002)**: `src/api/services/base.ts`의 `get()`·`post()` 요청·성공·실패 로그와 `src/api/client.ts`의 토큰 갱신 실패 로그는 모두 `if (__DEV__)` 안에 있어 운영 빌드에서는 남지 않는다. 개발 빌드에서도 url·메시지·상태 코드·서버 오류 응답 본문만 남기고 요청 본문·헤더·토큰·요청 설정·에러 객체 전체는 넘기지 않는다. 인증 경로의 `console.error` 8곳(`app/login.tsx`, `components/forms/InviteSignupForm.tsx`, `components/forms/LoginForm.tsx`, `src/stores/authStore.ts`, `app/(tabs)/profile.tsx`)은 빌드와 관계없이 메시지와 HTTP 상태만 남긴다.
+- **남은 위험**:
+  - `components/forms/LoginForm.tsx:42`, `:54`는 AsyncStorage(`remembered-email`) 읽기·쓰기가 실패하면 에러 객체를 통째로 `console.error`에 넘긴다. API 에러가 아니라 요청 본문은 담기지 않지만 SPEC-SECURITY-002 범위 밖으로 남겨 두었다(spec.md §6).
+  - 개발 빌드에 한해 받아들인 노출: 서버가 422 `detail[].input`으로 되돌려 준 제출값(비밀번호일 수 있다)과 url에 든 쿼리 문자열은 개발 빌드 로그에 보일 수 있다. 운영 빌드에서는 남지 않는다.
 
 ### 6.3 인증·권한 처리
 

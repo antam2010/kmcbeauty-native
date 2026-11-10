@@ -2,7 +2,7 @@
 id: SPEC-SECURITY-002
 title: "운영 빌드 로그의 비밀번호·토큰·요청 본문 노출 제거"
 version: "0.1.4"
-status: in-progress
+status: completed
 created: 2026-10-17
 updated: 2026-11-10
 author: antam2010

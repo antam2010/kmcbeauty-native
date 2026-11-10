@@ -455,7 +455,27 @@ M5 계약 기준:
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
-_<pending sync-phase>_
+```yaml
+sync_complete_at: 2026-11-10
+sync_status: completed
+sync_commit_sha: pending-backfill
+frontmatter_status_transitions:
+  spec.md: "in-progress → completed (updated: 2026-11-10)"
+docs_updated:
+  - .moai/project/tech.md        # §6.2 알려진 위험 → 해소됨 + 남은 위험(LoginForm.tsx:42·:54, 개발 빌드 한정 422 input·url 쿼리)
+  - .moai/project/product.md     # §6.1 로그 규칙 행 → 지켜짐, §9.1 1번 해소 표시 + SPEC ID 정정(001 → 002)
+  - .moai/project/structure.md   # base.ts 설명의 "__DEV__ 가드 없음, console.error 10곳" 문장 갱신
+docs_checked_unchanged:
+  - .moai/project/codemaps/{overview,data-flow,dependencies,entry-points,modules}.md  # 옛 로그 동작 서술 없음
+  - README.md:120                # 범위 밖(로드맵 13번), 그대로 둠
+changelog_decision: "만들지 않음(2026-11-10 사용자 결정). 기록은 커밋과 PR 본문에 둔다"
+mx_tag_validation:              # AC-SEC-002-15, src/api/services/base.ts
+  "@MX:ANCHOR: [AUTO]": 2
+  "@MX:WARN: [AUTO]": 1
+  "@MX:REASON": 3
+  "@MX:SPEC: SPEC-SECURITY-002": 1
+  result: PASS (기대 2/1/3/1)
+```
 
 ## §F Phase 4 Mode Selection
 

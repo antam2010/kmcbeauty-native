@@ -162,7 +162,7 @@ KMC Beauty Native는 뷰티샵 운영을 위한 iOS·Android 모바일 앱이다
 | 규칙 | 현재 상태 |
 |------|----------|
 | 액세스 토큰은 `expo-secure-store`에만 저장하고 AsyncStorage에 평문 토큰을 쓰지 않는다 | 지켜짐. `expo-secure-store`를 import하는 파일은 `authStore.ts` 하나다. `secureHybridStorage`는 AsyncStorage에 쓰기 전에 토큰을 `null`로 비운다(코드 확인) |
-| 로그에 토큰·비밀번호를 남기지 않는다. 운영 빌드에서도 `console.error`는 남으므로 오류 로그에 담기는 내용까지 살핀다 | 위험 있음. `base.ts`에 `console.error`가 10곳 있고 `__DEV__` 가드는 없다. 로그인·초대 가입 요청 본문이 이 경로를 지난다(코드 경로 확인, 기기 재현 안 함). 로드맵 1번 |
+| 로그에 토큰·비밀번호를 남기지 않는다. 운영 빌드에서도 `console.error`는 남으므로 오류 로그에 담기는 내용까지 살핀다 | 지켜짐(SPEC-SECURITY-002). `base.ts`와 토큰 갱신 실패 로그는 개발 빌드에서만 남고 요청 본문·토큰은 넣지 않는다. 인증 경로 `console.error` 8곳은 메시지와 상태만 남긴다. 남은 것은 `LoginForm.tsx:42`·`:54`의 AsyncStorage 실패 로그(에러 객체 전체)와 개발 빌드 한정 노출(422 `input`, url 쿼리 문자열)이다(`tech.md` 6.2절) |
 | 초대 가입·직원 연결 요청에 역할(`role`)을 담지 않는다. 역할 판정은 서버가 한다 | 지켜짐. 두 요청 타입(`InviteSignupRequest`, `StaffUserCreate`)에 `role` 필드가 없다(코드 확인). 다만 비밀번호 변경은 현재 `role` 값을 그대로 다시 보낸다(`tech.md` 6.3절) |
 | 계정이나 자격 증명을 코드에 하드코딩하지 않는다 | 데모 로그인은 제거됐고 `loginFormDemo.test.tsx`(테스트 2개)가 통과한다. 비밀번호 리터럴을 정적 검색하면 로그 마스킹용 `'***'` 1곳만 나온다 |
 
@@ -237,7 +237,8 @@ SPEC-REFACTOR-001·SPEC-SECURITY-001·SPEC-API-001·SPEC-PERF-001은 `.moai/spec
 
 ### 9.1 우선순위 높음
 
-1. **운영 빌드 로그의 비밀번호 노출 위험 제거** (SPEC-SECURITY-001)
+1. **운영 빌드 로그의 비밀번호 노출 위험 제거** (SPEC-SECURITY-002, 해소됨)
+   - 해소(2026-11-10): SPEC-SECURITY-002가 아래 경로를 정리했다. 남은 항목은 `tech.md` 6.2절에 있다. 이전에는 SPEC-SECURITY-001로 적혀 있었으나 실제로 처리한 SPEC은 SPEC-SECURITY-002다. 아래는 착수 전 상태 기록이다.
    - `src/api/services/base.ts`의 `post()`는 요청이 실패하면 요청 본문을 `console.error`로 남긴다(`requestData`). 422 응답이면 본문을 `JSON.stringify`해 한 번 더 남긴다. 이 파일에는 `__DEV__` 가드가 하나도 없다.
    - babel 설정은 운영 빌드에서 `console.error`를 지우지 않는다.
    - 로그인(`POST /auth/login`, 비밀번호가 든 폼 데이터)과 초대 가입(`POST /users`, `password` 필드가 그대로 든 객체)이 이 경로를 지난다.
