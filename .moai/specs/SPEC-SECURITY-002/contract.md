@@ -139,7 +139,7 @@
 - **C-M2-08** `new` 범위.
   - 아래 awk → `0`(`put`·`patch`·`delete`·`buildQueryString`은 바꾸지 않는다):
     `git diff -U0 80b5e8a -- src/api/services/base.ts | awk '/^@@/ { split($2,a,","); s=substr(a[1],2)+0; n=(a[2]==""?1:a[2]+0); e=(n==0?s:s+n-1); if (e>=126) bad++ } END { print bad+0 }'`
-  - `git diff --name-only 80b5e8a -- app components src hooks contexts babel.config.js` → `src/api/services/base.ts`.
+  - `git diff --name-only 80b5e8a -- app components src hooks contexts babel.config.js` → `src/api/services/base.ts`. 이 파일 목록은 M2 시점의 기대값이다. 최종 트리의 파일 집합은 C-M4-05와 C-M5-06으로 판정한다(F8).
 - **C-M2-09** `new` HT-05의 base.ts 부분을 만족한다.
 - **C-M2-10** `new` 변이 MU-01~04가 모두 잡힌다(HT-06).
 
@@ -148,7 +148,7 @@
 `<블록>`은 `sed -n '/^const refreshAccessToken/,/^};/p' src/api/client.ts | sed -n '/} catch (error/,$p'`의 출력이다.
 
 - **C-M3-01** `new` `npx jest __tests__/refreshLogging.test.ts 2>&1 | tail -n 5` → 실패 0. AC-SEC-002-10·11의 확인 명령 → 각각 실패 0, 통과 1개 이상.
-- **C-M3-02** `new` 범위. AC-SEC-002-13의 client.ts 변경 범위 검사 → `0`. `git diff --name-only 80b5e8a -- app components src hooks contexts babel.config.js` → `src/api/client.ts`, `src/api/services/base.ts`.
+- **C-M3-02** `new` 범위. AC-SEC-002-13의 client.ts 변경 범위 검사 → `0`. `git diff --name-only 80b5e8a -- app components src hooks contexts babel.config.js` → `src/api/client.ts`, `src/api/services/base.ts`. 이 파일 목록은 M3 시점의 기대값이다. 최종 트리의 파일 집합은 C-M4-05와 C-M5-06으로 판정한다(F8).
 - **C-M3-03** `new` catch 블록에 금지 값이 없다(REQ-SEC-002-009).
   - `<블록> | command grep -cE 'toJSON|JSON\.stringify|\bconfig\b|\bheaders\b'` → `0`(지금 `0`)
   - `<블록> | command grep -E 'console\.[a-z]+\(' | command grep -cE ',[[:space:]]*error[[:space:]]*[,)]|\berror\??\.request\b|\{[^}]*\berror\b[[:space:]]*[,}]'` → `0`(지금 `2`)

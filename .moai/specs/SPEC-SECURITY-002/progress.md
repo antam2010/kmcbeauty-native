@@ -437,8 +437,8 @@ M5 계약 기준:
 ## §E.3 Run-phase Audit-Ready Signal
 
 - run_complete_at: 2026-11-10T10:22:17+09:00
-- run_status: audit-ready (최종 검토 대기)
-- run_commits: M1+M2 `2ff4a65`, M3 `0adeeff`, M4 `2e779ad`, M5 `pending-backfill`(이 커밋 자신의 SHA는 커밋 안에 적을 수 없어 M5 완료 보고에 적는다)
+- run_status: audit-ready (최종 검토 PASS, 2026-11-10)
+- run_commits: M1+M2 `2ff4a65`, M3 `0adeeff`, M4 `2e779ad`, M5 `3d164d7`(M5 커밋 뒤에 채웠다)
 - milestone_reviews: M1 PASS, M2 PASS, M3 PASS, M4 PASS(sync-auditor strict, `.moai/reports/sync-audit/SPEC-SECURITY-002-M1-review.md`~`-M4-review.md`). 네 번 모두 차단 결함은 0건이다.
 - acceptance: AC-SEC-002-01~15 모두 PASS(§E.2 M5 표)
 - hard_thresholds:
@@ -448,6 +448,9 @@ M5 계약 기준:
   - HT-04 PASS(오류 2, 경고 5)
   - HT-05 PASS(base.ts 미실행 줄 0, client.ts 다섯 줄 모두 1회 이상)
   - HT-06 PASS(MU-01~10 모두 잡힘)
+- final_review: M5 최종 검토 PASS(sync-auditor strict, `.moai/reports/sync-audit/SPEC-SECURITY-002-M5-final-review.md`). 차단 결함 0건, 선택 결함 8건(F1~F8). 4개 차원 점수는 기능 100·보안 100·품질 95·일관성 98이고 가중 조화평균은 98.8이다. MU-01~10을 최종 코드에서 다시 돌려 10개 모두 잡혔다.
+- post_commit_checks: C-M5-06 `git diff --name-only 80b5e8a 3d164d7 -- app components src hooks contexts __tests__ babel.config.js` → 12줄(운영 파일 7, 새 테스트 4, `__tests__/utils/consoleArgs.ts`), `git status --short -- …` → 출력 없음(최종 검토에서 다시 확인)
+- sync_decisions(2026-11-10, 사용자): F3·F6·F7 문구는 sync 전에 manager-spec이 고친다. CHANGELOG.md는 만들지 않는다. sync 뒤에 푸시하고 PR #1 본문을 갱신한다. F8은 contract.md에 메모로 남겼다.
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
