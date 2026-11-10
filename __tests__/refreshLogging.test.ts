@@ -133,4 +133,61 @@ describe('SPEC-SECURITY-002 client.ts 토큰 갱신 실패 로그', () => {
       expect(includesText(args, TOKEN_SENTINEL)).toBe(false);
     });
   });
+
+  // 401·403이 아닌 응답 상태로 갱신이 실패하는 분기('일시적인 서버 에러' 로그). 위 경우 a~c는 이 분기를 지나지 않는다.
+  describe('401·403이 아닌 상태(500)로 토큰 갱신 실패: 일시적 서버 에러 분기', () => {
+    const TRANSIENT_LINE = '🔄 일시적인 서버 에러 가능성 - 네트워크 확인 필요';
+    const EXPIRED_LINE = '🚪 리프레시 토큰 만료 또는 유효하지 않음 - 완전 로그아웃 필요';
+    // testRefreshToken()은 refreshAccessToken()이 null(거짓 값)을 돌려줄 때만 이 문구를 남긴다.
+    const RETURNED_NULL_LINE = '❌ 리프레시 토큰 갱신 실패';
+
+    const serverError = () =>
+      makeAxiosError({
+        method: 'post',
+        url: REFRESH_URL,
+        status: 500,
+        data: '{}',
+        responseData: { detail: 'Internal Server Error' },
+      });
+
+    it('개발 모드: 상태 코드와 일시적 서버 에러 문구를 남기고 토큰·요청 설정·에러 객체는 넘기지 않는다', async () => {
+      const error = serverError();
+      axiosPost.mockRejectedValueOnce(error);
+
+      await authDebugUtils.testRefreshToken();
+
+      expect(axiosPost).toHaveBeenCalledTimes(1);
+      expect(spies.log).toHaveBeenCalledWith(RETURNED_NULL_LINE);
+      // 상태 코드와 일시적 서버 에러 문구가 남고, 401·403 문구는 남지 않는다.
+      const args = allArgs(spies);
+      expect(hasExactValue(args, '500')).toBe(true);
+      expect(spies.log).toHaveBeenCalledWith(TRANSIENT_LINE);
+      expect(spies.log).not.toHaveBeenCalledWith(EXPIRED_LINE);
+      // 에러 객체, 요청 설정(error.config), XHR 객체(error.request), 토큰 표식은 남지 않는다.
+      expect(containsRef(args, error)).toBe(false);
+      expect(containsRef(args, error.config)).toBe(false);
+      expect(containsRef(args, error.request)).toBe(false);
+      expect(includesText(args, XHR_SENTINEL)).toBe(false);
+      expect(includesText(args, TOKEN_SENTINEL)).toBe(false);
+    });
+
+    // jest는 babel 운영 설정(transform-remove-console, error 제외)을 거치지 않아 분기 밖의 console.log는 그대로 찍힌다.
+    // 그래서 운영 번들에 남는 console.error가 0건인지 보고, 분기 내용은 모든 콘솔 메서드에서 찾는다.
+    it('운영 모드: 갱신 실패 분기는 아무 로그도 남기지 않는다', async () => {
+      (global as any).__DEV__ = false;
+      const error = serverError();
+      axiosPost.mockRejectedValueOnce(error);
+
+      await authDebugUtils.testRefreshToken();
+
+      expect(axiosPost).toHaveBeenCalledTimes(1);
+      expect(spies.log).toHaveBeenCalledWith(RETURNED_NULL_LINE);
+      expect(spies.error).toHaveBeenCalledTimes(0);
+      const args = allArgs(spies);
+      expect(hasExactValue(args, '500')).toBe(false);
+      expect(includesText(args, TRANSIENT_LINE)).toBe(false);
+      expect(containsRef(args, error)).toBe(false);
+      expect(includesText(args, TOKEN_SENTINEL)).toBe(false);
+    });
+  });
 });

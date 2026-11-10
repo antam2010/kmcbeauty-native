@@ -38,8 +38,9 @@ export default function LoginForm({ onLogin, onSwitchToSignup, loading = false }
         setEmail(savedEmail);
         setRememberEmail(true);
       }
-    } catch (error) {
-      console.error('저장된 이메일 로드 실패:', error);
+    } catch (error: any) {
+      // Error가 아닌 값으로 거부돼도 여기서 예외가 나지 않게 한다.
+      console.error('저장된 이메일 로드 실패:', error?.message);
     }
   };
 
@@ -50,8 +51,9 @@ export default function LoginForm({ onLogin, onSwitchToSignup, loading = false }
       } else {
         await AsyncStorage.removeItem('remembered-email');
       }
-    } catch (error) {
-      console.error('이메일 저장 실패:', error);
+    } catch (error: any) {
+      // Error가 아닌 값으로 거부돼도 예외가 로그인 흐름으로 넘어가지 않게 한다.
+      console.error('이메일 저장 실패:', error?.message);
     }
   };
 
