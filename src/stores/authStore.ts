@@ -159,7 +159,7 @@ export const useAuthStore = create<AuthState>()(
 
           console.log('✅ 로그인 성공');
         } catch (error: any) {
-          console.error('❌ 로그인 실패:', error);
+          console.error('❌ 로그인 실패:', error.message, error.response?.status);
           setError(error.message || '로그인에 실패했습니다.');
           throw error;
         } finally {
@@ -176,8 +176,8 @@ export const useAuthStore = create<AuthState>()(
           
           // API 로그아웃 호출
           await authApiService.logout();
-        } catch (error) {
-          console.error('로그아웃 API 호출 실패:', error);
+        } catch (error: any) {
+          console.error('로그아웃 API 호출 실패:', error.message, error.response?.status);
           // API 실패해도 로컬 정리는 진행
         } finally {
           // Zustand persist가 자동으로 AsyncStorage 정리
@@ -207,7 +207,7 @@ export const useAuthStore = create<AuthState>()(
 
           if (__DEV__) console.log('✅ 사용자 정보 로드 성공');
         } catch (error: any) {
-          console.error('❌ 사용자 정보 로드 실패:', error);
+          console.error('❌ 사용자 정보 로드 실패:', error.message, error.response?.status);
           // 토큰이 유효하지 않으면 Zustand에서 정리
           setError(error.message || '인증이 만료되었습니다.');
         } finally {

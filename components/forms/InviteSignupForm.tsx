@@ -119,7 +119,7 @@ export default function InviteSignupForm({
         phone: phone.trim()
       });
     } catch (error: any) {
-      console.error('회원가입 에러:', error);
+      console.error('회원가입 에러:', error.message, error.response?.status);
       Alert.alert(
         '회원가입 실패',
         error.message || '회원가입 중 오류가 발생했습니다.',

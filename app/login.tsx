@@ -45,8 +45,8 @@ export default React.memo(function LoginScreen() {
       // 로그인 성공 후 상점 정보 로드
       await loadSelectedShop();
       console.log('✅ 로그인 성공');
-    } catch (error) {
-      console.error('🔴 LoginScreen: 로그인 에러:', error);
+    } catch (error: any) {
+      console.error('🔴 LoginScreen: 로그인 에러:', error.message, error.response?.status);
       Alert.alert(
         '로그인 실패',
         '이메일 또는 비밀번호가 올바르지 않습니다.',
@@ -88,7 +88,7 @@ export default React.memo(function LoginScreen() {
         }]
       );
     } catch (error: any) {
-      console.error('🔴 LoginScreen: 회원가입 에러:', error);
+      console.error('🔴 LoginScreen: 회원가입 에러:', error.message, error.response?.status);
       throw error; // InviteSignupForm에서 처리하도록 다시 throw
     } finally {
       setLoading(false);

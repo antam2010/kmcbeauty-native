@@ -342,6 +342,40 @@ C-CM-06(커밋 형식과 파일 목록)은 커밋을 만든 뒤에야 잴 수 �
 
 C-CM-06은 커밋을 만든 뒤에 재고 M3 완료 보고에 적는다.
 
+- M3 커밋은 `0adeeff`이고, M3 검토(sync-auditor strict, `.moai/reports/sync-audit/SPEC-SECURITY-002-M3-review.md`)는 PASS였다. 선택 관찰은 두 가지이며 조치하지 않는다. F1은 client.ts:111 분기가 실행되지 않았다는 것이다. F2는 `console.log` 세 줄도 게이트 안에 있다는 것으로, babel이 운영 빌드에서 `console.log`를 지우므로 운영 동작은 같다.
+
+### M4 — GREEN: 인증 경로 8곳 (2026-11-10, manager-develop)
+
+- 기준: HEAD `0adeeff`에 이 변경을 더한 작업 트리. 커밋하지 않은 테스트 2개는 M1 해시 그대로다(C-CM-02).
+- 변경: 다섯 파일에서 10줄을 각각 한 줄로 바꿨다(10줄 추가, 10줄 삭제). 그래서 줄 번호가 그대로다.
+  - 8곳의 로그 줄은 한 줄 그대로 `console.error('<기존 문구>', error.message, error.response?.status);`로 바꿨다. 대상은 app/login.tsx:49·:91, components/forms/InviteSignupForm.tsx:122, components/forms/LoginForm.tsx:80, src/stores/authStore.ts:162·:180·:210, app/(tabs)/profile.tsx:73이다.
+  - annotation이 없던 catch 두 곳(app/login.tsx:48, src/stores/authStore.ts:179)은 `} catch (error: any) {`로 바꿨다(B-8).
+  - `__DEV__`는 더하지 않았다(REQ-SEC-002-005). 알림 문구, `throw error`, `setError`·`clearAuth`·`setLoading`, 화면 이동, `secureHybridStorage` 줄은 그대로다. 범위 밖인 LoginForm.tsx:42·:54도 그대로다.
+- 원문 증거(gitignore 대상): `.moai/state/verify/SPEC-SECURITY-002/M4/`. acceptance.md·contract.md의 bash 블록은 글자 그대로 뽑아 `LC_ALL=C.UTF-8 bash <파일>`로 돌렸다.
+
+| 기준 | 판정 | 명령 → 출력 원문 | 증거 파일 |
+|------|------|------------------|-----------|
+| C-M4-01 | PASS | `npx jest __tests__/authStoreLogging.test.ts __tests__/profilePasswordLogging.test.tsx` → exit 0, `Tests:       12 passed, 12 total`. `-t "AC-SEC-002-06"` → `Tests:       6 skipped, 2 passed, 8 total`, `-t "AC-SEC-002-07"` → `Tests:       2 skipped, 6 passed, 8 total`, `-t "AC-SEC-002-08"`(profilePasswordLogging) → `Tests:       4 passed, 4 total`(모두 exit 0) | `c-m4-01-files.txt`, `c-m4-01-t-ac06.txt`, `c-m4-01-t-ac07.txt`, `c-m4-01-t-ac08.txt` |
+| C-M4-02 | PASS | AC-SEC-002-09 명령 1 → `components/forms/LoginForm.tsx:42`·`:54`의 AsyncStorage 두 줄. 명령 2 → 출력 없음(exit 1). 명령 3 → `2`·`1`·`3`·`3`·`1`. 명령 4 → `0`·`0`·`0`·`2`·`0`. 명령 5 → `8`. 명령 6 → `0` | `static-m4.txt` |
+| C-M4-03 | PASS | `command grep -noE "console\.error\('[^']*'" <다섯 파일>` → 10줄. 계약의 text 블록과 글자 그대로 같고(블록이 목록 항목 안에 있어 붙은 들여쓰기 2칸만 뺐다), `80b5e8a`에서 같은 명령을 돌린 값과도 같다 | `static-m4.txt` |
+| C-M4-04 | PASS | 계약 블록 → `0` | `static-m4.txt` |
+| C-M4-05 | PASS | `git diff --name-only 80b5e8a -- app components src hooks contexts babel.config.js` → spec.md §3.4의 운영 파일 7개. AC-SEC-002-12 jest → `Test Suites: 7 passed, 7 total`, `Tests:       23 passed, 23 total`. 정적 행: 보존 테스트 diff 출력 없음, `client.ts:1`·`authStore.ts:1`, `1`, `1`, 스토어 훅 grep 출력 없음. C-CM-05 → `0` | `static-m4.txt`, `ac12-preserved.txt`, `static-common-m4.txt` |
+| C-M4-06 | 자체 점검(검토자 판정) | 스크래치 복사본 결과는 아래와 같다. 변이 전 복사본은 `12 passed`였고, 끝난 뒤 복사본을 지웠다.<br>MU-07(login 로그 줄을 `if (__DEV__)`로 감쌈) → AC-06 `1 failed`(운영 모드 `includesText(errorArgs, error.message)`)<br>MU-08(login `throw error;` 삭제) → AC-06 `2 failed`(`rejects.toBe(error)`)<br>MU-09(logout `clearAuth();` 삭제) → AC-07 `2 failed`(`isAuthenticated` 검사)<br>MU-10(422 알림 문구 변경) → AC-08 `2 failed`(`toHaveBeenCalledWith('오류', …)`) | `mu-07-10-selfcheck.txt` |
+| C-CM-01 | PASS | plan.md·acceptance.md 해시 앞 16자리는 `4ce63ed0f3a76741`·`fea860dfa63bdeb5`다. spec.md 판정 → `0`, `^status: in-progress$` → `1`. M4에서는 spec.md를 바꾸지 않았다 | `static-common-m4.txt` |
+| C-CM-02 | PASS | `sha256sum -c M1/sha256.txt` → 5개 모두 `OK` | `static-common-m4.txt` |
+| C-CM-03 | PASS | AC-SEC-002-13 git 명령 5개 → 출력 없음, client.ts 범위 awk → `0` | `static-common-m4.txt` |
+| C-CM-04 | PASS | 제외·스냅숏 grep → 출력 없음. 자격 증명 형태 grep(새 테스트 2개와 바뀐 운영 파일 5개) → 출력 없음 | `static-common-m4.txt` |
+| C-CM-05 | PASS | → `0` | `static-m4.txt` |
+
+회귀와 기준선 확인 결과는 다음과 같다. jest·tsc·lint는 하나씩 따로 돌렸다.
+
+- baseServiceLogging → `Tests:       40 passed, 40 total`(`base-suite.txt`).
+- refreshLogging → `Tests:       6 passed, 6 total`(`refresh-suite.txt`).
+- AC-SEC-002-14 명령 2 → `2`, 명령 3 → `components/modals/EditTreatmentModal.tsx`, 명령 4 → `✖ 7 problems (2 errors, 5 warnings)`(`ac14-cmd2.txt`, `ac14-cmd3.txt`, `ac14-cmd4-lint.txt`).
+- 린트 문제 7건은 기준선과 같은 목록이다. client.ts 경고 1건이 :198에서 :201로 옮긴 것은 M3가 그 위에 3줄을 더했기 때문이다.
+
+C-CM-06은 커밋을 만든 뒤에 재고 M4 완료 보고에 적는다.
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 _<pending run-phase>_

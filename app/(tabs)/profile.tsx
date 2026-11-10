@@ -70,7 +70,7 @@ export default function ProfileScreen() {
         }}
       ]);
     } catch (error: any) {
-      console.error('비밀번호 변경 실패:', error);
+      console.error('비밀번호 변경 실패:', error.message, error.response?.status);
       
       // 인증 관련 에러는 인터셉터가 처리하도록 함
       if (error.message?.includes('인증이 만료') || error.message?.includes('권한이 없습니다')) {

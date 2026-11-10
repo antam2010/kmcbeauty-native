@@ -77,7 +77,7 @@ export default function LoginForm({ onLogin, onSwitchToSignup, loading = false }
       await onLogin({ email: email.trim(), password });
       console.log('🔵 LoginForm: onLogin 완료');
     } catch (error: any) {
-      console.error('🔴 LoginForm: 로그인 에러:', error);
+      console.error('🔴 LoginForm: 로그인 에러:', error.message, error.response?.status);
       Alert.alert(
         '로그인 실패',
         error.message || '로그인 중 오류가 발생했습니다.',
