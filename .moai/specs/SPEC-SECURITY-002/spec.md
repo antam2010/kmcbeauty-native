@@ -1,10 +1,10 @@
 ---
 id: SPEC-SECURITY-002
 title: "운영 빌드 로그의 비밀번호·토큰·요청 본문 노출 제거"
-version: "0.1.3"
+version: "0.1.4"
 status: in-progress
 created: 2026-10-17
-updated: 2026-11-09
+updated: 2026-11-10
 author: antam2010
 priority: P1
 phase: "v1.0.0 target"
@@ -21,7 +21,8 @@ tier: M
 - 2026-10-17 (v0.1.0): 초안. 로드맵 1번(`.moai/project/product.md` §9.1)과 2026-10-17에 받은 사용자 결정 4건(plan.md §A.2)으로 범위를 정했다. 조사 근거는 plan.md §H에 요약했다. 조사 원문(`.moai/reports/research/SPEC-SECURITY-002-research.md`, `SPEC-SECURITY-002-research-lenses.md`)은 gitignore 대상이라 로컬에만 있다.
 - 2026-10-17 (v0.1.1): plan-auditor 1회차 감사(FAIL, 0.79)의 지적을 반영했다. 차단 결함 D1~D5는 수용 기준 AC-SEC-002-02·-03·-09·-13·-14를 보강해 해소했고, 선택 결함 D6~D19는 해당 문장을 그 자리에서 고쳤다. D20은 §4 첫 문단의 관례대로 두었다. 사용자 결정 D-1~D-4와 요구사항·수용 기준 번호는 바꾸지 않았다.
 - 2026-10-18 (v0.1.2): plan-auditor 2회차 감사(PASS, 0.92)가 착수 승인 전에 고치라고 한 차단 결함 N2·N1을 해소했다. AC-SEC-002-09 명령 5를 로그 줄 전체 모양 판정으로 바꾸고, AC-SEC-002-06·-07·-08의 에러 응답 본문에 표식을 넣었으며, acceptance.md §3에 E-10을 더했다. 선택 결함 N3에 따라 MX 태그 조항을 REQ-SEC-002-013으로 떼어 내 AC-SEC-002-15와 연결했고, N4에 따라 REQ-SEC-002-002 1번의 예외 문장을 고쳤다. 사용자 결정 D-1~D-4와 기존 요구사항·수용 기준 번호는 바꾸지 않았다.
-- 2026-11-09 (v0.1.3): plan을 확정한 뒤 이 SPEC 밖의 커밋 `a53f3b3`(비밀번호 최소 길이 4자→8자)과 `80b5e8a`(입력란 안내 문구 '(8자 이상)')가 인증 경로 파일을 고쳤다. 그래서 코드·테스트 비교 기준을 `5731c73`에서 `80b5e8a`로 옮겼다. acceptance.md의 `git diff`·복사본 기준과 AC-SEC-002-08의 입력란 문구를 고치고 "지금 값"을 `80b5e8a`에서 다시 쟀다. 두 커밋이 한 줄을 한 줄로 바꿔 줄 번호는 그대로다. 요구사항·수용 기준의 뜻과 번호, 표식, 기대값은 바꾸지 않았다.
+- 2026-11-09 (v0.1.3): plan을 확정한 뒤 이 SPEC 밖의 커밋 `a53f3b3`(비밀번호 최소 길이 4자→8자)과 `80b5e8a`(입력란 안내 문구 '(8자 이상)')가 인증 경로 파일을 고쳤다. 그래서 코드·테스트 비교 기준을 `5731c73`에서 `80b5e8a`로 옮겼다. acceptance.md의 `git diff`·복사본 기준과 AC-SEC-002-08의 입력란 문구를 고치고 "지금 값"을 `80b5e8a`에서 다시 쟀다. 범위 파일 두 개(`app/(tabs)/profile.tsx`, `components/forms/InviteSignupForm.tsx`)에서는 두 커밋이 줄을 같은 수의 줄로 바꿔 줄 번호가 그대로다. `a53f3b3`은 이 SPEC 밖의 `components/modals/EditTreatmentModal.tsx`와 `eas.json`도 고쳤지만 두 파일에는 이 문서가 인용한 줄이 없다. 요구사항·수용 기준의 뜻과 번호, 표식, 기대값은 바꾸지 않았다.
+- 2026-11-10 (v0.1.4): run 단계 최종 검토(`.moai/reports/sync-audit/SPEC-SECURITY-002-M5-final-review.md`)가 지적한 문구 세 곳을 구현과 사실에 맞게 고쳤다. F3: §3.4의 `client.ts` 항목을 "다섯 줄만"에서 catch 블록 로깅 분기 전체(고정 문구 `console.log` 세 줄 포함)를 `if (__DEV__)` 하나로 감싼 실제 변경으로 바꿨다. F6: acceptance.md §6 수동 확인의 재현 방법을 8자 이상 비밀번호와 서버가 거부하는 입력으로 바꿨다. F7: 이 HISTORY의 v0.1.3 항목과 acceptance.md 머리말의 "한 줄을 한 줄로" 문장을 범위 파일 두 개로 좁혔다. 요구사항·수용 기준의 뜻과 번호, 표식, 기대값, 명령은 바꾸지 않았다.
 
 ---
 
@@ -91,7 +92,7 @@ tier: M
 ### 3.4 변경 표시 (Delta)
 
 - [MODIFY] `src/api/services/base.ts`: `get()`·`post()`의 진단 로그 전부
-- [MODIFY] `src/api/client.ts`: `refreshAccessToken()` catch 블록의 다섯 줄만
+- [MODIFY] `src/api/client.ts`: `refreshAccessToken()` catch 블록(:96-119)의 로깅 분기. §3.3의 다섯 줄은 REQ-SEC-002-009가 정한 값만 넘기도록 고친다. 로깅 분기 전체는 고정 문구만 찍는 `console.log` 세 줄(:107, :109, :113)까지 포함해 `if (__DEV__)` 하나 안에 둔다. 이 세 줄은 운영 빌드에서 babel이 이미 지우므로 운영 동작은 달라지지 않는다. :96-119 밖은 바꾸지 않는다
 - [MODIFY] `app/login.tsx`(:49, :91), `components/forms/InviteSignupForm.tsx`(:122), `components/forms/LoginForm.tsx`(:80), `src/stores/authStore.ts`(:162, :180, :210), `app/(tabs)/profile.tsx`(:73)
 - [NEW] `__tests__/baseServiceLogging.test.ts`, `__tests__/authStoreLogging.test.ts`, `__tests__/profilePasswordLogging.test.tsx`, `__tests__/refreshLogging.test.ts`
 - [NEW, 선택] `__tests__/utils/consoleArgs.ts`: 콘솔 원시 인자를 판정하는 테스트 전용 도구 (acceptance.md §1)

@@ -1,7 +1,7 @@
 # SPEC-SECURITY-002 수용 기준
 
 > 대상: `spec.md` v0.1.3. 모든 명령은 저장소 루트에서 적힌 그대로 실행한다. `grep`은 GNU grep 3.x 기준이며, `grep`이 별칭이나 다른 구현을 가리키는 셸에서는 `command grep`으로 실행한다.
-> 코드·테스트 비교 기준 커밋은 `80b5e8a`다. `git diff`와 복사본(`git show <커밋>:<경로>`)은 모두 이 커밋을 쓰고, §2의 "지금 값"은 2026-11-09에 이 커밋에서 다시 쟀다(§4의 커버리지는 product.md에서 옮긴 값이라 다시 재지 않았다). 처음 기준은 `5731c73`이었다. 그 뒤 이 SPEC 밖의 커밋 두 개가 인증 경로 파일을 고쳤다. `a53f3b3`은 비밀번호 최소 길이를 4자에서 8자로 올렸고(`app/(tabs)/profile.tsx:56-57`, `components/forms/InviteSignupForm.tsx:84-85`), `80b5e8a`는 입력란 안내 문구를 '(4자 이상)'에서 '(8자 이상)'으로 맞췄다(`app/(tabs)/profile.tsx:254`, `components/forms/InviteSignupForm.tsx:208`). `5731c73`과 비교하면 AC-SEC-002-09 명령 6이 이 SPEC과 관계없는 이 12줄을 세므로 비교 기준을 옮겼다. 기준을 옮긴 곳은 AC-SEC-002-09 명령 6과 그 복사본 확인, AC-SEC-002-12의 `git diff`, AC-SEC-002-13의 `git diff` 세 줄과 client.ts 변경 범위 검사다. 두 커밋은 모두 한 줄을 한 줄로 바꿔 줄 수가 그대로다. 그래서 이 문서와 spec.md·plan.md·spec-compact.md에 적힌 줄 번호는 `5731c73` 기준 그대로이며 `80b5e8a`에서도 같다.
+> 코드·테스트 비교 기준 커밋은 `80b5e8a`다. `git diff`와 복사본(`git show <커밋>:<경로>`)은 모두 이 커밋을 쓰고, §2의 "지금 값"은 2026-11-09에 이 커밋에서 다시 쟀다(§4의 커버리지는 product.md에서 옮긴 값이라 다시 재지 않았다). 처음 기준은 `5731c73`이었다. 그 뒤 이 SPEC 밖의 커밋 두 개가 인증 경로 파일을 고쳤다. `a53f3b3`은 비밀번호 최소 길이를 4자에서 8자로 올렸고(`app/(tabs)/profile.tsx:56-57`, `components/forms/InviteSignupForm.tsx:84-85`), `80b5e8a`는 입력란 안내 문구를 '(4자 이상)'에서 '(8자 이상)'으로 맞췄다(`app/(tabs)/profile.tsx:254`, `components/forms/InviteSignupForm.tsx:208`). `5731c73`과 비교하면 AC-SEC-002-09 명령 6이 이 SPEC과 관계없는 이 12줄을 세므로 비교 기준을 옮겼다. 기준을 옮긴 곳은 AC-SEC-002-09 명령 6과 그 복사본 확인, AC-SEC-002-12의 `git diff`, AC-SEC-002-13의 `git diff` 세 줄과 client.ts 변경 범위 검사다. 범위 파일 두 개(`app/(tabs)/profile.tsx`, `components/forms/InviteSignupForm.tsx`)에서는 두 커밋 모두 줄을 같은 수의 줄로 바꿔 줄 수가 그대로다. `a53f3b3`은 이 SPEC 밖의 `components/modals/EditTreatmentModal.tsx`(+2/-1)와 `eas.json`(+3)도 고쳤지만 두 파일에는 이 문서가 인용한 줄이 없다. 그래서 이 문서와 spec.md·plan.md·spec-compact.md에 적힌 줄 번호는 `5731c73` 기준 그대로이며 `80b5e8a`에서도 같다.
 > 이 문서는 검증 계층이다. 요구사항 문장은 spec.md §4에만 있고 여기서는 Given/When/Then으로 판정 방법만 정한다.
 
 ## 0. 한눈에 보기
@@ -434,6 +434,6 @@ npm run lint 2>&1 | command grep -E '^✖ [0-9]+ problems?'
 
 ## 6. 수동 확인 (선택, 통과 조건 아님)
 
-- Android: release 변형 빌드(`npx expo run:android --variant release`)나 EAS `preview` 프로필 APK를 설치한다. `adb logcat -c`로 버퍼를 비운 뒤 `adb logcat -s ReactNativeJS ReactNative`를 켜 둔다. 짧은 비밀번호로 초대 가입을 시도해 422 실패를 낸다.
-  - 기대: 로그에 비밀번호, 초대 코드, 이메일, 전화번호가 없다. base.ts의 로그는 없고 `app/login.tsx`와 `InviteSignupForm.tsx`의 로그는 문구, 메시지, 상태 코드만 담는다.
+- Android: release 변형 빌드(`npx expo run:android --variant release`)나 EAS `preview` 프로필 APK를 설치한다. `adb logcat -c`로 버퍼를 비운 뒤 `adb logcat -s ReactNativeJS ReactNative`를 켜 둔다. 8자 이상 비밀번호와 서버가 거부할 입력(예: 존재하지 않는 초대 코드)으로 초대 가입을 시도해 4xx 실패를 낸다. 8자 미만 비밀번호는 `a53f3b3` 이후 `InviteSignupForm.tsx:84-85`가 요청을 보내기 전에 막으므로 이 확인에 쓸 수 없다.
+  - 기대: 로그에 비밀번호, 초대 코드, 이메일, 전화번호가 없다. base.ts의 로그는 없고 `app/login.tsx`와 `InviteSignupForm.tsx`의 로그는 문구, 메시지, 상태 코드만 담는다. 서버가 422를 돌려준 경우에는 응답의 `detail`·`errors`(되돌아온 입력값 포함)도 로그에 없는지 본다.
 - iOS(선택): Console.app에서 하위 시스템 `com.facebook.react.log`로 걸러 같은 시나리오를 확인한다.
