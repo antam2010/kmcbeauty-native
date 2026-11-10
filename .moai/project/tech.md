@@ -337,8 +337,8 @@ SPEC-PERF-003 spec.md §3 항목 1~6의 대상 파일은 `BookingListScreen`, `P
 - **달력**: 날짜별 예약 건수는 `buildBookingCountMap`으로 만든 `Map`(`useMemo`)에서 찾는다(`ImprovedCalendar` 122행).
 - **모달 마운트**
   - 규칙: 닫힌 모달은 API를 호출하지 않는다. 마운트할 때 데이터를 불러오는 모달은 조건부로 마운트한다(REQ-PERF-003-02, REQ-PERF-003-05).
-  - 조건부 마운트(`{조건 && ...}`) 5곳: 홈의 월간 현황 모달(`app/(tabs)/index.tsx` 261행), 예약 수정(`app/(tabs)/booking.tsx` 398행), 시술 메뉴 관리의 메뉴·세부 항목 모달(`TreatmentMenuManagement` 400·451행), 전화번호 관리의 연락처 동기화(`PhonebookManagement` 391행).
-  - 항상 마운트된 모달 8곳: `UnifiedTreatmentModal`(홈 251행, 예약 탭 382행), `ShopRegistrationModal`(`shop-selection.tsx` 150행), `InviteCodeGeneratorModal`(`StaffManagement` 175행), `CustomerRegistrationModal`·`ContactSyncModal`(`BookingForm` 1088·1104행, `EditTreatmentModal` 980·993행). React Native `Modal`은 `visible`이 거짓이면 아무것도 그리지 않는다. 이 컴포넌트들의 API 호출은 `visible`일 때만 도는 effect나 버튼 처리 안에 있다(코드 확인).
+  - 조건부 마운트(`{조건 && ...}`) 5곳: 홈의 월간 현황 모달(`app/(tabs)/index.tsx` 265행), 예약 수정(`app/(tabs)/booking.tsx` 398행), 시술 메뉴 관리의 메뉴·세부 항목 모달(`TreatmentMenuManagement` 404·455행), 전화번호 관리의 연락처 동기화(`PhonebookManagement` 393행). 예약 수정을 뺀 4곳은 `useDelayedUnmount`(`hooks/useDelayedUnmount.ts`)가 돌려주는 값으로 마운트 여부를 정한다. 모달을 닫으면 `visible={false}` 상태로 닫힘 애니메이션이 끝날 때까지(500ms) 마운트해 두었다가 언마운트한다. 예약 수정은 `EditTreatmentModal`이 `visible`이 거짓이면 `null`을 반환하므로(429행) 닫는 즉시 언마운트된다.
+  - 항상 마운트된 모달 8곳: `UnifiedTreatmentModal`(홈 255행, 예약 탭 382행), `ShopRegistrationModal`(`shop-selection.tsx` 150행), `InviteCodeGeneratorModal`(`StaffManagement` 175행), `CustomerRegistrationModal`·`ContactSyncModal`(`BookingForm` 1088·1104행, `EditTreatmentModal` 980·993행). React Native `Modal`은 `visible`이 거짓이면 아무것도 그리지 않는다. 이 컴포넌트들의 API 호출은 `visible`일 때만 도는 effect나 버튼 처리 안에 있다(코드 확인).
 
 ### 7.2 상태 구독
 
