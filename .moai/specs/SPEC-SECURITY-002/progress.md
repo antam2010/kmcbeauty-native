@@ -458,7 +458,7 @@ M5 계약 기준:
 ```yaml
 sync_complete_at: 2026-11-10
 sync_status: completed
-sync_commit_sha: pending-backfill
+sync_commit_sha: 9759a95
 frontmatter_status_transitions:
   spec.md: "in-progress → completed (updated: 2026-11-10)"
 docs_updated:
