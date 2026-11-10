@@ -376,9 +376,78 @@ C-CM-06은 커밋을 만든 뒤에 재고 M3 완료 보고에 적는다.
 
 C-CM-06은 커밋을 만든 뒤에 재고 M4 완료 보고에 적는다.
 
+- M4 커밋은 `2e779ad`이고, M4 검토(sync-auditor strict, `.moai/reports/sync-audit/SPEC-SECURITY-002-M4-review.md`)는 PASS였다. 선택 관찰 두 가지는 조치하지 않는다. F1(app/login.tsx:49의 가상 `null` 거부)은 AC가 로그 줄 모양을 이렇게 정했기 때문이다. I1(LoginForm.tsx:42·:54)은 spec.md §6이 범위에서 뺐기 때문이다.
+
+### M5 — REFACTOR와 최종 검증 (2026-11-10, manager-develop)
+
+- 기준: HEAD `2e779ad`에 이 변경을 더한 작업 트리. 판정 도구 해시는 `c6400e2d…74bb6` 그대로다(C-M1-07을 다시 할 필요 없음).
+- 변경: `src/api/services/base.ts`에 MX 태그 주석 7줄만 더했다(plan.md §F.1). 실행 줄은 바꾸지 않았다. 커밋 전 C-M5-07 형태 `git diff -U0 2e779ad -- <운영 파일 7개> | … | command grep -vcE '^[+-][[:space:]]*(//|$)'`의 결과는 `0`이다.
+  - `get()` 위(:8-9): `@MX:ANCHOR: [AUTO]`(서비스 공통 경계, 잡은 에러를 같은 참조로 다시 던짐)와 `@MX:REASON`(fan_in 15)
+  - `post()` 위(:63-65): `@MX:ANCHOR: [AUTO]`, `@MX:REASON`(fan_in 13), `@MX:SPEC: SPEC-SECURITY-002 (REQ-SEC-002-001~004)`
+  - `post()` catch의 `if (__DEV__) {` 바로 위(:90-91): `@MX:WARN: [AUTO]`와 `@MX:REASON`. WARN은 로그에 넣지 않는 값(요청 본문, 요청 설정, 에러 객체, error.request, error.response, Authorization 값)을 적었다.
+- REFACTOR 판단: M2~M4 변경에 정리할 중복이 없어 코드는 더 바꾸지 않았다. 새 운영 파일도 만들지 않았다.
+- M3 검토 F2: client.ts 갱신 실패 catch 블록의 고정 문구 `console.log` 세 줄도 다섯 줄과 같은 `if (__DEV__)` 안에 있다. 운영 빌드에서는 babel이 `console.log`를 이미 지우므로 운영 동작은 같다. spec.md §3.4가 바꿀 대상으로 적은 것은 "다섯 줄만"이다.
+- 원문 증거(gitignore 대상): `.moai/state/verify/SPEC-SECURITY-002/M5/`. acceptance.md의 bash 블록과 표 안 명령은 글자 그대로 뽑아 `LC_ALL=C.UTF-8 bash <파일>`로 돌렸다. jest·tsc·lint는 하나씩 따로 돌렸고, 전체 jest는 맨 끝에 단독으로 돌렸다.
+
+수용 기준 판정(C-M5-04). jest 확인 명령은 모두 exit 0, 실패 0이다.
+
+| AC | 명령 | 출력 원문 | 판정 | 증거 파일 |
+|----|------|-----------|------|-----------|
+| AC-SEC-002-01 | `npx jest __tests__/baseServiceLogging.test.ts -t "AC-SEC-002-01"` | `Tests:       33 skipped, 7 passed, 40 total` | PASS | `ac01-jest.txt` |
+| AC-SEC-002-02 | 같은 파일 `-t "AC-SEC-002-02"` | `Tests:       32 skipped, 8 passed, 40 total` | PASS | `ac02-jest.txt` |
+| AC-SEC-002-03 | 같은 파일 `-t "AC-SEC-002-03"` | `Tests:       37 skipped, 3 passed, 40 total` | PASS | `ac03-jest.txt` |
+| AC-SEC-002-04 | 표의 grep 다섯 개 | `0`, `0`, `0`, `0`, `6` | PASS | `ac-static.txt` |
+| AC-SEC-002-05 | 같은 파일 `-t "AC-SEC-002-05"` | `Tests:       18 skipped, 22 passed, 40 total` | PASS | `ac05-jest.txt` |
+| AC-SEC-002-06 | `npx jest __tests__/authStoreLogging.test.ts -t "AC-SEC-002-06"` | `Tests:       6 skipped, 2 passed, 8 total` | PASS | `ac06-jest.txt` |
+| AC-SEC-002-07 | 같은 파일 `-t "AC-SEC-002-07"` | `Tests:       2 skipped, 6 passed, 8 total` | PASS | `ac07-jest.txt` |
+| AC-SEC-002-08 | `npx jest __tests__/profilePasswordLogging.test.tsx -t "AC-SEC-002-08"` | `Tests:       4 passed, 4 total` | PASS | `ac08-jest.txt` |
+| AC-SEC-002-09 | 명령 1~6 | 1: `components/forms/LoginForm.tsx:42`·`:54` 두 줄. 2: 출력 없음(exit 1). 3: `2`·`1`·`3`·`3`·`1`. 4: `0`·`0`·`0`·`2`·`0`. 5: `8`. 6: `0` | PASS | `ac-static.txt` |
+| AC-SEC-002-10 | `npx jest __tests__/refreshLogging.test.ts -t "AC-SEC-002-10"` | `Tests:       3 skipped, 3 passed, 6 total` | PASS | `ac10-jest.txt` |
+| AC-SEC-002-11 | 같은 파일 `-t "AC-SEC-002-11"` | `Tests:       3 skipped, 3 passed, 6 total` | PASS | `ac11-jest.txt` |
+| AC-SEC-002-12 | 표의 jest와 정적 명령 4개, 스토어 훅 블록 | jest `Test Suites: 7 passed, 7 total`, `Tests:       23 passed, 23 total`. 보존 테스트 diff 출력 없음, `src/api/client.ts:1`·`src/stores/authStore.ts:1`, `1`, `1`, 스토어 훅 grep 출력 없음(exit 1) | PASS | `ac12-jest.txt`, `ac-static.txt` |
+| AC-SEC-002-13 | 표의 git 명령 5개와 client.ts 범위 블록 | 다섯 명령 모두 출력 없음, 범위 블록 `0` | PASS | `ac-static.txt` |
+| AC-SEC-002-14 | 명령 1~4 | 1: `Test Suites: 28 passed, 28 total`, `Tests:       170 passed, 170 total`, `Snapshots:   1 passed, 1 total`. 2: `2`. 3: `components/modals/EditTreatmentModal.tsx`. 4: `✖ 7 problems (2 errors, 5 warnings)` | PASS | `ht-01-ac14-cmd1.txt`, `ac14-cmd2.txt`, `ac14-cmd3.txt`, `ac14-cmd4-lint.txt` |
+| AC-SEC-002-15 | 표의 grep 네 개 | `2`, `1`, `3`, `1` | PASS | `ac-static.txt` |
+
+M5 계약 기준:
+
+| 기준 | 판정 | 명령 → 출력 원문 | 증거 파일 |
+|------|------|------------------|-----------|
+| C-M5-01 | PASS | AC-SEC-002-15 → `2`, `1`, `3`, `1`. `@MX:ANCHOR` → `2`(3 이하), `@MX:WARN` → `1`(5 이하) | `mx-tags-check.txt` |
+| C-M5-02 | PASS | ANCHOR awk → `  protected async get<T>(`, `  protected async post<T>(`. WARN awk → `92:       if (__DEV__) {`. 이 줄은 post() 서명(:66)과 put() 서명(:136) 사이에 있고 `'❌ API POST 실패:'` 로그(:93)를 바로 감싼다 | `mx-tags-check.txt` |
+| C-M5-03 | 자체 판정 PASS(읽기) | 설명은 한국어이고 `[AUTO]`로 시작한다. ANCHOR는 공통 경계와 같은 참조 다시 던지기를, REASON은 fan_in 15·13을, WARN은 넣지 않는 값 목록을 적었다. `@MX:SPEC: SPEC-SECURITY-002`도 있다 | base.ts :8-9, :63-65, :90-91 |
+| C-M5-04 | PASS | 위 표에서 AC-SEC-002-01~15가 모두 PASS다 | 위 표의 파일 |
+| C-M5-05 | PASS | 최종 트리에서 다시 돌린 결과는 아래와 같다.<br>C-CM-01: plan·acceptance 해시 그대로, spec.md 판정 `0`·`1`<br>C-CM-02: 5개 `OK`<br>C-CM-03: 출력 없음, `0`<br>C-CM-04: 출력 없음<br>C-CM-05: `0`<br>C-M2-02: `0,0,0,0,6`. C-M2-03: `0`. C-M2-04: `0`. C-M2-05: `throw error;` `2`. C-M2-06: 출력 없음. C-M2-07: `0`·`8`. C-M2-08 awk: `0`<br>C-M3-02 awk: `0`. C-M3-03: `0`·`0`. C-M3-04: `5`. C-M3-06: C-M2-06 출력 없음, HT-05 client.ts 부분 통과<br>C-M4-02: AC-09 표와 같다. C-M4-03: 계약 블록과 같다(10줄). C-M4-04: `0`. C-M4-05: 운영 파일 7개, AC-12 기대값, C-CM-05 `0`<br>C-M2-08·C-M3-02의 name-only 부분은 그 마일스톤 시점의 기대값이라, 최종 트리의 파일 집합은 C-M4-05와 C-M5-06으로 판정했다 | `c-m5-05-recheck.txt`, `ac-static.txt` |
+| C-M5-06 | PASS(작업 트리) | `git diff --name-only 80b5e8a -- app components src hooks contexts __tests__ babel.config.js` → 운영 파일 7개, 새 테스트 4개, `__tests__/utils/consoleArgs.ts`(12줄). 커밋 뒤의 `git diff --name-only 80b5e8a HEAD …`와 `git status --short …`는 M5 완료 보고에 적는다 | `c-m5-05-recheck.txt` |
+| C-M5-07 | PASS(커밋 전 형태) | `2e779ad` 이후 실행 줄 변경이 `0`이다. 그래서 변이는 다시 돌리지 않고 검토 결과를 인용한다. MU-01~04는 M2 검토(커밋 `2ff4a65`), MU-05·06은 M3 검토(커밋 `0adeeff`, 추가 변이 4개도 잡힘), MU-07~10은 M4 검토(커밋 `2e779ad`)에서 모두 잡혔다 | `mx-tags-check.txt`, 검토 보고서 |
+| C-M5-08 | PASS | 아래 HT-01~06 | — |
+
+하드 임계값:
+
+- HT-01 PASS: AC-SEC-002-14 명령 1을 맨 끝에 단독으로 돌렸다. 시작 전 다른 jest·tsc·eslint 프로세스는 없었다. 결과는 `Test Suites: 28 passed, 28 total`, `Tests:       170 passed, 170 total`, `Snapshots:   1 passed, 1 total`이고 실패는 0이다(`ht-01-ac14-cmd1.txt`).
+- HT-02 PASS: `Test Suites: 7 passed, 7 total`, `Tests:       23 passed, 23 total`(`ac12-jest.txt`).
+- HT-03 PASS: 오류 `2`개, 파일은 `components/modals/EditTreatmentModal.tsx`뿐이다(`ac14-cmd2.txt`, `ac14-cmd3.txt`).
+- HT-04 PASS: `✖ 7 problems (2 errors, 5 warnings)`. 목록은 기준선과 같고 base.ts 문제는 없다(`ac14-cmd4-lint.txt`).
+- HT-05 PASS: 계약 블록을 `<증거>` 자리만 바꿔 그대로 돌렸다(`ht-05.txt`).
+  - base.ts 부분: `UNCOVERED` 출력이 없다. `G=10`, `P=136` 구간의 DA 35줄이 모두 1회 이상 실행됐다.
+  - client.ts 부분: `99 3`, `104 1`, `105 1`, `114 1`, `117 1`.
+  - 참고: base.ts는 `LF:48 LH:36 BRF:45 BRH:28`, client.ts는 `LF:244 LH:39`다.
+- HT-06 PASS: MU-01~10이 모두 잡혔다. 위 C-M5-07처럼 M2·M3·M4 검토 결과를 인용한다.
+
 ## §E.3 Run-phase Audit-Ready Signal
 
-_<pending run-phase>_
+- run_complete_at: 2026-11-10T10:22:17+09:00
+- run_status: audit-ready (최종 검토 대기)
+- run_commits: M1+M2 `2ff4a65`, M3 `0adeeff`, M4 `2e779ad`, M5 `pending-backfill`(이 커밋 자신의 SHA는 커밋 안에 적을 수 없어 M5 완료 보고에 적는다)
+- milestone_reviews: M1 PASS, M2 PASS, M3 PASS, M4 PASS(sync-auditor strict, `.moai/reports/sync-audit/SPEC-SECURITY-002-M1-review.md`~`-M4-review.md`). 네 번 모두 차단 결함은 0건이다.
+- acceptance: AC-SEC-002-01~15 모두 PASS(§E.2 M5 표)
+- hard_thresholds:
+  - HT-01 PASS(`Test Suites: 28 passed, 28 total`, `Tests: 170 passed, 170 total`, `Snapshots: 1 passed, 1 total`)
+  - HT-02 PASS(7·23)
+  - HT-03 PASS(`2`, EditTreatmentModal.tsx만)
+  - HT-04 PASS(오류 2, 경고 5)
+  - HT-05 PASS(base.ts 미실행 줄 0, client.ts 다섯 줄 모두 1회 이상)
+  - HT-06 PASS(MU-01~10 모두 잡힘)
 
 ## §E.4 Sync-phase Audit-Ready Signal
 

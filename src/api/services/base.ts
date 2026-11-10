@@ -5,6 +5,8 @@ export abstract class BaseApiService {
   protected readonly client = apiClient;
   protected abstract readonly basePath: string;
 
+  // @MX:ANCHOR: [AUTO] 서비스 7곳의 GET 요청 15건이 지나는 공통 경계다. 실패하면 잡은 에러를 같은 참조 그대로 다시 던진다.
+  // @MX:REASON: fan_in 15(dashboard·invite·phonebook·shop·staff·treatment·treatmentMenu 서비스). 여기서 에러를 바꿔 던지거나 로그 내용을 늘리면 모든 GET 호출의 오류 처리와 로그 노출이 함께 바뀐다.
   protected async get<T>(
     endpoint: string = '', 
     config?: any
@@ -58,6 +60,9 @@ export abstract class BaseApiService {
     }
   }
 
+  // @MX:ANCHOR: [AUTO] 서비스 7곳의 POST 요청 13건이 지나는 공통 경계다. 실패하면 잡은 에러를 같은 참조 그대로 다시 던진다.
+  // @MX:REASON: fan_in 13(auth·invite·phonebook·shop·staff·treatment·treatmentMenu 서비스). 여기서 에러를 바꿔 던지거나 로그 내용을 늘리면 모든 POST 호출의 오류 처리와 로그 노출이 함께 바뀐다.
+  // @MX:SPEC: SPEC-SECURITY-002 (REQ-SEC-002-001~004)
   protected async post<T>(
     endpoint: string = '', 
     data?: any, 
@@ -82,6 +87,8 @@ export abstract class BaseApiService {
       
       return response.data as T;
     } catch (error: any) {
+      // @MX:WARN: [AUTO] 이 실패 로그와 422·401 로그에는 요청 본문, 요청 설정, 에러 객체, error.request, error.response(응답 객체 전체), Authorization 값을 넣지 않는다. 로그는 개발 빌드에서만 남긴다.
+      // @MX:REASON: 초대 가입 본문에는 비밀번호가 들어 있다. 에러를 객체로 감싸 넘기면 운영 빌드의 ExceptionsManager가 AxiosError.toJSON()으로 요청 본문과 Bearer 토큰을 직렬화한다.
       if (__DEV__) {
         console.error('❌ API POST 실패:', {
           url: `${this.basePath}${endpoint}`,
