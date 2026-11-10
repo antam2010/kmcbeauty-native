@@ -2,6 +2,7 @@ import MonthlyDashboard from '@/components/dashboard/MonthlyDashboard';
 import UnifiedTreatmentModal from '@/components/modals/UnifiedTreatmentModal';
 import ShopHeader from '@/components/navigation/ShopHeader';
 import { useDashboardLoad } from '@/hooks/useDashboardLoad';
+import { useDelayedUnmount } from '@/hooks/useDelayedUnmount';
 import type { Treatment } from '@/src/types';
 import { Colors } from '@/src/ui/theme';
 import { toLocalDateString } from '@/src/utils/dateUtils';
@@ -28,6 +29,8 @@ export default function HomeScreen() {
   const [showMonthlyModal, setShowMonthlyModal] = useState(false);
   const [showTreatmentModal, setShowTreatmentModal] = useState(false);
   const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null);
+  // REQ-PERF-003-02: 월간 현황 모달은 닫힘 애니메이션이 끝날 때까지 마운트를 유지한 뒤 언마운트한다.
+  const monthlyModalMounted = useDelayedUnmount(showMonthlyModal);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -259,7 +262,7 @@ export default function HomeScreen() {
 
       {/* 월별 대시보드 모달 */}
       {/* REQ-PERF-003-02: 닫힌 동안 MonthlyDashboard 를 마운트하지 않아 월별 API 호출을 0회로 만든다. */}
-      {showMonthlyModal && (
+      {monthlyModalMounted && (
         <Modal
           visible={showMonthlyModal}
           animationType="slide"

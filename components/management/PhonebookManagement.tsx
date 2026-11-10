@@ -1,6 +1,7 @@
 import { Phonebook, PhonebookCreate, phonebookApiService } from '@/src/api/services/phonebook';
 import { queryKeyPrefix } from '@/src/api/queryKeys';
 import { usePhonebookQuery } from '@/hooks/queries/usePhonebookQuery';
+import { useDelayedUnmount } from '@/hooks/useDelayedUnmount';
 import { useShopStore } from '@/src/stores/shopStore';
 import { TextInput as CustomTextInput } from '@/src/ui/atoms';
 
@@ -80,6 +81,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
   const [showModal, setShowModal] = useState(false);
   const [editingContact, setEditingContact] = useState<Phonebook | null>(null);
   const [showSyncModal, setShowSyncModal] = useState(false); // 동기화 모달 상태 추가
+  const syncModalMounted = useDelayedUnmount(showSyncModal); // REQ-PERF-003-02: 닫힘 애니메이션 동안 마운트 유지
 
   // 폼 상태
   const [contactForm, setContactForm] = useState<PhonebookCreate>({
@@ -388,7 +390,7 @@ export default function PhonebookManagement({ onGoBack }: PhonebookManagementPro
       </Modal>
 
       {/* 연락처 동기화 모달 */}
-      {showSyncModal && (
+      {syncModalMounted && (
         <ContactSyncModal
           visible={showSyncModal}
           onClose={() => setShowSyncModal(false)}

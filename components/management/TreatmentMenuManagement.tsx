@@ -1,6 +1,7 @@
 import { treatmentMenuApiService } from '@/src/api/services/treatmentMenu';
 import { queryKeyPrefix } from '@/src/api/queryKeys';
 import { useTreatmentMenusQuery } from '@/hooks/queries/useTreatmentMenusQuery';
+import { useDelayedUnmount } from '@/hooks/useDelayedUnmount';
 import { useShopStore } from '@/src/stores/shopStore';
 import {
     TreatmentMenu,
@@ -57,6 +58,9 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [editingMenu, setEditingMenu] = useState<TreatmentMenu | null>(null);
   const [editingDetail, setEditingDetail] = useState<TreatmentMenuDetail | null>(null);
+  // REQ-PERF-003-02: 닫은 뒤에도 닫힘 애니메이션이 끝날 때까지 모달을 마운트해 둔다.
+  const menuModalMounted = useDelayedUnmount(showMenuModal);
+  const detailModalMounted = useDelayedUnmount(showDetailModal);
   
   // 폼 상태
   const [menuForm, setMenuForm] = useState<TreatmentMenuCreate>({ name: '' });
@@ -397,7 +401,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
 
       {/* 메뉴 생성/수정 모달 */}
       {/* REQ-PERF-003-05: 닫힌 동안 모달 하위 트리를 마운트하지 않는다(조건부 마운트). */}
-      {showMenuModal && (
+      {menuModalMounted && (
       <Modal visible={showMenuModal} animationType="slide" presentationStyle="pageSheet">
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalContainer}>
@@ -448,7 +452,7 @@ export default function TreatmentMenuManagement({ onGoBack }: TreatmentMenuManag
 
       {/* 상세 생성/수정 모달 */}
       {/* REQ-PERF-003-05: 닫힌 동안 모달 하위 트리를 마운트하지 않는다(조건부 마운트). */}
-      {showDetailModal && (
+      {detailModalMounted && (
       <Modal visible={showDetailModal} animationType="slide" presentationStyle="pageSheet">
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalContainer}>
