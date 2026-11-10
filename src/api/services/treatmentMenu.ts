@@ -88,45 +88,38 @@ class TreatmentMenuApiService extends BaseApiService {
   }
 
   // 모든 시술 메뉴와 상세를 함께 가져오기
+  // @MX:NOTE: [AUTO] 순차 페이지 루프 + 항목별 상세 재요청(1+N) 제거(REQ-PERF-002). 목록 응답이 이미 details 를 포함하므로(백엔드 joinedload) getDetails 재요청을 삭제하고, 첫 페이지로 총 페이지 수를 파악한 뒤 2..N 을 Promise.all 로 동시 수집한다. 결과 순서는 페이지 인덱스 순으로 결정적.
   async getAllWithDetails(): Promise<TreatmentMenu[]> {
-    let allMenus: TreatmentMenu[] = [];
-    let currentPage = 1;
     const pageSize = 50;
 
     try {
-      while (true) {
-        const response = await this.list({
-          page: currentPage,
-          size: pageSize
-        });
+      // 1) 첫 페이지 조회로 총 페이지 수 파악 (목록 응답에 details 포함)
+      const firstPage = await this.list({ page: 1, size: pageSize });
+      const totalPages = firstPage.pages || 1;
 
-        // 각 메뉴의 상세 정보도 함께 로드
-        const menusWithDetails = await Promise.all(
-          response.items.map(async (menu) => {
-            try {
-              const details = await this.getDetails(menu.id);
-              return { ...menu, details };
-            } catch (error) {
-              console.error(`메뉴 ${menu.id}의 상세 정보 로드 실패:`, error);
-              return { ...menu, details: [] };
-            }
-          })
-        );
+      // 2) 나머지 페이지(2..N)를 동시 요청 (인위적 지연 없음). 일부 페이지 실패가 전체를 폐기하지 않도록 allSettled 사용(AC-002-2)
+      const restResults = await Promise.allSettled(
+        Array.from({ length: Math.max(0, totalPages - 1) }, (_, i) =>
+          this.list({ page: i + 2, size: pageSize })
+        )
+      );
 
-        allMenus = [...allMenus, ...menusWithDetails];
+      // 3) 성공한 페이지만 입력 순서대로 병합. 목록 응답의 details 를 그대로 사용(누락 시 빈 배열로 방어). 실패 페이지는 건너뜀
+      const restItems = restResults
+        .filter((r): r is PromiseFulfilledResult<TreatmentMenuResponse> => r.status === 'fulfilled')
+        .reduce<TreatmentMenu[]>((acc, r) => acc.concat(r.value.items), []);
+      const allMenus = [...firstPage.items, ...restItems].map((menu) => ({ ...menu, details: menu.details ?? [] }));
 
-        if (currentPage >= response.pages || response.items.length < pageSize) {
-          break;
-        }
-
-        currentPage++;
+      const failedPages = restResults.filter((r) => r.status === 'rejected').length;
+      if (failedPages > 0) {
+        console.warn(`⚠️ 시술 메뉴 일부 페이지 조회 실패: ${failedPages}개 페이지 누락(성공분만 반환)`);
       }
+
+      return allMenus;
     } catch (error) {
       console.error('시술 메뉴 로딩 중 오류:', error);
       return [];
     }
-
-    return allMenus;
   }
 }
 

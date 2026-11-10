@@ -47,7 +47,8 @@ export const Colors = {
   text: {
     primary: '#111827',
     secondary: '#6b7280',
-    muted: '#9ca3af',
+    // SPEC-UX-001 REQ-UX-001: #9ca3af(대비 ≈2.5:1)는 WCAG AA 미달 → gray[500](#6b7280, ≈4.83:1)로 상향
+    muted: '#6b7280',
     inverse: '#ffffff',
   },
   

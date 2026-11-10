@@ -1,4 +1,9 @@
 import { BaseApiService } from './base';
+// @MX:NOTE: [AUTO] ShopUser 정본은 staff.ts 의 ShopUserResponse 다. 여기서는 재노출만 유지한다.
+// (소비 측 BookingForm/EditTreatmentModal 이 이 경로에서 `type ShopUser` 를 import 하므로 별칭 재노출)
+import type { ShopUserResponse } from './staff';
+
+export type { ShopUserResponse, ShopUserResponse as ShopUser } from './staff';
 
 // 샵 관련 타입 정의
 export interface Shop {
@@ -10,17 +15,6 @@ export interface Shop {
   business_number: string | null;
   created_at: string;
   updated_at: string;
-}
-
-export interface ShopUser {
-  shop_id: number;
-  user_id: number;
-  is_primary_owner: number; // 1=대표, 0=아님
-  user: {
-    name: string;
-    email: string;
-    role: string;
-  };
 }
 
 export interface ShopResponse {
@@ -81,12 +75,12 @@ class ShopApiService extends BaseApiService {
   }
 
   // 특정 샵의 유저 목록 조회 (직원 목록)
-  async getUsers(shopId: number): Promise<ShopUser[]> {
-    return this.get<ShopUser[]>(`/${shopId}/users`);
+  async getUsers(shopId: number): Promise<ShopUserResponse[]> {
+    return this.get<ShopUserResponse[]>(`/${shopId}/users`);
   }
 
   // 현재 선택된 샵의 유저 목록 조회
-  async getCurrentShopUsers(): Promise<ShopUser[]> {
+  async getCurrentShopUsers(): Promise<ShopUserResponse[]> {
     try {
       const selectedShop = await this.getSelected();
       return this.getUsers(selectedShop.id);

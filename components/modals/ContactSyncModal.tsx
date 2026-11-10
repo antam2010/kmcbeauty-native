@@ -822,7 +822,7 @@ const styles = StyleSheet.create({
   },
   previewMore: {
     fontSize: 12,
-    color: '#999',
+    color: '#6b7280',
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: 8,

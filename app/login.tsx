@@ -9,12 +9,16 @@ import { Colors } from '@/src/ui/theme';
 import { Redirect } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 
 export default React.memo(function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const { login, isAuthenticated, isLoading: authLoading } = useAuthStore();
-  const { loadSelectedShop } = useShopStore();
+  // REQ-PERF-003-08: 필드 셀렉터 구독(다중 필드는 useShallow).
+  const { login, isAuthenticated, isLoading: authLoading } = useAuthStore(
+    useShallow((s) => ({ login: s.login, isAuthenticated: s.isAuthenticated, isLoading: s.isLoading })),
+  );
+  const loadSelectedShop = useShopStore((s) => s.loadSelectedShop);
 
   // 인증 상태 로딩 중
   if (authLoading) {
@@ -41,8 +45,8 @@ export default React.memo(function LoginScreen() {
       // 로그인 성공 후 상점 정보 로드
       await loadSelectedShop();
       console.log('✅ 로그인 성공');
-    } catch (error) {
-      console.error('🔴 LoginScreen: 로그인 에러:', error);
+    } catch (error: any) {
+      console.error('🔴 LoginScreen: 로그인 에러:', error.message, error.response?.status);
       Alert.alert(
         '로그인 실패',
         '이메일 또는 비밀번호가 올바르지 않습니다.',
@@ -84,7 +88,7 @@ export default React.memo(function LoginScreen() {
         }]
       );
     } catch (error: any) {
-      console.error('🔴 LoginScreen: 회원가입 에러:', error);
+      console.error('🔴 LoginScreen: 회원가입 에러:', error.message, error.response?.status);
       throw error; // InviteSignupForm에서 처리하도록 다시 throw
     } finally {
       setLoading(false);

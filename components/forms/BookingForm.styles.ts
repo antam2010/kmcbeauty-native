@@ -188,12 +188,12 @@ export const bookingFormStyles = StyleSheet.create({
     color: '#212529',
   },
   customerItemPhone: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6c757d',
     marginTop: 2,
   },
   customerItemDate: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#28a745',
     fontWeight: '500',
     backgroundColor: '#f0fdf4',
@@ -218,12 +218,19 @@ export const bookingFormStyles = StyleSheet.create({
     paddingHorizontal: 8,
     minWidth: '22%',
     maxWidth: '23%',
+    minHeight: 44, // SPEC-UX-001 REQ-UX-004: 유효 터치 영역 44pt 확보
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 6,
   },
   selectedTimeSlot: {
     backgroundColor: '#667eea',
     borderColor: '#667eea',
+  },
+  // SPEC-BOOKING-001 REQ-06(F-11b): 첫 가용 슬롯 시각 유도 — 기존 primary(#667eea) 테두리 재사용.
+  highlightedTimeSlot: {
+    borderColor: '#667eea',
+    borderWidth: 2,
   },
   reservedTimeSlot: {
     backgroundColor: '#f8f9fa',
@@ -241,7 +248,7 @@ export const bookingFormStyles = StyleSheet.create({
     color: '#adb5bd',
   },
   reservedIndicator: {
-    fontSize: 10,
+    fontSize: 14,
     color: '#dc3545',
     marginTop: 2,
   },
@@ -277,7 +284,7 @@ export const bookingFormStyles = StyleSheet.create({
     color: '#212529',
   },
   treatmentDetails: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6c757d',
     marginTop: 2,
   },
@@ -335,7 +342,7 @@ export const bookingFormStyles = StyleSheet.create({
     minWidth: '60%',
   },
   treatmentBaseInfo: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6c757d',
     marginTop: 2,
   },
@@ -355,9 +362,10 @@ export const bookingFormStyles = StyleSheet.create({
     marginRight: 8,
   },
   sessionButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    // SPEC-UX-001 REQ-UX-004: 회차 ± 버튼 30x30 → 44x44
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#f8f9fa',
     justifyContent: 'center',
     alignItems: 'center',
@@ -448,7 +456,7 @@ export const bookingFormStyles = StyleSheet.create({
     elevation: 1,
   },
   quickButtonText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: '#495057',
   },
@@ -463,7 +471,7 @@ export const bookingFormStyles = StyleSheet.create({
     alignItems: 'center',
   },
   removeButtonText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#ffffff',
     fontWeight: 'bold',
   },
@@ -495,6 +503,39 @@ export const bookingFormStyles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  // SPEC-UX-001 REQ-UX-007: 인라인 실패 안내 스타일
+  inlineNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  inlineNoticeText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#b91c1c',
+  },
+  inlineRetryButton: {
+    marginLeft: 12,
+    backgroundColor: '#dc2626',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inlineRetryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+
   // 직원 선택 스타일
   staffSelection: {
     gap: 8,
@@ -522,7 +563,7 @@ export const bookingFormStyles = StyleSheet.create({
     color: '#1976d2',
   },
   staffRole: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6c757d',
     marginTop: 2,
   },

@@ -7,7 +7,7 @@ import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import type { Treatment, TreatmentItemCreate, TreatmentUpdate } from '@/src/types';
 import { DatePicker } from '@/src/ui/atoms';
-import { formatKoreanDate } from '@/src/utils/dateUtils';
+import { formatKoreanDate, toLocalDateString } from '@/src/utils/dateUtils';
 import { detectInputType, formatPhoneNumber } from '@/src/utils/phoneFormat';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -50,7 +50,7 @@ export default function EditTreatmentModal({
   const [selectedStaff, setSelectedStaff] = useState<ShopUser | null>(null);
   const [selectedTreatments, setSelectedTreatments] = useState<SelectedTreatmentItem[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(toLocalDateString());
   const [showDatePicker, setShowDatePicker] = useState(false);
   
   // 고객 선택 관련 상태
@@ -108,7 +108,7 @@ export default function EditTreatmentModal({
     
     // 날짜와 시간 설정
     const reservedDate = new Date(treatment.reserved_at);
-    setSelectedDate(reservedDate.toISOString().split('T')[0]);
+    setSelectedDate(toLocalDateString(reservedDate));
     setSelectedTime(reservedDate.toTimeString().slice(0, 5));
     
     // 담당자 설정
@@ -500,7 +500,7 @@ export default function EditTreatmentModal({
                 autoCorrect={false}
                 underlineColorAndroid="transparent"
                 selectionColor="#667eea"
-                placeholderTextColor="#999"
+                placeholderTextColor="#6b7280"
               />
               
               {selectedCustomer && (
@@ -907,6 +907,7 @@ export default function EditTreatmentModal({
               <View style={styles.statusSelection}>
                 {[
                   { key: 'RESERVED', label: '예약됨' },
+                  { key: 'VISITED', label: '방문함' },
                   { key: 'COMPLETED', label: '완료' },
                   { key: 'CANCELLED', label: '취소됨' },
                   { key: 'NO_SHOW', label: '노쇼' }
@@ -1322,7 +1323,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 8,
     alignItems: 'center',
-    minWidth: '22%',
+    minWidth: '30%',
   },
   selectedStatusOption: {
     backgroundColor: '#667eea',

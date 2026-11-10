@@ -1,4 +1,5 @@
 import type { DashboardResponse, DashboardSummaryResponse } from '../../types';
+import { toLocalDateString } from '../../utils/dateUtils';
 import { BaseApiService } from './base';
 
 export interface DashboardParams {
@@ -17,7 +18,7 @@ class DashboardApiService extends BaseApiService {
 
   // 오늘 대시보드 정보 조회
   async getTodaySummary(): Promise<DashboardResponse> {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalDateString();
     return this.getSummary({ target_date: today });
   }
 
@@ -34,7 +35,7 @@ class DashboardApiService extends BaseApiService {
 
   // 오늘 상세 대시보드 정보 조회
   async getTodayDetailedSummary(forceRefresh: boolean = false): Promise<DashboardSummaryResponse> {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalDateString();
     return this.getDetailedSummary({ target_date: today, force_refresh: forceRefresh });
   }
 

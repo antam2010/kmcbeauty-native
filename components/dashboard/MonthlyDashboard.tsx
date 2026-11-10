@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { dashboardApiService } from '../../src/api/services/dashboard';
+import { formatKrwNumber } from '@/src/utils/intlFormat';
 
 interface MonthlyDashboardProps {
   onClose?: () => void;
@@ -260,20 +261,20 @@ export default function MonthlyDashboard({ onClose }: MonthlyDashboardProps) {
             <View style={styles.salesItem}>
               <Text style={styles.salesLabel}>예상 매출</Text>
               <Text style={styles.salesAmount}>
-                {dashboardData.summary.target_date.expected_sales.toLocaleString()}원
+                {formatKrwNumber(dashboardData.summary.target_date.expected_sales)}원
               </Text>
             </View>
             <View style={styles.salesItem}>
               <Text style={styles.salesLabel}>실제 매출</Text>
               <Text style={[styles.salesAmount, styles.actualSales]}>
-                {dashboardData.summary.target_date.actual_sales.toLocaleString()}원
+                {formatKrwNumber(dashboardData.summary.target_date.actual_sales)}원
               </Text>
             </View>
             {dashboardData.summary.target_date.unpaid_total > 0 && (
               <View style={styles.salesItem}>
                 <Text style={styles.salesLabel}>외상 금액</Text>
                 <Text style={[styles.salesAmount, styles.unpaidAmount]}>
-                  {dashboardData.summary.target_date.unpaid_total.toLocaleString()}원
+                  {formatKrwNumber(dashboardData.summary.target_date.unpaid_total)}원
                 </Text>
               </View>
             )}
@@ -293,7 +294,7 @@ export default function MonthlyDashboard({ onClose }: MonthlyDashboardProps) {
             <View style={styles.compareItem}>
               <Text style={styles.compareLabel}>월간 총 매출</Text>
               <Text style={styles.compareValue}>
-                {dashboardData.summary.month.actual_sales.toLocaleString()}원
+                {formatKrwNumber(dashboardData.summary.month.actual_sales)}원
               </Text>
             </View>
           </View>
@@ -311,7 +312,7 @@ export default function MonthlyDashboard({ onClose }: MonthlyDashboardProps) {
                 <View style={styles.treatmentInfo}>
                   <Text style={styles.treatmentName}>{item.name}</Text>
                   <Text style={styles.treatmentStats}>
-                    {item.count}건 • {item.actual_price.toLocaleString()}원
+                    {item.count}건 • {formatKrwNumber(item.actual_price)}원
                   </Text>
                 </View>
               </View>

@@ -1,6 +1,7 @@
 import { BorderRadius, Colors, Shadow, Spacing, Typography } from '@/src/ui/theme';
 import React, { ReactNode } from 'react';
 import {
+    AccessibilityRole,
     ActivityIndicator,
     StyleSheet,
     Text,
@@ -29,6 +30,10 @@ export interface BaseButtonProps {
   // 터치 설정
   activeOpacity?: number;
   hitSlop?: { top: number; bottom: number; left: number; right: number };
+
+  // 접근성 (SPEC-UX-001 REQ-UX-005)
+  accessibilityLabel?: string;
+  accessibilityRole?: AccessibilityRole;
 }
 
 export const BaseButton: React.FC<BaseButtonProps> = ({
@@ -43,6 +48,8 @@ export const BaseButton: React.FC<BaseButtonProps> = ({
   textStyle,
   activeOpacity = 0.7,
   hitSlop,
+  accessibilityLabel,
+  accessibilityRole = 'button',
 }) => {
   const buttonStyle = [
     styles.base,
@@ -84,6 +91,9 @@ export const BaseButton: React.FC<BaseButtonProps> = ({
       disabled={disabled || loading}
       activeOpacity={activeOpacity}
       hitSlop={hitSlop}
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityState={{ disabled: disabled || loading }}
     >
       {renderContent()}
     </TouchableOpacity>

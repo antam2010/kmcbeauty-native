@@ -1,19 +1,7 @@
 import { BaseApiService } from './base';
 
-// 초대 코드 관련 타입 정의
-export interface InviteCode {
-  id: number;
-  code: string;
-  shop_id: number;
-  role: string;
-  expires_at: string;
-  is_used: boolean;
-  created_by: number;
-  created_at: string;
-  updated_at: string;
-}
-
-// 새 API 명세에 맞춘 응답 타입
+// 초대 코드 응답 (정본).
+// 백엔드 정본: app/schemas/shop_invite.py ShopInviteResponse ({shop_id, invite_code, expired_at})
 export interface InviteCodeData {
   invite_code: string;
   shop_id: number;
@@ -21,12 +9,9 @@ export interface InviteCodeData {
 }
 
 export interface InviteCodeCreate {
-  expire_in?: number; // 유효기간 (초 단위), 기본값은 서버에서 설정
-}
-
-export interface InviteCodeResponse {
-  invite_code: InviteCode;
-  invite_url?: string; // 초대 링크 (있다면)
+  // 유효기간(초 단위). 백엔드 create_invite 는 timedelta(seconds=expire_in) 으로 소비한다.
+  // (백엔드 스키마 description 은 "분 단위"라 적혀 있으나 실동작은 초 단위이며 기본값 60*60*24*7 = 7일이다.)
+  expire_in?: number;
 }
 
 // 초대 코드를 통한 회원가입
@@ -52,7 +37,8 @@ export class InviteApiService extends BaseApiService {
   protected readonly basePath = '';
 
   /**
-   * 초대 코드 생성 (관리자/소유자용) - 새 API 명세
+   * 초대 코드 생성 (관리자/소유자용)
+   * 백엔드: POST /shops/{shop_id}/invites -> ShopInviteResponse
    */
   async generateInviteCode(shopId: number, data: InviteCodeCreate): Promise<InviteCodeData> {
     console.log('🔍 API 요청: POST /shops/' + shopId + '/invites', data);
@@ -62,17 +48,8 @@ export class InviteApiService extends BaseApiService {
   }
 
   /**
-   * 초대 코드 생성 (관리자/소유자용) - 기존 호환용
-   */
-  async createInviteCode(shopId: number, data: InviteCodeCreate): Promise<InviteCodeResponse> {
-    console.log('🔍 API 요청: POST /shops/' + shopId + '/invites', data);
-    const response = await this.post<InviteCodeResponse>(`/shops/${shopId}/invites`, data);
-    console.log('✅ 초대 코드 생성 완료:', response.invite_code.code);
-    return response;
-  }
-
-  /**
-   * 상점의 현재 활성 초대 코드 조회 (단일) - 새 API 명세
+   * 상점의 현재 활성 초대 코드 조회 (단일)
+   * 백엔드: GET /shops/{shop_id}/invites -> ShopInviteResponse
    */
   async getCurrentInviteCode(shopId: number): Promise<InviteCodeData | null> {
     try {
@@ -101,41 +78,18 @@ export class InviteApiService extends BaseApiService {
   }
 
   /**
-   * 초대 코드 검증 (회원가입 전 체크)
-   */
-  async validateInviteCode(code: string): Promise<{
-    valid: boolean;
-    shop_name?: string;
-    role?: string;
-    expires_at?: string;
-  }> {
-    console.log('🔍 API 요청: GET /invite-codes/' + code + '/validate');
-    const response = await this.get<{
-      valid: boolean;
-      shop_name?: string;
-      role?: string;
-      expires_at?: string;
-    }>(`/invite-codes/${code}/validate`);
-    console.log('✅ 초대 코드 검증 완료:', response.valid ? '유효' : '무효');
-    return response;
-  }
-
-  /**
    * 초대 코드를 통한 회원가입
+   * 백엔드: POST /users body { name, email, password, invite_code } -> UserResponse
+   * SECURITY-001: 클라이언트는 role 을 공급하지 않는다. 백엔드가 invite_code 로 role 을 서버 측에서 결정한다.
    */
   async signupWithInviteCode(data: InviteSignupRequest): Promise<InviteSignupResponse> {
     console.log('🔍 API 요청: POST /users (초대 코드 회원가입)', {
       ...data,
       password: '***'
     });
-    
-    // role을 MANAGER로 고정하여 요청 데이터 구성
-    const requestData = {
-      ...data,
-      role: 'MANAGER' as const
-    };
-    
-    const response = await this.post<InviteSignupResponse>('/users', requestData);
+
+    // 백엔드가 invite_code 로 role 을 파생하므로 요청 본문은 InviteSignupRequest 그대로 전송한다.
+    const response = await this.post<InviteSignupResponse>('/users', data);
     console.log('✅ 초대 코드 회원가입 완료:', response.name);
     return response;
   }

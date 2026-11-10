@@ -1,6 +1,7 @@
 import { useShopStore } from '@/src/stores/shopStore';
 import { router } from 'expo-router';
 import { useCallback, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import {
   Alert,
   Platform,
@@ -15,7 +16,14 @@ interface ShopHeaderProps {
 }
 
 export default function ShopHeader({ title }: ShopHeaderProps) {
-  const { selectedShop, loading, loadSelectedShop } = useShopStore();
+  // REQ-PERF-003-08: 다중 필드 셀렉터 구독은 useShallow 로 안정화(무한 리렌더 방지).
+  const { selectedShop, loading, loadSelectedShop } = useShopStore(
+    useShallow((s) => ({
+      selectedShop: s.selectedShop,
+      loading: s.loading,
+      loadSelectedShop: s.loadSelectedShop,
+    })),
+  );
 
   useEffect(() => {
     // 컴포넌트 마운트 시 한 번만 로드
@@ -90,6 +98,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+    minHeight: 44, // SPEC-UX-001 REQ-UX-004: 유효 터치 영역 44pt 확보
   },
   shopButtonText: {
     fontSize: 14,

@@ -81,8 +81,8 @@ export default function InviteSignupForm({
       return false;
     }
 
-    if (password.length < 4) {
-      Alert.alert('알림', '비밀번호는 4자 이상이어야 합니다.');
+    if (password.length < 8) {
+      Alert.alert('알림', '비밀번호는 8자 이상이어야 합니다.');
       return false;
     }
 
@@ -119,7 +119,7 @@ export default function InviteSignupForm({
         phone: phone.trim()
       });
     } catch (error: any) {
-      console.error('회원가입 에러:', error);
+      console.error('회원가입 에러:', error.message, error.response?.status);
       Alert.alert(
         '회원가입 실패',
         error.message || '회원가입 중 오류가 발생했습니다.',
@@ -205,7 +205,7 @@ export default function InviteSignupForm({
                   style={[styles.textInput, styles.passwordInput]}
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="비밀번호를 입력하세요 (4자 이상)"
+                  placeholder="비밀번호를 입력하세요 (8자 이상)"
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}

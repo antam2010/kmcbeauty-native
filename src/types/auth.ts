@@ -18,11 +18,12 @@ export interface LoginCredentials {
   password: string;
 }
 
+// 백엔드 정본: app/schemas/auth.py LoginResponse ({access_token, refresh_token, token_type})
+// login/refresh 응답은 user 를 반환하지 않는다. 사용자 정보는 별도 GET /users/me 로 취득한다.
 export interface LoginResponse {
   access_token: string;
   refresh_token: string;
   token_type: string;
-  user: User; // 사용자 정보 추가
 }
 
 export interface AuthState {

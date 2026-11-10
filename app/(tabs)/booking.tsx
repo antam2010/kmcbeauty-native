@@ -5,9 +5,11 @@ import EditTreatmentModal from "@/components/modals/EditTreatmentModal";
 import UnifiedTreatmentModal from "@/components/modals/UnifiedTreatmentModal";
 import ShopHeader from '@/components/navigation/ShopHeader';
 import { useDashboard } from "@/contexts/DashboardContext";
+import { queryKeyPrefix } from "@/src/api/queryKeys";
 import { Treatment } from "@/src/types";
+import { useQueryClient } from "@tanstack/react-query";
 import { BorderRadius, Colors, Shadow, Spacing, Typography } from "@/src/ui/theme";
-import { formatKoreanDate, formatTodayKorean } from "@/src/utils/dateUtils";
+import { formatKoreanDate, formatTodayKorean, toLocalDateString } from "@/src/utils/dateUtils";
 import { useCallback, useRef, useState } from "react";
 import {
   Animated,
@@ -37,6 +39,7 @@ export default function BookingScreen() {
   const insets = useSafeAreaInsets();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const { triggerRefresh } = useDashboard();
+  const queryClient = useQueryClient();
 
   const handleDateSelect = useCallback(async (dateString: string) => {
     // 이미 모달이 열려있거나 닫히는 중이면 무시
@@ -86,7 +89,7 @@ export default function BookingScreen() {
       return;
     }
 
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const targetDate = date || toLocalDateString();
     setSelectedDate(targetDate);
     setReservedTimes([]); // 빈 배열로 초기화
     setTimeout(() => {
@@ -153,12 +156,17 @@ export default function BookingScreen() {
     // 수정 모달 닫기
     setShowEditModal(false);
     setTreatmentToEdit(null);
-    
-    // 대시보드와 달력 새로고침
+
+    // SPEC-DATA-001 REQ-DATA-001-05: 시술 수정/삭제 성공 후 관련 query 무효화.
+    // EditTreatmentModal 를 직접 건드리지 않고(기준선 tsc 오류 2건 보존) 호출 화면의 onSuccess 에서 무효화한다.
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.treatments });
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.dashboard });
+
+    // 대시보드와 달력 새로고침(기존 트리거 경로 유지)
     triggerRefresh();
     setCalendarRefreshTrigger(prev => prev + 1);
-    
-  }, [triggerRefresh]);
+
+  }, [triggerRefresh, queryClient]);
 
   const handleCloseTreatmentModal = useCallback(() => {
     setShowTreatmentModal(false);
@@ -256,7 +264,7 @@ export default function BookingScreen() {
               
               <TouchableOpacity 
                 style={styles.quickButton}
-                onPress={() => handleNewBookingRequest(new Date().toISOString().split('T')[0])}
+                onPress={() => handleNewBookingRequest(toLocalDateString())}
                 activeOpacity={0.8}
               >
                 <View style={[styles.quickButtonIcon, { backgroundColor: Colors.success + '20' }]}>
@@ -270,7 +278,7 @@ export default function BookingScreen() {
                 onPress={() => {
                   const tomorrow = new Date();
                   tomorrow.setDate(tomorrow.getDate() + 1);
-                  handleNewBookingRequest(tomorrow.toISOString().split('T')[0]);
+                  handleNewBookingRequest(toLocalDateString(tomorrow));
                 }}
                 activeOpacity={0.8}
               >
@@ -381,7 +389,7 @@ export default function BookingScreen() {
         onNewBooking={() => {
           handleCloseTreatmentModal();
           setTimeout(() => {
-            const targetDate = treatmentsDate || new Date().toISOString().split('T')[0];
+            const targetDate = treatmentsDate || toLocalDateString();
             handleNewBookingRequest(targetDate);
           }, 300);
         }}
