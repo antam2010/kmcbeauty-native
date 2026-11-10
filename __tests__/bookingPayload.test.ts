@@ -56,11 +56,27 @@ describe('buildTreatmentPayload (REQ-BOOKING-001-01)', () => {
   it('기존 필수 필드(phonebook_id·reserved_at·status·treatment_items)를 보존한다', () => {
     const payload = buildTreatmentPayload(makeState({ paymentMethod: 'CARD' }));
     expect(payload.phonebook_id).toBe(42);
-    expect(payload.reserved_at).toBe('2026-07-07T14:00:00');
+    // 2026-07-07 14:00 KST → UTC 05:00 (아래 reserved_at 계약 참고)
+    expect(payload.reserved_at).toBe('2026-07-07T05:00:00.000Z');
     expect(payload.status).toBe('RESERVED');
     expect(payload.treatment_items).toEqual([
       { menu_detail_id: 11, session_no: 1, base_price: 30000, duration_min: 60 },
     ]);
     expect(payload.payment_method).toBe('CARD');
+  });
+});
+
+// D1: 예약 생성 시각은 사용자가 고른 기기 로컬 시각(테스트는 jest.config.js 의 Asia/Seoul)을
+// UTC ISO 8601(Z)로 보낸다. 백엔드는 오프셋 없는 일시를 UTC wall-clock 으로 저장하므로
+// '2026-07-07T14:00:00' 을 보내면 14:00Z 로 저장되어 앱에 23:00 으로 표시됐다(9시간 밀림).
+// 예약 수정(EditTreatmentModal: toISOString())과 같은 규약이다.
+describe('buildTreatmentPayload reserved_at: 로컬(KST) 시각 → UTC ISO 8601(Z)', () => {
+  it.each([
+    ['KST 오후 14:00 → 같은 날 05:00Z', '2026-07-07', '14:00', '2026-07-07T05:00:00.000Z'],
+    ['KST 08:30 → UTC 날짜 경계를 넘어 전날 23:30Z', '2026-07-07', '08:30', '2026-07-06T23:30:00.000Z'],
+    ['KST 자정 00:00 → 전날 15:00Z', '2026-07-07', '00:00', '2026-07-06T15:00:00.000Z'],
+  ])('%s', (_label, currentDate, selectedTime, expected) => {
+    const payload = buildTreatmentPayload(makeState({ currentDate, selectedTime }));
+    expect(payload.reserved_at).toBe(expected);
   });
 });

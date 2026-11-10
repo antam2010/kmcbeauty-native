@@ -80,3 +80,35 @@ export const toLocalDateString = (date: Date = new Date()): string => {
 
   return `${year}-${month}-${day}`;
 };
+
+const LOCAL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const LOCAL_TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+// @MX:NOTE: [AUTO] API 로 보내는 일시(reserved_at)의 UTC 규약. 백엔드는 오프셋 없는 일시를 UTC wall-clock 으로
+//   저장하고 응답에 UTC 를 붙인다. 그래서 '2026-07-07T14:00:00' 을 그대로 보내면 14:00Z 로 저장되어 23:00 KST 로
+//   보인다(9시간 밀림). 고른 로컬 시각을 그 순간의 UTC(Z)로 바꿔 보낸다 — 예약 수정의 toISOString() 과 같은 규약.
+/**
+ * 기기 로컬 날짜('YYYY-MM-DD')와 시각('HH:mm', 24시간)을 그 순간의 UTC ISO 8601 문자열로 변환
+ *
+ * 오프셋 없는 일시 문자열을 로컬로 읽을지 UTC 로 읽을지는 JS 엔진과 사양 판에 따라 달라 왔으므로
+ * 문자열을 파싱하지 않고 숫자 구성요소로 로컬 Date 를 만든다.
+ * @param localDate 'YYYY-MM-DD' 형식의 로컬 날짜
+ * @param localTime 'HH:mm' 형식의 로컬 시각 (00:00~23:59)
+ * @returns "2026-07-07T05:00:00.000Z" 형식의 문자열 (Asia/Seoul 에서 '2026-07-07', '14:00' 인 경우)
+ * @throws RangeError 비었거나 형식이 다르거나 달력에 없는 날짜·시각(2월 30일, 24:00 등)
+ */
+export const localDateTimeToUtcIso = (localDate: string, localTime: string): string => {
+  const dateMatch = LOCAL_DATE_PATTERN.exec(localDate);
+  const timeMatch = LOCAL_TIME_PATTERN.exec(localTime);
+
+  if (dateMatch && timeMatch) {
+    const [year, month, day] = dateMatch.slice(1).map(Number);
+    const date = new Date(year, month - 1, day, Number(timeMatch[1]), Number(timeMatch[2]));
+    // Date 는 없는 날짜를 다음 달로 넘긴다(2월 30일 → 3월 2일). 고른 날짜와 다르면 보내지 않는다.
+    if (date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day) {
+      return date.toISOString();
+    }
+  }
+
+  throw new RangeError(`Invalid local date/time: "${localDate}" "${localTime}"`);
+};
