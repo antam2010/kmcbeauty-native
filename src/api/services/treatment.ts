@@ -1,4 +1,5 @@
 import type { Treatment, TreatmentCreate, TreatmentListParams, TreatmentResponse, TreatmentSimpleResponse, TreatmentUpdate } from '../../types';
+import { toLocalDateString } from '../../utils/dateUtils';
 import { BaseApiService } from './base';
 
 // SPEC-DATA-001 REQ-DATA-001-07 (F-14): 월간/주간 동시 페이지네이션 팬아웃 상한.
@@ -39,7 +40,7 @@ class TreatmentApiService extends BaseApiService {
   // @MX:NOTE: [AUTO] 순차 페이지 루프 제거(REQ-PERF-002). 첫 페이지로 총 페이지 수를 파악한 뒤 2..N 을 Promise.all 로 동시 수집한다. 각 페이지는 reserved_at asc 로 정렬되고 페이지 순서가 보존되므로 전체 정렬은 기존 순차 방식과 동일.
   async getMonthlyTreatments(year: number, month: number): Promise<Treatment[]> {
     const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
-    const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+    const endDate = toLocalDateString(new Date(year, month, 0));
 
     const pageSize = 50;
     const listParams = {
@@ -103,15 +104,17 @@ class TreatmentApiService extends BaseApiService {
     
     // 해당 주의 월요일 구하기
     const dayOfWeek = targetDate.getDay();
+    // 주는 월~일이고 일요일은 그 주의 마지막 날이다(월=0 … 일=6). 일요일에 다음 주 월요일을 잡지 않는다.
+    const daysSinceMonday = (dayOfWeek + 6) % 7;
     const startOfWeek = new Date(targetDate);
-    startOfWeek.setDate(targetDate.getDate() - dayOfWeek + 1); // 월요일
+    startOfWeek.setDate(targetDate.getDate() - daysSinceMonday); // 월요일
     
     // 해당 주의 일요일 구하기
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6); // 일요일
     
-    const startDate = startOfWeek.toISOString().split('T')[0];
-    const endDate = endOfWeek.toISOString().split('T')[0];
+    const startDate = toLocalDateString(startOfWeek);
+    const endDate = toLocalDateString(endOfWeek);
 
     const pageSize = 50;
     const listParams = {

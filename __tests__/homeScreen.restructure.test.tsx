@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import React from 'react';
 import { Alert, StyleSheet } from 'react-native';
+import { toLocalDateString } from '@/src/utils/dateUtils';
 import { makeQueryWrapper } from './utils/queryTestUtils';
 
 const mockGetTodayDetailedSummary = jest.fn();
@@ -54,7 +55,8 @@ jest.mock('@/components/dashboard/MonthlyDashboard', () => {
 
 import HomeScreen from '@/app/(tabs)/index';
 
-const TODAY = new Date().toISOString().split('T')[0];
+// 홈의 "오늘" 필터와 같은 기준(기기 로컬 날짜). UTC 날짜를 쓰면 00:00~08:59 KST 에 어제가 된다.
+const TODAY = toLocalDateString();
 
 const SUMMARY = {
   summary: {
@@ -95,7 +97,7 @@ function makeTreatment(id: number, timeHHmm: string, name: string): any {
 }
 
 // 오늘 2건(정렬 확인용, 입력은 역순) + 어제 1건(오늘 필터 제외 확인).
-const YESTERDAY = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+const YESTERDAY = toLocalDateString(new Date(Date.now() - 86400000));
 const WEEKLY = [
   makeTreatment(2, '14:30', '이영희'),
   makeTreatment(1, '09:00', '김철수'),

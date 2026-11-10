@@ -7,6 +7,7 @@ import {
   generateCalendarDates,
   type CalendarDate,
 } from '@/src/utils/calendarUtils';
+import { toLocalDateString } from '@/src/utils/dateUtils';
 import { formatKoreanMonthDayWeekday, formatKoreanYearMonth } from '@/src/utils/intlFormat';
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -149,7 +150,7 @@ export const ImprovedCalendar: React.FC<ImprovedCalendarProps> = ({
       // 예약이 있는 날짜인 경우 예약 리스트 표시
       if (dateData.hasBookings && dateData.bookingCount > 0) {
         const dateTreatments = treatments.filter(treatment => {
-          const treatmentDate = treatment.reserved_at.split('T')[0];
+          const treatmentDate = toLocalDateString(new Date(treatment.reserved_at));
           return treatmentDate === dateData.date;
         });
 

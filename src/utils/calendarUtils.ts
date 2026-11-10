@@ -2,6 +2,7 @@
 // 매 렌더마다 O(days×treatments) 필터를 재실행하던 로직을 날짜→건수 Map 조회로 대체하고,
 // 42셀 배열 생성을 메모이제이션 가능한 순수 함수로 추출한다.
 import type { Treatment } from '@/src/types';
+import { toLocalDateString } from '@/src/utils/dateUtils';
 
 export interface CalendarDate {
   date: string;
@@ -17,7 +18,7 @@ export interface CalendarDate {
 export function buildBookingCountMap(treatments: Treatment[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const treatment of treatments) {
-    const dateString = treatment.reserved_at.split('T')[0];
+    const dateString = toLocalDateString(new Date(treatment.reserved_at));
     map.set(dateString, (map.get(dateString) ?? 0) + 1);
   }
   return map;
@@ -37,16 +38,16 @@ export function generateCalendarDates(
   const startWeekday = firstDay.getDay();
 
   const dates: CalendarDate[] = [];
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateString();
 
   // 이전 달 날짜들
   for (let i = startWeekday - 1; i >= 0; i--) {
     const date = new Date(year, month, -i);
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = toLocalDateString(date);
     dates.push({
       date: dateString,
-      // 기존 렌더의 new Date(dateData.date).getDate() 와 동일한 값을 생성 시점에 1회 계산.
-      dayOfMonth: new Date(dateString).getDate(),
+      // 셀 자신의 로컬 Date 에서 일(day)을 구한다. 'YYYY-MM-DD' 를 new Date() 로 다시 파싱하면 UTC 자정으로 해석된다.
+      dayOfMonth: date.getDate(),
       isToday: false,
       isSelected: false,
       hasBookings: false,
@@ -58,12 +59,12 @@ export function generateCalendarDates(
   // 현재 달 날짜들
   for (let day = 1; day <= lastDay.getDate(); day++) {
     const date = new Date(year, month, day);
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = toLocalDateString(date);
     const bookingCount = countMap.get(dateString) ?? 0;
 
     dates.push({
       date: dateString,
-      dayOfMonth: new Date(dateString).getDate(),
+      dayOfMonth: date.getDate(),
       isToday: dateString === today,
       isSelected: dateString === selectedDate,
       hasBookings: bookingCount > 0,
@@ -76,10 +77,10 @@ export function generateCalendarDates(
   const remainingCells = 42 - dates.length; // 6주 × 7일
   for (let day = 1; day <= remainingCells; day++) {
     const date = new Date(year, month + 1, day);
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = toLocalDateString(date);
     dates.push({
       date: dateString,
-      dayOfMonth: new Date(dateString).getDate(),
+      dayOfMonth: date.getDate(),
       isToday: false,
       isSelected: false,
       hasBookings: false,

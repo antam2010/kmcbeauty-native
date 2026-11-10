@@ -19,7 +19,7 @@ import {
   persistLastStaff,
   resolveRestoredStaff,
 } from '@/src/utils/bookingPayload';
-import { formatKoreanDate } from '@/src/utils/dateUtils';
+import { formatKoreanDate, toLocalDateString } from '@/src/utils/dateUtils';
 import { findFirstAvailableSlotAfter } from '@/src/utils/bookingFormat';
 import { detectInputType, extractNameAndPhone, formatPhoneNumber } from '@/src/utils/phoneFormat';
 import * as Haptics from 'expo-haptics';
@@ -59,7 +59,7 @@ export default function BookingForm({
   onDateChange
 }: BookingFormProps) {
   // 상태 관리
-  const [currentDate, setCurrentDate] = useState(selectedDate || new Date().toISOString().split('T')[0]);
+  const [currentDate, setCurrentDate] = useState(selectedDate || toLocalDateString());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Phonebook | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -513,7 +513,7 @@ export default function BookingForm({
 
   // SPEC-BOOKING-001 REQ-06(F-11b): 오늘 날짜일 때 현재 시각 이후 첫 가용 슬롯을 시각적으로 강조.
   // selectedTime 은 설정하지 않는다(선택 강제 금지) — 하이라이트/유도만 제공한다.
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toLocalDateString();
   const highlightedSlot =
     currentDate === todayStr
       ? findFirstAvailableSlotAfter(new Date(), timeSlots, reservedTimes)

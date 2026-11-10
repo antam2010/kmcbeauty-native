@@ -7,7 +7,7 @@ import { treatmentApiService } from '@/src/api/services/treatment';
 import { treatmentMenuApiService, type TreatmentMenu, type TreatmentMenuDetail } from '@/src/api/services/treatmentMenu';
 import type { Treatment, TreatmentItemCreate, TreatmentUpdate } from '@/src/types';
 import { DatePicker } from '@/src/ui/atoms';
-import { formatKoreanDate } from '@/src/utils/dateUtils';
+import { formatKoreanDate, toLocalDateString } from '@/src/utils/dateUtils';
 import { detectInputType, formatPhoneNumber } from '@/src/utils/phoneFormat';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -50,7 +50,7 @@ export default function EditTreatmentModal({
   const [selectedStaff, setSelectedStaff] = useState<ShopUser | null>(null);
   const [selectedTreatments, setSelectedTreatments] = useState<SelectedTreatmentItem[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(toLocalDateString());
   const [showDatePicker, setShowDatePicker] = useState(false);
   
   // 고객 선택 관련 상태
@@ -108,7 +108,7 @@ export default function EditTreatmentModal({
     
     // 날짜와 시간 설정
     const reservedDate = new Date(treatment.reserved_at);
-    setSelectedDate(reservedDate.toISOString().split('T')[0]);
+    setSelectedDate(toLocalDateString(reservedDate));
     setSelectedTime(reservedDate.toTimeString().slice(0, 5));
     
     // 담당자 설정

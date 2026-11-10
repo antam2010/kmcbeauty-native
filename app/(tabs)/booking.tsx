@@ -9,7 +9,7 @@ import { queryKeyPrefix } from "@/src/api/queryKeys";
 import { Treatment } from "@/src/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { BorderRadius, Colors, Shadow, Spacing, Typography } from "@/src/ui/theme";
-import { formatKoreanDate, formatTodayKorean } from "@/src/utils/dateUtils";
+import { formatKoreanDate, formatTodayKorean, toLocalDateString } from "@/src/utils/dateUtils";
 import { useCallback, useRef, useState } from "react";
 import {
   Animated,
@@ -89,7 +89,7 @@ export default function BookingScreen() {
       return;
     }
 
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const targetDate = date || toLocalDateString();
     setSelectedDate(targetDate);
     setReservedTimes([]); // 빈 배열로 초기화
     setTimeout(() => {
@@ -264,7 +264,7 @@ export default function BookingScreen() {
               
               <TouchableOpacity 
                 style={styles.quickButton}
-                onPress={() => handleNewBookingRequest(new Date().toISOString().split('T')[0])}
+                onPress={() => handleNewBookingRequest(toLocalDateString())}
                 activeOpacity={0.8}
               >
                 <View style={[styles.quickButtonIcon, { backgroundColor: Colors.success + '20' }]}>
@@ -278,7 +278,7 @@ export default function BookingScreen() {
                 onPress={() => {
                   const tomorrow = new Date();
                   tomorrow.setDate(tomorrow.getDate() + 1);
-                  handleNewBookingRequest(tomorrow.toISOString().split('T')[0]);
+                  handleNewBookingRequest(toLocalDateString(tomorrow));
                 }}
                 activeOpacity={0.8}
               >
@@ -389,7 +389,7 @@ export default function BookingScreen() {
         onNewBooking={() => {
           handleCloseTreatmentModal();
           setTimeout(() => {
-            const targetDate = treatmentsDate || new Date().toISOString().split('T')[0];
+            const targetDate = treatmentsDate || toLocalDateString();
             handleNewBookingRequest(targetDate);
           }, 300);
         }}

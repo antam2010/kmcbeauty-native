@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 // SPEC-DATA-001 REQ-DATA-001-08 (F-15): 스토어 동적 import 를 최초 1회 후 캐시(반복 import 오버헤드 제거).
 //   순환 참조 회피(최초 호출 전까지 스토어 미평가)는 storeLoaders 의 lazy import 로 유지된다.
 import { loadAuthStore, loadShopStore } from './storeLoaders';
+import { toLocalDateString } from '../utils/dateUtils';
 
 // 타입 정의
 interface AuthTokenResponse {
@@ -529,7 +530,7 @@ export const authDebugUtils = {
       console.log('📊 대시보드 API 테스트 시작');
       const response = await apiClient.get('/summary/dashboard', {
         params: {
-          target_date: new Date().toISOString().split('T')[0],
+          target_date: toLocalDateString(),
           force_refresh: false
         }
       });

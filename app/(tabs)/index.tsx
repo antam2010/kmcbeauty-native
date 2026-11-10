@@ -4,6 +4,7 @@ import ShopHeader from '@/components/navigation/ShopHeader';
 import { useDashboardLoad } from '@/hooks/useDashboardLoad';
 import type { Treatment } from '@/src/types';
 import { Colors } from '@/src/ui/theme';
+import { toLocalDateString } from '@/src/utils/dateUtils';
 import { formatKoreanFullDate, formatKrwNumber, formatTimeHm } from '@/src/utils/intlFormat';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -50,13 +51,13 @@ export default function HomeScreen() {
   const headerDateText = useMemo(() => formatKoreanFullDate(new Date()), []);
 
   // 오늘 날짜 문자열(마운트 시 1회 고정) — 주간 시술을 오늘로 필터하는 기준.
-  const todayString = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayString = useMemo(() => toLocalDateString(), []);
 
   // REQ-HOME-001-02: "오늘의 예약 리스트" = 기존 weeklyTreatments 를 오늘로 필터·시간(reserved_at) 오름차순 정렬.
   //   신규 API/추가 서비스 호출 없이 캐싱된 주간 데이터에서 파생한다(AC-03).
   const todayTreatments = useMemo(() => {
     return weeklyTreatments
-      .filter((t) => t.reserved_at.split('T')[0] === todayString)
+      .filter((t) => toLocalDateString(new Date(t.reserved_at)) === todayString)
       .sort((a, b) => a.reserved_at.localeCompare(b.reserved_at));
   }, [weeklyTreatments, todayString]);
 

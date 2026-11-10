@@ -12,6 +12,7 @@ import { dashboardApiService } from '@/src/api/services/dashboard';
 import { treatmentApiService } from '@/src/api/services/treatment';
 import { useShopStore } from '@/src/stores/shopStore';
 import type { Treatment } from '@/src/types';
+import { toLocalDateString } from '@/src/utils/dateUtils';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
@@ -32,8 +33,10 @@ const isAuthError = (error: any): boolean =>
 function currentWeekKey(): string {
   const today = new Date();
   const monday = new Date(today);
-  monday.setDate(today.getDate() - today.getDay() + 1);
-  return monday.toISOString().split('T')[0];
+  // 주는 월~일이고 일요일은 그 주의 마지막 날이다(월=0 … 일=6). 서비스의 주간 계산과 같은 규칙이다.
+  const daysSinceMonday = (today.getDay() + 6) % 7;
+  monday.setDate(today.getDate() - daysSinceMonday);
+  return toLocalDateString(monday);
 }
 
 export function useDashboardLoad() {
@@ -44,7 +47,7 @@ export function useDashboardLoad() {
   const { refreshTrigger } = useDashboard();
 
   // 캐시 식별 키(마운트 시점 고정). '오늘'/주간 범위는 세션 내 안정적이면 충분하다.
-  const [todayDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [todayDate] = useState(() => toLocalDateString());
   const [weekRange] = useState(() => currentWeekKey());
 
   // pull-to-refresh 시 오늘 요약을 force_refresh 로 1회 조회하기 위한 플래그.
