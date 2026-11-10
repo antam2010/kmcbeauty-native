@@ -3,7 +3,7 @@
 // 같은 로컬 자정 Date 는 항상) 하루 전 날짜가 된다. 시간대는 jest.config.js 가 Asia/Seoul 로 고정한다.
 import type { Treatment } from '@/src/types';
 import { buildBookingCountMap, generateCalendarDates } from '@/src/utils/calendarUtils';
-import { toLocalDateString } from '@/src/utils/dateUtils';
+import { localDateTimeToUtcIso, toLocalDateString } from '@/src/utils/dateUtils';
 
 // 2026-11-10(화) 07:30 KST — UTC 로는 아직 2026-11-09 22:30.
 const KST_2026_11_10_0730 = new Date('2026-11-09T22:30:00Z');
@@ -44,6 +44,44 @@ describe('toLocalDateString: 기기 로컬(KST) 기준 YYYY-MM-DD', () => {
   it('인자를 생략하면 현재 시각의 로컬 날짜를 돌려준다', () => {
     jest.useFakeTimers({ now: KST_2026_11_10_0730 });
     expect(toLocalDateString()).toBe('2026-11-10');
+  });
+});
+
+// D1: 예약 생성이 오프셋 없는 로컬 일시를 보내 백엔드(UTC wall-clock 저장)에서 9시간 밀리던 버그의 회귀 방지.
+describe('localDateTimeToUtcIso: 기기 로컬(KST) 날짜·시각 → UTC ISO 8601(Z)', () => {
+  it.each([
+    ['2026-07-07', '14:00', '2026-07-07T05:00:00.000Z'], // 오후
+    ['2026-07-07', '08:30', '2026-07-06T23:30:00.000Z'], // UTC 날짜 경계(전날)
+    ['2026-07-07', '09:00', '2026-07-07T00:00:00.000Z'], // UTC 자정
+    ['2026-07-07', '00:00', '2026-07-06T15:00:00.000Z'], // 로컬 자정
+    ['2026-07-07', '23:59', '2026-07-07T14:59:00.000Z'], // 로컬 하루의 끝
+    ['2027-01-01', '00:00', '2026-12-31T15:00:00.000Z'], // 연 경계
+    ['2028-02-29', '10:00', '2028-02-29T01:00:00.000Z'], // 윤일
+  ])('로컬 %s %s → %s', (localDate, localTime, expected) => {
+    expect(localDateTimeToUtcIso(localDate, localTime)).toBe(expected);
+  });
+
+  it('결과를 다시 Date 로 읽으면 고른 로컬 날짜·시각(2026-07-07 14:00)이 된다', () => {
+    const back = new Date(localDateTimeToUtcIso('2026-07-07', '14:00'));
+    expect([back.getFullYear(), back.getMonth() + 1, back.getDate(), back.getHours(), back.getMinutes()])
+      .toEqual([2026, 7, 7, 14, 0]);
+  });
+
+  // 입력 계약: 날짜 'YYYY-MM-DD', 시각 'HH:mm'(24시간). 비었거나 형식이 다르거나 달력에 없는 값이면
+  // RangeError 를 던진다 — Date 롤오버(2월 30일 → 3월 2일)나 'Invalid Date' 로 다른 시각을 보내지 않는다.
+  it.each([
+    ['빈 날짜', '', '14:00'],
+    ['빈 시각', '2026-07-07', ''],
+    ['구분자가 다른 날짜', '2026/07/07', '14:00'],
+    ['자릿수가 모자란 시각', '2026-07-07', '9:00'],
+    ['초까지 붙은 시각', '2026-07-07', '14:00:00'],
+    ['달력에 없는 날짜(2월 30일)', '2026-02-30', '14:00'],
+    ['윤년이 아닌 해의 2월 29일', '2026-02-29', '14:00'],
+    ['없는 월(13월)', '2026-13-01', '14:00'],
+    ['범위 밖 시(24:00)', '2026-07-07', '24:00'],
+    ['범위 밖 분(14:60)', '2026-07-07', '14:60'],
+  ])('%s → RangeError', (_label, localDate, localTime) => {
+    expect(() => localDateTimeToUtcIso(localDate, localTime)).toThrow(RangeError);
   });
 });
 

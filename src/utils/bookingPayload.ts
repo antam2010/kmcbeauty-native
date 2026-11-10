@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SelectedTreatmentItem } from '@/components/forms/SelectedTreatmentItem';
 import type { ShopUser } from '@/src/api/services/shop';
 import type { TreatmentCreate, TreatmentItemCreate } from '@/src/types';
+import { localDateTimeToUtcIso } from '@/src/utils/dateUtils';
 
 // SPEC-BOOKING-001 REQ-BOOKING-001-05 (F-11a): 최근 사용 직원 저장 키.
 export const LAST_STAFF_USER_ID_KEY = '@booking/last_staff_user_id';
@@ -62,7 +63,8 @@ export function buildTreatmentPayload(state: BookingPayloadState): TreatmentCrea
 
   const payload: TreatmentCreate = {
     phonebook_id: state.phonebookId,
-    reserved_at: `${state.currentDate}T${state.selectedTime}:00`,
+    // D1 수정: 고른 로컬 시각을 UTC(Z)로 보낸다. 오프셋 없이 보내면 백엔드가 UTC 로 저장해 9시간 밀렸다.
+    reserved_at: localDateTimeToUtcIso(state.currentDate, state.selectedTime),
     memo: state.memo.trim() || undefined,
     status: 'RESERVED',
     treatment_items: treatmentItems,
